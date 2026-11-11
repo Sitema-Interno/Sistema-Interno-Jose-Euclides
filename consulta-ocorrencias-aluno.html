@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta de Ocorrências do Aluno (RAC) - EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
+    .navbar-custom { background-color: rgba(255, 255, 255, 0.96); padding: 15px 20px; border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.45rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    .main-container { padding: 25px 15px 40px 15px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); margin-bottom: 24px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(5px); }
+    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .form-label { font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 4px; }
+    .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 9px 12px; font-size: 0.9rem; }
+    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15); }
+    .btn-tema { background-color: #0f766e; color: white; border: none; font-weight: 600; border-radius: 8px; padding: 9px 18px; }
+    .btn-tema:hover { background-color: #0d645e; color: white; }
+
+    /* Perfil e Resumo do Aluno */
+    .moldura-3x4-aluno {
+      width: 90px; height: 120px; border-radius: 8px; border: 2px solid #0f766e;
+      background-color: #f8fafc; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .moldura-3x4-aluno img { width: 100%; height: 100%; object-fit: cover; }
+
+    .kpi-mini {
+      border-radius: 10px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; text-align: center; height: 100%;
+    }
+    .kpi-mini .valor { font-size: 1.5rem; font-weight: 800; line-height: 1.1; margin-top: 4px; }
+    .kpi-mini.total { background: #f0fdf4; border-color: #bbf7d0; color: #0f766e; }
+    .kpi-mini.leve { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+    .kpi-mini.media { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+    .kpi-mini.grave { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+
+    .table th { background-color: #0f766e; color: #ffffff; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; border: none; }
+    .table td { vertical-align: middle; font-size: 0.88rem; }
+    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0, 0, 0, 0.05); background: rgba(255, 255, 255, 0.8); }
+  </style>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
+
+  <!-- CABEÇALHO (SEM BOTÃO VOLTAR) -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1200 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Consulta de Ocorrências Disciplinares (RAC)
+          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR Portela — Portal de Consulta do Aluno</div>
+        </div>
+      </span>
+      <div>
+        <span class="badge bg-teal-subtle text-success border border-success-subtle px-3 py-2" style="background-color:#ccfbf1; color:#0f766e !important;">
+          <i class="bi bi-search me-1"></i>Portal do Aluno
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    <!-- CARD DE PESQUISA -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0 text-dark">
+            <i class="bi bi-funnel-fill text-success me-2"></i>Pesquisar Registros de Ocorrência do Aluno
+          </h5>
+          <small class="text-muted">Selecione a sua Turma, o seu Nome Completo e, se desejar, filtre pelo período de datas para verificar seus registros no RAC.</small>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limparFiltrosConsulta()">
+          <i class="bi bi-eraser me-1"></i>Limpar Pesquisa
+        </button>
+      </div>
+
+      <form id="formConsultaAluno" onsubmit="event.preventDefault(); consultarOcorrenciasAluno();">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label">1. Série / Turma</label>
+            <select id="selectSerie" class="form-select" required onchange="aoSelecionarSerie()">
+              <option value="">Carregando turmas...</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-4">
+            <label class="form-label">2. Nome do(a) Aluno(a)</label>
+            <input type="text" id="inputAluno" class="form-control text-uppercase" list="datalistAlunosTurma" required placeholder="Selecione primeiro a turma..." disabled oninput="aoDigitarAluno()">
+            <datalist id="datalistAlunosTurma"></datalist>
+          </div>
+
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">Período Inicial (De)</label>
+            <input type="date" id="dataInicio" class="form-control">
+          </div>
+
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">Período Final (Até)</label>
+            <input type="date" id="dataFim" class="form-control">
+          </div>
+
+          <div class="col-12 col-sm-4 col-md-1 d-grid">
+            <button type="submit" id="btnPesquisar" class="btn btn-tema" title="Pesquisar Ocorrências">
+              <i class="bi bi-search"></i>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- ÁREA DE RESULTADOS (OCULTA ATÉ PESQUISAR) -->
+    <div id="areaResultadoConsulta" style="display: none;">
+
+      <!-- CARD DE PERFIL DO ALUNO E CONTADORES -->
+      <div class="card p-4">
+        <div class="row g-3 align-items-center">
+          <div class="col-12 col-lg-5 d-flex align-items-center gap-3">
+            <div class="moldura-3x4-aluno">
+              <img id="imgFotoAluno" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Foto 3x4">
+            </div>
+            <div>
+              <span class="badge bg-teal text-white mb-1" style="background-color:#0f766e;" id="lblSerieResultado">SÉRIE</span>
+              <h5 class="fw-bold text-dark mb-1" id="lblNomeResultado">NOME DO ALUNO</h5>
+              <div class="small text-muted">
+                <i class="bi bi-person-workspace me-1"></i><b>Professor(a) PDT:</b> <span id="lblPdtResultado">-</span>
+              </div>
+              <div class="small text-secondary mt-1" id="lblPeriodoResultado">
+                <i class="bi bi-calendar-range me-1"></i>Período: Todos os registros
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-7">
+            <div class="row g-2">
+              <div class="col-6 col-sm-3">
+                <div class="kpi-mini total">
+                  <div class="small fw-bold text-uppercase">Total no Período</div>
+                  <div class="valor" id="kpiTotalOco">0</div>
+                  <small class="text-muted" style="font-size:0.72rem;">Registro(s)</small>
+                </div>
+              </div>
+              <div class="col-6 col-sm-3">
+                <div class="kpi-mini leve">
+                  <div class="small fw-bold text-uppercase">Leves</div>
+                  <div class="valor" id="kpiLeves">0</div>
+                  <small class="text-muted" style="font-size:0.72rem;">Ocorrência(s)</small>
+                </div>
+              </div>
+              <div class="col-6 col-sm-3">
+                <div class="kpi-mini media">
+                  <div class="small fw-bold text-uppercase">Médias</div>
+                  <div class="valor" id="kpiMedias">0</div>
+                  <small class="text-muted" style="font-size:0.72rem;">Ocorrência(s)</small>
+                </div>
+              </div>
+              <div class="col-6 col-sm-3">
+                <div class="kpi-mini grave">
+                  <div class="small fw-bold text-uppercase">Graves / Gravíss.</div>
+                  <div class="valor" id="kpiGraves">0</div>
+                  <small class="text-muted" style="font-size:0.72rem;">Ocorrência(s)</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABELA DE OCORRÊNCIAS REGISTRADAS (SEM COLUNA OBSERVAÇÕES) -->
+      <div class="card p-4">
+        <div class="card-header-custom">
+          <div>
+            <h5 class="fw-bold m-0 text-dark">
+              <i class="bi bi-journal-text text-primary me-2"></i>Detalhamento das Ocorrências Encontradas
+            </h5>
+            <small class="text-muted">Confira abaixo a data de cada registro, o motivo da ocorrência, a gravidade e o(a) professor(a) responsável pelo lançamento.</small>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover table-striped border align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Data</th>
+                <th style="width: 130px;">Série</th>
+                <th>Ocorrência Registrada</th>
+                <th class="text-center" style="width: 140px;">Gravidade</th>
+                <th style="width: 250px;">Registrado Por (Professor)</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyOcorrenciasAluno">
+              <tr>
+                <td colspan="5" class="text-center py-4 text-muted">Nenhuma ocorrência selecionada.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    const AVATAR_PADRAO = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+    const ESCOLA_CACHE_PREFIX = "consulta_rac_" +
+      (window.location.pathname.split('/')[1] || "escola").toLowerCase().replace(/[^a-z0-9]/g, '') + "_" +
+      API_URL.slice(-10).replace(/[^a-zA-Z0-9]/g, '') + "_";
+
+    let todosAlunos = [];
+    let mapaPdtPorSerie = {};
+    let seriesCadastradas = [];
+
+    window.onload = async function() {
+      await carregarDadosIniciais();
+    };
+
+    async function carregarDadosIniciais() {
+      try {
+        const cAlunos = localStorage.getItem(ESCOLA_CACHE_PREFIX + 'alunos');
+        const cPdt = localStorage.getItem(ESCOLA_CACHE_PREFIX + 'pdt');
+        const cSeries = localStorage.getItem(ESCOLA_CACHE_PREFIX + 'series');
+        if (cAlunos) todosAlunos = JSON.parse(cAlunos);
+        if (cPdt) mapaPdtPorSerie = JSON.parse(cPdt);
+        if (cSeries) seriesCadastradas = JSON.parse(cSeries);
+        if (seriesCadastradas.length > 0) preencherSelectSeries();
+      } catch (e) {}
+
+      try {
+        const [resFiltros, resPdt, resSeries] = await Promise.all([
+          fetch(API_URL + "?v=" + new Date().getTime(), {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getFiltrosOcorrencias' })
+          }).then(r => r.json()).catch(() => null),
+          fetch(API_URL + "?v=" + new Date().getTime(), {
+            method: 'POST',
+            body: JSON.stringify({ action: 'listarPDT' })
+          }).then(r => r.json()).catch(() => null),
+          fetch(API_URL + "?v=" + new Date().getTime(), {
+            method: 'POST',
+            body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' })
+          }).then(r => r.json()).catch(() => null)
+        ]);
+
+        const setSeries = new Set();
+
+        if (resSeries && Array.isArray(resSeries.lista)) {
+          resSeries.lista.forEach(item => {
+            let c2 = String(item.col2 || "").trim().toUpperCase();
+            let c1 = String(item.col1 || "").trim().toUpperCase();
+            let nomeSerie = (c2 && !/^\d+$/.test(c2)) ? c2 : c1;
+            if (nomeSerie && nomeSerie !== "SÉRIE" && nomeSerie !== "SERIE" && nomeSerie !== "TURMA" && nomeSerie !== "ID") {
+              setSeries.add(nomeSerie);
+            }
+          });
+        }
+
+        if (resFiltros && Array.isArray(resFiltros.alunos)) {
+          todosAlunos = resFiltros.alunos;
+          todosAlunos.forEach(a => {
+            let s = String(a.serie || "").trim().toUpperCase();
+            if (s && s !== "TRANSFERIDO") setSeries.add(s);
+          });
+          localStorage.setItem(ESCOLA_CACHE_PREFIX + 'alunos', JSON.stringify(todosAlunos));
+        }
+
+        if (resPdt && Array.isArray(resPdt.lista)) {
+          mapaPdtPorSerie = {};
+          resPdt.lista.forEach(p => {
+            let s = String(p.serie || "").trim().toUpperCase();
+            if (s) {
+              mapaPdtPorSerie[s] = String(p.professor || "Não atribuído").trim().toUpperCase();
+              setSeries.add(s);
+            }
+          });
+          localStorage.setItem(ESCOLA_CACHE_PREFIX + 'pdt', JSON.stringify(mapaPdtPorSerie));
+        }
+
+        seriesCadastradas = Array.from(setSeries).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+        localStorage.setItem(ESCOLA_CACHE_PREFIX + 'series', JSON.stringify(seriesCadastradas));
+        preencherSelectSeries();
+      } catch (e) {}
+    }
+
+    function preencherSelectSeries() {
+      const sel = document.getElementById('selectSerie');
+      const valorAtual = sel.value;
+      let html = '<option value="">Selecione a turma...</option>';
+      seriesCadastradas.forEach(s => {
+        html += `<option value="${s}">${s}</option>`;
+      });
+      sel.innerHTML = html;
+      if (valorAtual && seriesCadastradas.includes(valorAtual)) {
+        sel.value = valorAtual;
+      }
+    }
+
+    function aoSelecionarSerie() {
+      const serie = document.getElementById('selectSerie').value.trim().toUpperCase();
+      const inputAluno = document.getElementById('inputAluno');
+      const datalist = document.getElementById('datalistAlunosTurma');
+
+      inputAluno.value = "";
+      document.getElementById('areaResultadoConsulta').style.display = 'none';
+
+      if (!serie) {
+        inputAluno.disabled = true;
+        inputAluno.placeholder = "Selecione primeiro a turma...";
+        datalist.innerHTML = "";
+        return;
+      }
+
+      const alunosDaTurma = todosAlunos
+        .filter(a => String(a.serie || "").trim().toUpperCase() === serie)
+        .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      let html = '';
+      alunosDaTurma.forEach(a => {
+        html += `<option value="${a.nome}"></option>`;
+      });
+      datalist.innerHTML = html;
+      inputAluno.disabled = false;
+      inputAluno.placeholder = `Digite ou selecione o aluno (${alunosDaTurma.length} na turma)...`;
+      inputAluno.focus();
+    }
+
+    function aoDigitarAluno() {
+      const nomeDigitado = document.getElementById('inputAluno').value.trim().toUpperCase();
+      const serie = document.getElementById('selectSerie').value.trim().toUpperCase();
+      const alunoExato = todosAlunos.find(a =>
+        String(a.nome || "").trim().toUpperCase() === nomeDigitado &&
+        (!serie || String(a.serie || "").trim().toUpperCase() === serie)
+      );
+      if (alunoExato) {
+        consultarOcorrenciasAluno();
+      }
+    }
+
+    function converterDataParaTimestamp(dataStr) {
+      if (!dataStr) return 0;
+      let s = String(dataStr).trim().split(' ')[0];
+      if (s.includes('/')) {
+        const p = s.split('/');
+        if (p.length === 3) {
+          return new Date(parseInt(p[2], 10), parseInt(p[1], 10) - 1, parseInt(p[0], 10), 12, 0, 0).getTime();
+        }
+      }
+      if (s.includes('-')) {
+        const p = s.split('-');
+        if (p[0].length === 4) {
+          return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0).getTime();
+        }
+      }
+      const d = new Date(dataStr);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+
+    function formatarDataExibicao(dataStr) {
+      if (!dataStr) return "-";
+      let s = String(dataStr).trim();
+      if (s.includes('T') && s.includes('Z')) {
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d.toLocaleDateString('pt-BR');
+      }
+      let apenasData = s.split(' ')[0];
+      if (apenasData.includes('-')) {
+        const p = apenasData.split('-');
+        if (p[0].length === 4) return `${p[2]}/${p[1]}/${p[0]}`;
+      }
+      return apenasData;
+    }
+
+    async function consultarOcorrenciasAluno() {
+      const serie = document.getElementById('selectSerie').value.trim().toUpperCase();
+      const nomeAluno = document.getElementById('inputAluno').value.trim().toUpperCase();
+      const dtIniIso = document.getElementById('dataInicio').value;
+      const dtFimIso = document.getElementById('dataFim').value;
+
+      if (!serie || !nomeAluno) {
+        return Swal.fire('Atenção', 'Selecione a Série/Turma e o Nome do(a) Aluno(a).', 'warning');
+      }
+
+      const btn = document.getElementById('btnPesquisar');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+      try {
+        const res = await fetch(API_URL + "?v=" + new Date().getTime(), {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'buscarOcorrencias',
+            filtros: {
+              aluno: nomeAluno,
+              ignorarRestricao: true
+            }
+          })
+        }).then(r => r.json());
+
+        let listaBruta = Array.isArray(res) ? res : [];
+
+        let ocorrenciasDoAluno = listaBruta.filter(o =>
+          String(o.aluno || "").trim().toUpperCase() === nomeAluno
+        );
+
+        const tsIni = dtIniIso ? converterDataParaTimestamp(dtIniIso) : 0;
+        const tsFim = dtFimIso ? converterDataParaTimestamp(dtFimIso) : 0;
+
+        if (tsIni > 0 || tsFim > 0) {
+          ocorrenciasDoAluno = ocorrenciasDoAluno.filter(o => {
+            const tsOco = converterDataParaTimestamp(o.data);
+            if (!tsOco) return false;
+            if (tsIni > 0 && tsOco < tsIni) return false;
+            if (tsFim > 0 && tsOco > tsFim) return false;
+            return true;
+          });
+        }
+
+        ocorrenciasDoAluno.sort((a, b) => converterDataParaTimestamp(b.data) - converterDataParaTimestamp(a.data));
+
+        renderizarResultadoNaTela(serie, nomeAluno, dtIniIso, dtFimIso, ocorrenciasDoAluno);
+      } catch (e) {
+        Swal.fire('Erro', 'Não foi possível buscar as ocorrências no momento. Verifique sua conexão.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-search"></i>';
+      }
+    }
+
+    function renderizarResultadoNaTela(serie, nomeAluno, dtIniIso, dtFimIso, listaOcorrencias) {
+      const objAluno = todosAlunos.find(a => String(a.nome || "").trim().toUpperCase() === nomeAluno);
+      const urlFoto = (objAluno && objAluno.foto && (String(objAluno.foto).startsWith('data:image') || String(objAluno.foto).includes('http')))
+        ? objAluno.foto
+        : AVATAR_PADRAO;
+
+      const imgEl = document.getElementById('imgFotoAluno');
+      imgEl.src = urlFoto;
+      imgEl.onerror = () => { imgEl.src = AVATAR_PADRAO; };
+
+      document.getElementById('lblSerieResultado').innerText = serie;
+      document.getElementById('lblNomeResultado').innerText = nomeAluno;
+      document.getElementById('lblPdtResultado').innerText = mapaPdtPorSerie[serie] || "Não atribuído";
+
+      if (dtIniIso || dtFimIso) {
+        const strIni = dtIniIso ? formatarDataExibicao(dtIniIso) : "Início";
+        const strFim = dtFimIso ? formatarDataExibicao(dtFimIso) : "Hoje";
+        document.getElementById('lblPeriodoResultado').innerHTML = `<i class="bi bi-calendar-range me-1"></i>Período filtrado: <b>${strIni} até ${strFim}</b>`;
+      } else {
+        document.getElementById('lblPeriodoResultado').innerHTML = `<i class="bi bi-calendar-range me-1"></i>Período: <b>Todos os registros do ano letivo</b>`;
+      }
+
+      let qtdLeves = 0, qtdMedias = 0, qtdGraves = 0;
+      listaOcorrencias.forEach(o => {
+        const g = String(o.gravidade || "LEVE").toUpperCase();
+        if (g.includes("GRAV")) qtdGraves++;
+        else if (g.includes("MÉD") || g.includes("MED")) qtdMedias++;
+        else qtdLeves++;
+      });
+
+      document.getElementById('kpiTotalOco').innerText = listaOcorrencias.length;
+      document.getElementById('kpiLeves').innerText = qtdLeves;
+      document.getElementById('kpiMedias').innerText = qtdMedias;
+      document.getElementById('kpiGraves').innerText = qtdGraves;
+
+      const tbody = document.getElementById('tbodyOcorrenciasAluno');
+      if (listaOcorrencias.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center py-5 text-success fw-semibold">
+              <i class="bi bi-emoji-smile-fill fs-4 d-block mb-2"></i>
+              Parabéns! Nenhuma ocorrência disciplinar encontrada para <b>${nomeAluno}</b> no período consultado.
+            </td>
+          </tr>`;
+      } else {
+        let html = '';
+        listaOcorrencias.forEach(o => {
+          const gravUpper = String(o.gravidade || "LEVE").toUpperCase();
+          let badgeGrav = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">${gravUpper}</span>`;
+          if (gravUpper.includes("GRAVÍSS") || gravUpper.includes("GRAVISS")) {
+            badgeGrav = `<span class="badge bg-danger text-white px-2 py-1">${gravUpper}</span>`;
+          } else if (gravUpper.includes("GRAVE")) {
+            badgeGrav = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">${gravUpper}</span>`;
+          } else if (gravUpper.includes("MÉD") || gravUpper.includes("MED")) {
+            badgeGrav = `<span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1">${gravUpper}</span>`;
+          }
+
+          html += `
+            <tr>
+              <td class="fw-bold text-nowrap">${formatarDataExibicao(o.data)}</td>
+              <td><span class="badge bg-light text-dark border">${o.serie || serie}</span></td>
+              <td class="fw-semibold text-dark">${o.ocorrencia || '-'}</td>
+              <td class="text-center">${badgeGrav}</td>
+              <td class="fw-semibold text-secondary"><i class="bi bi-person-check me-1"></i>${o.professor || '-'}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+      }
+
+      const area = document.getElementById('areaResultadoConsulta');
+      area.style.display = 'block';
+    }
+
+    function limparFiltrosConsulta() {
+      document.getElementById('selectSerie').value = "";
+      const inputAluno = document.getElementById('inputAluno');
+      inputAluno.value = "";
+      inputAluno.disabled = true;
+      inputAluno.placeholder = "Selecione primeiro a turma...";
+      document.getElementById('datalistAlunosTurma').innerHTML = "";
+      document.getElementById('dataInicio').value = "";
+      document.getElementById('dataFim').value = "";
+      document.getElementById('areaResultadoConsulta').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

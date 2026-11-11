@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Análise Gráfica de Ocorrências - EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Chart.js para os Gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Bibliotecas para Gerar o PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f4f7f6;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+    }
+
+    /* MARCA D'ÁGUA PADRONIZADA DO SITE */
+    .watermark-bg {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50vw;
+      max-width: 550px;
+      opacity: 0.08;
+      z-index: -1;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+
+    /* CABEÇALHO PADRONIZADO DO SITE */
+    .navbar-custom {
+      background-color: rgba(255, 255, 255, 0.96);
+      padding: 15px 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: #1e293b !important;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .sub-text {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #64748b;
+      margin-top: -3px;
+    }
+
+    .logo-escola {
+      height: 55px;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .main-container {
+      padding: 30px 15px;
+      max-width: 1380px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+
+    /* CARTÕES PADRONIZADOS DO SITE */
+    .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(5px);
+    }
+
+    .card-header-custom {
+      border-bottom: 1px solid #eaeaea;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .card-header-custom h5 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0;
+      color: #1e293b;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 8px;
+      border: 1px solid #ced4da;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #0f766e;
+      box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15);
+    }
+
+    .btn-tema {
+      background-color: #0f766e;
+      color: white;
+      border: none;
+      font-weight: 600;
+      border-radius: 8px;
+    }
+
+    .btn-tema:hover {
+      background-color: #0d645e;
+      color: white;
+    }
+
+    /* Indicadores Superiores */
+    .stat-card {
+      border-left: 4px solid #0f766e;
+      padding: 15px 18px;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    }
+
+    .stat-card.alunos { border-left-color: #2563eb; }
+    .stat-card.graves { border-left-color: #dc3545; }
+    .stat-card.grupos { border-left-color: #d97706; }
+
+    /* Áreas de rolagem e tabelas */
+    .tabela-scroll {
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .table th {
+      position: sticky;
+      top: 0;
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 700;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    .table td {
+      vertical-align: middle;
+      font-size: 0.85rem;
+    }
+
+    .item-ocorrencia-barra {
+      cursor: pointer;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .item-ocorrencia-barra:hover {
+      background-color: #f0fdf4;
+      border-color: #cbd5e1;
+    }
+
+    .item-ocorrencia-barra.selecionado {
+      background-color: #dcfce7;
+      border-color: #0f766e;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.85rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.8);
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
+
+  <!-- CABEÇALHO PADRONIZADO -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1380 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Análise Gráfica de Ocorrências
+          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
+          <i class="bi bi-person-circle me-1"></i>A carregar...
+        </span>
+        <button class="btn btn-danger btn-sm fw-bold rounded-pill px-3 shadow-sm" onclick="gerarPdfPainelGrafico()">
+          <i class="bi bi-file-earmark-pdf-fill me-1"></i> Baixar PDF Analítico
+        </button>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
+          <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- CARDS DE INDICADORES RÁPIDOS -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <span class="text-muted small fw-semibold d-block">Total de Ocorrências</span>
+          <h3 class="fw-bold m-0 text-dark" id="kpiTotalOcorrencias">0</h3>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card alunos">
+          <span class="text-muted small fw-semibold d-block">Alunos com Registros</span>
+          <h3 class="fw-bold m-0 text-primary" id="kpiTotalAlunos">0</h3>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card graves">
+          <span class="text-muted small fw-semibold d-block">Graves / Gravíssimas</span>
+          <h3 class="fw-bold m-0 text-danger" id="kpiTotalGraves">0</h3>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card grupos">
+          <span class="text-muted small fw-semibold d-block">Tipos de Ocorrências</span>
+          <h3 class="fw-bold m-0 text-warning" id="kpiTotalTipos">0</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL DE FILTROS COMPLETO (SÉRIE, BIMESTRE, GRAVIDADE, GRUPO, PROFESSOR E ALUNO) -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <h5><i class="bi bi-funnel-fill text-primary me-2"></i>Filtros de Pesquisa e Cruzamento de Dados</h5>
+        <button class="btn btn-outline-secondary btn-sm fw-semibold" onclick="limparFiltros()">
+          <i class="bi bi-eraser-fill me-1"></i>Limpar Todos os Filtros
+        </button>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-md-2">
+          <label class="form-label">Série / Turma</label>
+          <select id="filtroSerie" class="form-select" onchange="aplicarFiltros()">
+            <option value="">Todas as Séries</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-2">
+          <label class="form-label">Bimestre / Período</label>
+          <select id="filtroBimestre" class="form-select" onchange="aplicarFiltros()">
+            <option value="">Todos os Bimestres</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-2">
+          <label class="form-label">Gravidade</label>
+          <select id="filtroGravidade" class="form-select" onchange="aplicarFiltros()">
+            <option value="">Todas as Gravidades</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-2">
+          <label class="form-label">Grupo da Ocorrência</label>
+          <select id="filtroGrupo" class="form-select" onchange="aplicarFiltros()">
+            <option value="">Todos os Grupos</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-2">
+          <label class="form-label">Professor(a)</label>
+          <select id="filtroProfessor" class="form-select" onchange="aplicarFiltros()">
+            <option value="">Todos os Professores</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-2">
+          <label class="form-label">Aluno / Ocorrência</label>
+          <input type="text" id="filtroBuscaTexto" list="datalistBusca" class="form-control" placeholder="Digite nome ou tipo..." oninput="aplicarFiltros()">
+          <datalist id="datalistBusca"></datalist>
+        </div>
+      </div>
+    </div>
+
+    <!-- LINHA 1: OCORRÊNCIAS APLICADAS (ESQUERDA) + TABELA DETALHADA DE ALUNOS (DIREITA) -->
+    <div class="row g-4 mb-2">
+      <!-- Coluna Esquerda: Ranking de Tipos de Ocorrências -->
+      <div class="col-12 col-lg-5">
+        <div class="card p-4 h-100">
+          <div class="card-header-custom">
+            <h5><i class="bi bi-list-ol text-success me-2"></i>Ocorrências Aplicadas</h5>
+            <small class="text-muted">Clique num item para filtrar</small>
+          </div>
+          <div class="tabela-scroll pe-1" id="containerRankingOcorrencias">
+            <div class="text-center text-muted py-5">Carregando ocorrências...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna Direita: Tabela Aluno, Série, Grupo/Observação e Qtd. Ocorrências -->
+      <div class="col-12 col-lg-7">
+        <div class="card p-4 h-100">
+          <div class="card-header-custom">
+            <h5><i class="bi bi-people-fill text-primary me-2"></i>Detalhamento por Aluno e Observações</h5>
+            <span class="badge bg-secondary" id="badgeAlunosCount">0 alunos</span>
+          </div>
+          <div class="tabela-scroll">
+            <table class="table table-hover table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 28%;">Aluno</th>
+                  <th style="width: 13%;" class="text-center">Série</th>
+                  <th style="width: 45%;">Ocorrências / Grupo / Observação</th>
+                  <th style="width: 14%;" class="text-center">Qtd.</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAlunosOcorrencias">
+                <tr><td colspan="4" class="text-center text-muted py-5">Sincronizando banco de dados...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LINHA 2: GRÁFICOS (POR SÉRIE, POR BIMESTRE E POR GRAVIDADE/GRUPO) -->
+    <div class="row g-4">
+      <!-- Coluna Esquerda: Total por Série + Evolução por Bimestre -->
+      <div class="col-12 col-lg-8">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <h5><i class="bi bi-bar-chart-fill text-success me-2"></i>Total de Ocorrências por Série</h5>
+          </div>
+          <div style="height: 260px; position: relative;">
+            <canvas id="chartPorSerie"></canvas>
+          </div>
+        </div>
+
+        <div class="card p-4 mb-0">
+          <div class="card-header-custom">
+            <h5><i class="bi bi-calendar-range-fill text-primary me-2"></i>Evolução das Ocorrências por Bimestre</h5>
+            <span class="badge bg-light text-dark border">Agrupado pelos períodos da aba BIMESTRE</span>
+          </div>
+          <div style="height: 260px; position: relative;">
+            <canvas id="chartPorBimestre"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna Direita: Distribuição por Gravidade + Distribuição por Grupo -->
+      <div class="col-12 col-lg-4">
+        <div class="card p-4 h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="card-header-custom">
+              <h5><i class="bi bi-pie-chart-fill text-danger me-2"></i>Por Gravidade</h5>
+            </div>
+            <div style="height: 220px; position: relative;">
+              <canvas id="chartGravidade"></canvas>
+            </div>
+          </div>
+
+          <div class="border-top pt-3 mt-3">
+            <h6 class="fw-bold text-dark small text-uppercase mb-2">
+              <i class="bi bi-diagram-3-fill text-warning me-1"></i>Ocorrências por Grupo
+            </h6>
+            <div id="listaResumoGrupos" class="small"></div>
+          </div>
+
+          <div class="border-top pt-3 mt-3">
+            <h6 class="fw-bold text-dark small text-uppercase mb-2">
+              <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>Top 5 Alunos no Filtro Atual
+            </h6>
+            <div id="listaTop5Alunos" class="small"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    // URL DO SISTEMA EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let todasOcorrencias = [];
+    let ocorrenciasFiltradas = [];
+    let listaBimestres = [];
+    let mapaGrupoPorOcorrencia = {};
+    let ocorrenciaClicadaFiltro = "";
+
+    let chartSerieInstance = null;
+    let chartBimestreInstance = null;
+    let chartGravidadeInstance = null;
+
+    function extrairTimestampSeguro(dataStr) {
+      if (!dataStr) return { ts: 0, br: "-" };
+      let s = String(dataStr).trim();
+
+      if (s.includes('/')) {
+        let partes = s.split(' ')[0].split('/');
+        if (partes.length === 3) {
+          let dia = partes[0].padStart(2, '0');
+          let mes = partes[1].padStart(2, '0');
+          let ano = partes[2].length === 2 ? "20" + partes[2] : partes[2];
+          let d = new Date(Number(ano), Number(mes) - 1, Number(dia), 12, 0, 0);
+          if (!isNaN(d.getTime())) {
+            return { ts: d.getTime(), br: `${dia}/${mes}/${ano}` };
+          }
+        }
+      }
+
+      let d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        let dia = String(d.getDate()).padStart(2, '0');
+        let mes = String(d.getMonth() + 1).padStart(2, '0');
+        let ano = d.getFullYear();
+        return { ts: d.getTime(), br: `${dia}/${mes}/${ano}` };
+      }
+      return { ts: 0, br: s };
+    }
+
+    function parseDataBimestre(dataStr, isFim) {
+      if (!dataStr) return 0;
+      let s = String(dataStr).trim();
+      if (s.includes('-')) {
+        let p = s.split('T')[0].split('-');
+        if (p.length === 3) return new Date(p[0], p[1] - 1, p[2], isFim ? 23 : 0, isFim ? 59 : 0, isFim ? 59 : 0).getTime();
+      }
+      if (s.includes('/')) {
+        let p = s.split(' ')[0].split('/');
+        if (p.length === 3) return new Date(p[2], p[1] - 1, p[0], isFim ? 23 : 0, isFim ? 59 : 0, isFim ? 59 : 0).getTime();
+      }
+      return new Date(s).getTime();
+    }
+
+    function descobrirBimestreDaData(timestamp) {
+      if (!timestamp || listaBimestres.length === 0) return "Fora do Bimestre";
+      const bim = listaBimestres.find(b => timestamp >= b.tsIni && timestamp <= b.tsFim);
+      return bim ? bim.nome : "Outros Períodos";
+    }
+
+    window.onload = async function() {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (u) {
+        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "Usuário").toUpperCase();
+        const elUser = document.getElementById('nomeUsuarioUi');
+        if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+      }
+
+      Swal.fire({
+        title: 'Sincronizando Análise Gráfica...',
+        text: 'Carregando ocorrências, bimestres, grupos e professores...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        const [resOco, resCat, resSeries, resBim, resProfs] = await Promise.all([
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => ({ ocorrencias: [] })),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json()).catch(() => ({ lista: [] })),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => ({ lista: [] })),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getProfessores' }) }).then(r => r.json()).catch(() => [])
+        ]);
+
+        // 1. Configura os Bimestres (para o filtro e para o Gráfico por Bimestre)
+        if (resBim && Array.isArray(resBim.lista)) {
+          listaBimestres = resBim.lista.map(b => ({
+            nome: String(b.col1 || "").trim(),
+            tsIni: parseDataBimestre(b.col2, false),
+            tsFim: parseDataBimestre(b.col3, true)
+          })).filter(b => b.nome !== "");
+        }
+
+        // 2. Mapeia cada Ocorrência ao seu Grupo (da aba OCORRÊNCIAS: Coluna C)
+        let gruposSet = new Set();
+        if (resCat && Array.isArray(resCat.ocorrencias)) {
+          resCat.ocorrencias.forEach(item => {
+            let desc = String(item.descricao || "").trim().toUpperCase();
+            let grp = String(item.grupo || "GERAL").trim().toUpperCase();
+            if (desc) mapaGrupoPorOcorrencia[desc] = grp;
+            if (grp) gruposSet.add(grp);
+          });
+        }
+
+        // 3. Processa todas as ocorrências atribuindo Bimestre e Grupo automaticamente
+        let seriesSet = new Set();
+        let gravidadesSet = new Set();
+        let professoresSet = new Set();
+        let buscaSet = new Set();
+
+        if (Array.isArray(resProfs)) {
+          resProfs.forEach(p => { if (p) professoresSet.add(String(p).trim().toUpperCase()); });
+        }
+        if (resSeries && Array.isArray(resSeries.lista)) {
+          resSeries.lista.forEach(s => {
+            let nomeS = String(s.col2 || s.col1 || "").trim().toUpperCase();
+            if (nomeS && !nomeS.includes("SÉRIE") && !nomeS.includes("SERIE")) seriesSet.add(nomeS);
+          });
+        }
+
+        todasOcorrencias = (Array.isArray(resOco) ? resOco : []).map(o => {
+          let infoDt = extrairTimestampSeguro(o.data);
+          let ocTexto = String(o.ocorrencia || "OUTROS").trim();
+          let ocUpper = ocTexto.toUpperCase();
+          let serieUpper = String(o.serie || "NÃO INFORMADA").trim().toUpperCase();
+          let alunoUpper = String(o.aluno || "NÃO INFORMADO").trim().toUpperCase();
+          let profUpper = String(o.professor || "NÃO INFORMADO").trim().toUpperCase();
+          let gravUpper = String(o.gravidade || "LEVE").trim().toUpperCase();
+          let grupoOco = mapaGrupoPorOcorrencia[ocUpper] || "GERAL";
+          let nomeBimestre = descobrirBimestreDaData(infoDt.ts);
+
+          if (serieUpper && serieUpper !== "NÃO INFORMADA") seriesSet.add(serieUpper);
+          if (gravUpper) gravidadesSet.add(gravUpper);
+          if (profUpper && profUpper !== "NÃO INFORMADO") professoresSet.add(profUpper);
+          if (grupoOco) gruposSet.add(grupoOco);
+          buscaSet.add(alunoUpper);
+          buscaSet.add(ocTexto);
+
+          return {
+            ...o,
+            serieLimpa: serieUpper,
+            alunoLimpo: alunoUpper,
+            professorLimpo: profUpper,
+            ocorrenciaLimpa: ocTexto,
+            gravidadeLimpa: gravUpper,
+            grupoLimpo: grupoOco,
+            bimestreNome: nomeBimestre,
+            obsLimpa: String(o.obs || "-").trim(),
+            infoData: infoDt
+          };
+        });
+
+        // 4. Preenche todos os Selects de Filtro
+        const selSerie = document.getElementById('filtroSerie');
+        Array.from(seriesSet).sort().forEach(s => selSerie.innerHTML += `<option value="${s}">${s}</option>`);
+
+        const selBim = document.getElementById('filtroBimestre');
+        listaBimestres.forEach(b => selBim.innerHTML += `<option value="${b.nome}">${b.nome}</option>`);
+
+        const selGrav = document.getElementById('filtroGravidade');
+        Array.from(gravidadesSet).sort().forEach(g => selGrav.innerHTML += `<option value="${g}">${g}</option>`);
+
+        const selGrupo = document.getElementById('filtroGrupo');
+        Array.from(gruposSet).sort().forEach(grp => selGrupo.innerHTML += `<option value="${grp}">${grp}</option>`);
+
+        const selProf = document.getElementById('filtroProfessor');
+        Array.from(professoresSet).sort().forEach(p => selProf.innerHTML += `<option value="${p}">${p}</option>`);
+
+        const dlBusca = document.getElementById('datalistBusca');
+        Array.from(buscaSet).sort().forEach(item => dlBusca.innerHTML += `<option value="${item}">`);
+
+        Swal.close();
+        aplicarFiltros();
+      } catch (err) {
+        console.error(err);
+        Swal.fire('Erro', 'Não foi possível carregar os dados de ocorrências.', 'error');
+      }
+    };
+
+    function limparFiltros() {
+      document.getElementById('filtroSerie').value = "";
+      document.getElementById('filtroBimestre').value = "";
+      document.getElementById('filtroGravidade').value = "";
+      document.getElementById('filtroGrupo').value = "";
+      document.getElementById('filtroProfessor').value = "";
+      document.getElementById('filtroBuscaTexto').value = "";
+      ocorrenciaClicadaFiltro = "";
+      aplicarFiltros();
+    }
+
+    function filtrarPorCliqueOcorrencia(nomeOcorrencia) {
+      ocorrenciaClicadaFiltro = (ocorrenciaClicadaFiltro === nomeOcorrencia) ? "" : nomeOcorrencia;
+      aplicarFiltros();
+    }
+
+    function aplicarFiltros() {
+      const serieSel = document.getElementById('filtroSerie').value.toUpperCase();
+      const bimSel = document.getElementById('filtroBimestre').value;
+      const gravSel = document.getElementById('filtroGravidade').value.toUpperCase();
+      const grupoSel = document.getElementById('filtroGrupo').value.toUpperCase();
+      const profSel = document.getElementById('filtroProfessor').value.toUpperCase();
+      const buscaTxt = document.getElementById('filtroBuscaTexto').value.toUpperCase().trim();
+
+      ocorrenciasFiltradas = todasOcorrencias.filter(o => {
+        if (serieSel && o.serieLimpa !== serieSel) return false;
+        if (bimSel && o.bimestreNome !== bimSel) return false;
+        if (gravSel && o.gravidadeLimpa !== gravSel) return false;
+        if (grupoSel && o.grupoLimpo !== grupoSel) return false;
+        if (profSel && o.professorLimpo !== profSel) return false;
+        if (ocorrenciaClicadaFiltro && o.ocorrenciaLimpa !== ocorrenciaClicadaFiltro) return false;
+
+        if (buscaTxt) {
+          let textoAlvo = `${o.alunoLimpo} ${o.ocorrenciaLimpa} ${o.obsLimpa} ${o.grupoLimpo} ${o.professorLimpo}`.toUpperCase();
+          if (!textoAlvo.includes(buscaTxt)) return false;
+        }
+        return true;
+      });
+
+      // Atualiza os KPIs do topo
+      const alunosUnicos = new Set(ocorrenciasFiltradas.map(o => o.alunoLimpo));
+      const tiposUnicos = new Set(ocorrenciasFiltradas.map(o => o.ocorrenciaLimpa));
+      const qtdGraves = ocorrenciasFiltradas.filter(o => o.gravidadeLimpa.includes("GRAV")).length;
+
+      document.getElementById('kpiTotalOcorrencias').innerText = ocorrenciasFiltradas.length;
+      document.getElementById('kpiTotalAlunos').innerText = alunosUnicos.size;
+      document.getElementById('kpiTotalGraves').innerText = qtdGraves;
+      document.getElementById('kpiTotalTipos').innerText = tiposUnicos.size;
+
+      renderizarRankingOcorrencias();
+      renderizarTabelaAlunos();
+      renderizarGraficoPorSerie();
+      renderizarGraficoPorBimestre();
+      renderizarGraficoGravidadeGruposETop5();
+    }
+
+    // 1. Quadro Esquerdo: Ranking de Tipos de Ocorrências
+    function renderizarRankingOcorrencias() {
+      const contagem = {};
+      ocorrenciasFiltradas.forEach(o => {
+        contagem[o.ocorrenciaLimpa] = (contagem[o.ocorrenciaLimpa] || 0) + 1;
+      });
+
+      const ordenado = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
+      const container = document.getElementById('containerRankingOcorrencias');
+
+      if (ordenado.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-5">Nenhuma ocorrência encontrada para os filtros selecionados.</div>';
+        return;
+      }
+
+      const maxVal = ordenado[0][1] || 1;
+      let html = '';
+
+      ordenado.forEach(([nome, qtd]) => {
+        let pct = Math.round((qtd / maxVal) * 100);
+        let classeAtiva = (ocorrenciaClicadaFiltro === nome) ? 'selecionado' : '';
+        let nomeEscapado = nome.replace(/'/g, "\\'");
+        let grp = mapaGrupoPorOcorrencia[nome.toUpperCase()] || "GERAL";
+
+        html += `
+          <div class="item-ocorrencia-barra mb-2 ${classeAtiva}" onclick="filtrarPorCliqueOcorrencia('${nomeEscapado}')" title="Clique para filtrar por esta ocorrência">
+            <div class="d-flex justify-content-between align-items-center small mb-1">
+              <span class="fw-semibold text-dark text-truncate" style="max-width: 82%;">
+                ${nome} <small class="text-muted fw-normal">(${grp})</small>
+              </span>
+              <span class="badge rounded-pill" style="background-color: #0f766e;">${qtd}</span>
+            </div>
+            <div class="progress" style="height: 6px; background-color: #e2e8f0;">
+              <div class="progress-bar" role="progressbar" style="width: ${pct}%; background-color: #0f766e;"></div>
+            </div>
+          </div>`;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // 2. Quadro Direito: Tabela de Alunos, Série, Observação e Quantidade
+    function renderizarTabelaAlunos() {
+      const mapaAlunos = {};
+
+      ocorrenciasFiltradas.forEach(o => {
+        const chave = `${o.alunoLimpo}|${o.serieLimpa}`;
+        if (!mapaAlunos[chave]) {
+          mapaAlunos[chave] = {
+            aluno: o.alunoLimpo,
+            serie: o.serieLimpa,
+            qtd: 0,
+            detalhes: []
+          };
+        }
+        mapaAlunos[chave].qtd++;
+        let itemTxt = `<b>${o.infoData.br} (${o.bimestreNome})</b>: ${o.ocorrenciaLimpa} <span class="badge bg-light text-secondary border">${o.grupoLimpo}</span>`;
+        if (o.obsLimpa && o.obsLimpa !== "-") itemTxt += ` — <i>${o.obsLimpa}</i>`;
+        mapaAlunos[chave].detalhes.push(itemTxt);
+      });
+
+      const listaAgrupada = Object.values(mapaAlunos).sort((a, b) => b.qtd - a.qtd || a.aluno.localeCompare(b.aluno));
+      document.getElementById('badgeAlunosCount').innerText = `${listaAgrupada.length} alunos`;
+
+      const tbody = document.getElementById('tbodyAlunosOcorrencias');
+      if (listaAgrupada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-5">Nenhum registro encontrado.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaAgrupada.forEach(item => {
+        let corBadge = item.qtd >= 5 ? 'bg-danger' : (item.qtd >= 3 ? 'bg-warning text-dark' : 'bg-secondary');
+        html += `
+          <tr>
+            <td class="fw-bold text-dark">${item.aluno}</td>
+            <td class="text-center"><span class="badge bg-light text-dark border">${item.serie}</span></td>
+            <td class="text-muted small">${item.detalhes.slice(0, 3).join('<br>')}${item.detalhes.length > 3 ? `<br><b class="text-success">+ ${item.detalhes.length - 3} registro(s)...</b>` : ''}</td>
+            <td class="text-center"><span class="badge ${corBadge} fs-6 px-3">${item.qtd}</span></td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    // 3. Gráfico: Total de Ocorrências por Série
+    function renderizarGraficoPorSerie() {
+      const contagemSerie = {};
+      ocorrenciasFiltradas.forEach(o => {
+        contagemSerie[o.serieLimpa] = (contagemSerie[o.serieLimpa] || 0) + 1;
+      });
+
+      const seriesOrdenadas = Object.keys(contagemSerie).sort();
+      const valores = seriesOrdenadas.map(s => contagemSerie[s]);
+
+      const ctx = document.getElementById('chartPorSerie').getContext('2d');
+      if (chartSerieInstance) chartSerieInstance.destroy();
+
+      chartSerieInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: seriesOrdenadas,
+          datasets: [{
+            label: 'Ocorrências na Série',
+            data: valores,
+            backgroundColor: '#0f766e',
+            borderColor: '#115e59',
+            borderWidth: 1,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    // 4. Gráfico: Evolução das Ocorrências POR BIMESTRE
+    function renderizarGraficoPorBimestre() {
+      const contagemBimestre = {};
+
+      // Inicializa na ordem exata dos Bimestres cadastrados na aba BIMESTRE
+      if (listaBimestres.length > 0) {
+        listaBimestres.forEach(b => { contagemBimestre[b.nome] = 0; });
+      } else {
+        ["1º BIMESTRE", "2º BIMESTRE", "3º BIMESTRE", "4º BIMESTRE"].forEach(n => { contagemBimestre[n] = 0; });
+      }
+
+      ocorrenciasFiltradas.forEach(o => {
+        let nomeBim = o.bimestreNome || "Outros Períodos";
+        contagemBimestre[nomeBim] = (contagemBimestre[nomeBim] || 0) + 1;
+      });
+
+      // Remove "Outros Períodos" se estiver zerado para manter o gráfico limpo nos 4 bimestres
+      if (contagemBimestre["Outros Períodos"] === 0) delete contagemBimestre["Outros Períodos"];
+      if (contagemBimestre["Fora do Bimestre"] === 0) delete contagemBimestre["Fora do Bimestre"];
+
+      const labelsBim = Object.keys(contagemBimestre);
+      const valoresBim = labelsBim.map(k => contagemBimestre[k]);
+
+      const ctx = document.getElementById('chartPorBimestre').getContext('2d');
+      if (chartBimestreInstance) chartBimestreInstance.destroy();
+
+      chartBimestreInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labelsBim,
+          datasets: [
+            {
+              type: 'line',
+              label: 'Tendência',
+              data: valoresBim,
+              borderColor: '#d97706',
+              backgroundColor: '#d97706',
+              borderWidth: 2.5,
+              tension: 0.3,
+              pointRadius: 5
+            },
+            {
+              type: 'bar',
+              label: 'Total no Bimestre',
+              data: valoresBim,
+              backgroundColor: 'rgba(15, 118, 110, 0.75)',
+              borderColor: '#0f766e',
+              borderWidth: 1,
+              borderRadius: 8,
+              barPercentage: 0.55
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+          },
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } }
+          }
+        }
+      });
+    }
+
+    // 5. Gráfico Lateral Direito: Gravidade + Resumo por Grupo + Top 5 Alunos
+    function renderizarGraficoGravidadeGruposETop5() {
+      const contagemGrav = {};
+      const contagemGrupos = {};
+      const contagemAlunos = {};
+
+      ocorrenciasFiltradas.forEach(o => {
+        contagemGrav[o.gravidadeLimpa] = (contagemGrav[o.gravidadeLimpa] || 0) + 1;
+        contagemGrupos[o.grupoLimpo] = (contagemGrupos[o.grupoLimpo] || 0) + 1;
+        let chAluno = `${o.alunoLimpo} (${o.serieLimpa})`;
+        contagemAlunos[chAluno] = (contagemAlunos[chAluno] || 0) + 1;
+      });
+
+      const labelsGrav = Object.keys(contagemGrav);
+      const valoresGrav = labelsGrav.map(g => contagemGrav[g]);
+      const coresGrav = labelsGrav.map(g => {
+        if (g.includes('GRAVÍSSIMA') || g.includes('GRAVISSIMA')) return '#991b1b';
+        if (g.includes('GRAVE')) return '#ef4444';
+        if (g.includes('MÉDIA') || g.includes('MEDIA')) return '#f59e0b';
+        return '#0f766e';
+      });
+
+      const ctx = document.getElementById('chartGravidade').getContext('2d');
+      if (chartGravidadeInstance) chartGravidadeInstance.destroy();
+
+      chartGravidadeInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labelsGrav,
+          datasets: [{
+            data: valoresGrav,
+            backgroundColor: coresGrav,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+        }
+      });
+
+      // Resumo por Grupo
+      const gruposOrd = Object.entries(contagemGrupos).sort((a, b) => b[1] - a[1]);
+      const divGrupos = document.getElementById('listaResumoGrupos');
+      if (gruposOrd.length === 0) {
+        divGrupos.innerHTML = '<div class="text-muted">Sem dados de grupo.</div>';
+      } else {
+        divGrupos.innerHTML = gruposOrd.map(([grp, qtd]) => `
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="fw-semibold text-secondary text-truncate" style="max-width: 80%;">${grp}</span>
+            <span class="badge bg-warning text-dark rounded-pill">${qtd}</span>
+          </div>
+        `).join('');
+      }
+
+      // Top 5 Alunos
+      const top5 = Object.entries(contagemAlunos).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const divTop5 = document.getElementById('listaTop5Alunos');
+      if (top5.length === 0) {
+        divTop5.innerHTML = '<div class="text-muted">Sem dados para exibir.</div>';
+      } else {
+        divTop5.innerHTML = top5.map(([nome, qtd], i) => `
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="text-truncate" style="max-width: 80%;"><b>${i + 1}.</b> ${nome}</span>
+            <span class="badge bg-danger rounded-pill">${qtd}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 6. Exportar PDF Completo do Painel com os Gráficos e Filtros Aplicados
+    async function gerarPdfPainelGrafico() {
+      if (ocorrenciasFiltradas.length === 0) {
+        return Swal.fire('Aviso', 'Não há ocorrências filtradas na tela para gerar o PDF.', 'info');
+      }
+
+      Swal.fire({
+        title: 'Gerando PDF Analítico...',
+        text: 'Montando gráficos por série, por bimestre e relação de alunos...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape', 'mm', 'a4');
+
+        try {
+          const imgEl = document.querySelector('.logo-escola');
+          if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+            const canvas = document.createElement('canvas');
+            canvas.width = imgEl.naturalWidth;
+            canvas.height = imgEl.naturalHeight;
+            canvas.getContext('2d').drawImage(imgEl, 0, 0);
+            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 22, 22);
+          }
+        } catch (e) {}
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(15, 118, 110);
+        doc.text("ANÁLISE GRÁFICA DETALHADA DAS OCORRÊNCIAS DISCIPLINARES (RAC)", 40, 16);
+
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 22);
+
+        const serieFiltro = document.getElementById('filtroSerie').value || "Todas";
+        const bimFiltro = document.getElementById('filtroBimestre').value || "Todos";
+        const gravFiltro = document.getElementById('filtroGravidade').value || "Todas";
+        const grupoFiltro = document.getElementById('filtroGrupo').value || "Todos";
+        const profFiltro = document.getElementById('filtroProfessor').value || "Todos";
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Série: ${serieFiltro} | Bimestre: ${bimFiltro} | Gravidade: ${gravFiltro} | Grupo: ${grupoFiltro} | Prof: ${profFiltro} | Total: ${ocorrenciasFiltradas.length}`, 40, 28);
+        doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 283, 22, { align: 'right' });
+
+        doc.setDrawColor(15, 118, 110);
+        doc.setLineWidth(0.5);
+        doc.line(14, 33, 283, 33);
+
+        const imgSerie = document.getElementById('chartPorSerie').toDataURL('image/png', 1.0);
+        const imgBimestre = document.getElementById('chartPorBimestre').toDataURL('image/png', 1.0);
+        const imgGravidade = document.getElementById('chartGravidade').toDataURL('image/png', 1.0);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(15, 118, 110);
+        doc.text("TOTAL DE OCORRÊNCIAS POR SÉRIE", 14, 40);
+        doc.addImage(imgSerie, 'PNG', 14, 42, 175, 65);
+
+        doc.text("POR GRAVIDADE", 198, 40);
+        doc.addImage(imgGravidade, 'PNG', 198, 42, 80, 65);
+
+        doc.text("EVOLUÇÃO DAS OCORRÊNCIAS POR BIMESTRE", 14, 115);
+        doc.addImage(imgBimestre, 'PNG', 14, 117, 269, 68);
+
+        doc.addPage();
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(15, 118, 110);
+        doc.text("DETALHAMENTO DE OCORRÊNCIAS POR ALUNO (FILTRO APLICADO)", 14, 16);
+
+        const mapaAlunos = {};
+        ocorrenciasFiltradas.forEach(o => {
+          const ch = `${o.alunoLimpo}|${o.serieLimpa}`;
+          if (!mapaAlunos[ch]) mapaAlunos[ch] = { aluno: o.alunoLimpo, serie: o.serieLimpa, qtd: 0, obs: [] };
+          mapaAlunos[ch].qtd++;
+          mapaAlunos[ch].obs.push(`${o.infoData.br} (${o.bimestreNome}) [${o.grupoLimpo}]: ${o.ocorrenciaLimpa}${o.obsLimpa && o.obsLimpa !== '-' ? ' - ' + o.obsLimpa : ''}`);
+        });
+
+        const linhasPdf = Object.values(mapaAlunos)
+          .sort((a, b) => b.qtd - a.qtd || a.aluno.localeCompare(b.aluno))
+          .map(it => [it.aluno, it.serie, it.obs.join(' | '), String(it.qtd)]);
+
+        doc.autoTable({
+          startY: 20,
+          head: [['ALUNO', 'SÉRIE', 'HISTÓRICO FILTRADO (DATA / BIMESTRE / GRUPO / OCORRÊNCIA)', 'QTD.']],
+          body: linhasPdf,
+          theme: 'grid',
+          headStyles: { fillColor: [15, 118, 110], fontSize: 8.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, valign: 'middle' },
+          columnStyles: {
+            0: { cellWidth: 62, fontStyle: 'bold' },
+            1: { cellWidth: 22, halign: 'center' },
+            2: { cellWidth: 166 },
+            3: { cellWidth: 19, halign: 'center', fontStyle: 'bold' }
+          },
+          margin: { left: 14, right: 14 }
+        });
+
+        Swal.close();
+        doc.save(`Analise_Grafica_Ocorrencias_${serieFiltro.replace(/\s+/g, '_')}.pdf`);
+      } catch (e) {
+        console.error(e);
+        Swal.close();
+        Swal.fire('Erro', 'Ocorreu um erro ao gerar o PDF dos gráficos.', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

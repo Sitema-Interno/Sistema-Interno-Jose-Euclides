@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frequência das Eletivas - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1340px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .select-professor-travado:disabled {
+      background-color: #eff6ff !important;
+      border-color: #93c5fd !important;
+      color: var(--azul-primario) !important;
+      opacity: 1;
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .aluno-row {
+      transition: background-color 0.15s;
+    }
+
+    .aluno-row.linha-falta {
+      background-color: #fee2e2 !important;
+    }
+
+    .table th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Professor</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- ABAS DO MÓDULO DE FREQUÊNCIA DAS ELETIVAS -->
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="lancamento-tab" data-bs-toggle="tab" data-bs-target="#lancamento" type="button" role="tab">
+          <i class="bi bi-pencil-square text-primary me-2"></i>1. Lançar / Editar Diário por Data
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="gerenciar-tab" data-bs-toggle="tab" data-bs-target="#gerenciar" type="button" role="tab" onclick="buscarFrequencias()">
+          <i class="bi bi-list-task text-success me-2"></i>2. Gerir Frequências do Professor
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="relatorio-tab" data-bs-toggle="tab" data-bs-target="#relatorio" type="button" role="tab">
+          <i class="bi bi-file-earmark-bar-graph-fill text-danger me-2"></i>3. Relatório Mensal de Faltas (PDF)
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ========================================================= -->
+      <!-- ABA 1: LANÇAR / EDITAR DIÁRIO DE FREQUÊNCIA POR DATA      -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade show active" id="lancamento" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-calendar-check-fill me-2"></i>Dados da Aula da Eletiva (Vinculado ao Professor na Aba ELETIVA 2025)
+              </h5>
+              <small class="text-muted">O sistema trava automaticamente no seu nome e puxa suas Séries Base, Tempos Eletivos e Eletivas cadastradas.</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <span id="badgeEdicao" class="badge bg-warning text-dark d-none">Modo Edição Ativo</span>
+              <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="btnCancelarEdicaoFreq" onclick="cancelarModoEdicaoFrequencia()">
+                Cancelar Edição
+              </button>
+              <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="recarregarCatalogoServidor(true)">
+                <i class="bi bi-arrow-clockwise me-1"></i>Sincronizar
+              </button>
+            </div>
+          </div>
+
+          <input type="hidden" id="freqIdEdit" value="">
+          <input type="hidden" id="freqLinhaEdit" value="">
+          <input type="hidden" id="faltososOculto" value="">
+
+          <div class="row g-3 align-items-end">
+            <!-- Professor Travado no Topo -->
+            <div class="col-12 col-md-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label"><i class="bi bi-lock-fill text-primary me-1"></i>1. Professor(a) Cadastrado(a) *</label>
+                <button type="button" id="btnDestravarProfAdmin" class="btn btn-link btn-sm p-0 text-decoration-none fw-bold d-none" style="font-size: 0.72rem;" onclick="alternarTravaProfessorAdmin()">
+                  <i class="bi bi-unlock me-1"></i>Trocar Professor
+                </button>
+              </div>
+              <select id="freqProfessor" class="form-select fw-bold select-professor-travado" disabled onchange="aoMudarProfessorOuSemestreLancamento()"></select>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label">2. Data da Aula *</label>
+              <input type="date" id="freqData" class="form-control fw-bold" required>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label">3. Semestre *</label>
+              <select id="freqAno" class="form-select fw-bold" onchange="aoMudarProfessorOuSemestreLancamento()"></select>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label">4. Série Base *</label>
+              <select id="freqSerieBase" class="form-select fw-bold" onchange="aoMudarSerieBaseLancamento()"></select>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label">5. Tempo Eletivo *</label>
+              <select id="freqTempoEletivo" class="form-select fw-bold" onchange="aoMudarTempoEletivoLancamento()"></select>
+            </div>
+
+            <div class="col-12 col-md-9">
+              <label class="form-label">6. Eletiva do(a) Professor(a) (Aba ELETIVA 2025) *</label>
+              <select id="freqEletiva" class="form-select fw-bold" onchange="aoSelecionarEletivaFinal()">
+                <option value="">Selecione a Eletiva...</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3 d-grid">
+              <button class="btn btn-principal py-2" id="btnBuscarAlunos" onclick="buscarAlunosTurma()">
+                <i class="bi bi-people-fill me-2"></i>Carregar Diário (A-Z)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA DE ALUNOS PARA CHAMADA -->
+        <div class="card p-4" id="areaFrequencia" style="display: none;">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="lblTituloDiarioAberto">
+                <i class="bi bi-list-check me-2"></i>Lista de Alunos Matriculados (Ordem Alfabética)
+              </h5>
+              <small class="text-muted" id="lblSubtituloDiarioAberto">Desmarque a chave dos alunos que <b>faltaram</b> para enviá-los ao banco de dados.</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <span class="badge bg-primary fs-6" id="contadorAlunos">0 Alunos</span>
+              <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="marcarTodosEletiva(true)">Todos Presentes</button>
+              <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="marcarTodosEletiva(false)">Todos Falta</button>
+            </div>
+          </div>
+
+          <div class="border rounded bg-white overflow-hidden" id="listaAlunos"></div>
+
+          <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="small fw-bold text-secondary" id="resumoFaltososRodape">0 faltoso(s) marcado(s)</div>
+            <button class="btn btn-principal px-5 py-2 fw-bold shadow-sm" id="btnSalvar" onclick="salvarDiario()">
+              <i class="bi bi-cloud-arrow-up-fill me-2"></i>Salvar Frequência no Banco de Dados
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 2: GERIR FREQUÊNCIAS DO PROFESSOR                     -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="gerenciar" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-list-task me-2"></i>Gerir Frequências Lançadas pelo(a) Professor(a)
+              </h5>
+              <small class="text-muted">Consulte as chamadas já registradas, edite os alunos faltosos ou exclua lançamentos.</small>
+            </div>
+          </div>
+
+          <div class="row g-3 align-items-end mb-4">
+            <div class="col-12 col-md-3">
+              <label class="form-label"><i class="bi bi-person-badge me-1"></i>Professor(a)</label>
+              <select id="gerProfessor" class="form-select fw-bold select-professor-travado" disabled onchange="atualizarEletivasGerir()"></select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Mês</label>
+              <select id="gerMes" class="form-select fw-bold" onchange="buscarFrequencias()">
+                <option value="">Todos os Meses</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Semestre *</label>
+              <select id="gerAno" class="form-select fw-bold" onchange="atualizarEletivasGerir(); buscarFrequencias();"></select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Eletiva do(a) Professor(a)</label>
+              <select id="gerEletiva" class="form-select fw-bold" onchange="buscarFrequencias()">
+                <option value="">Todas as Eletivas do Professor...</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+              <button class="btn btn-principal" onclick="buscarFrequencias()">
+                <i class="bi bi-search me-1"></i>Buscar
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover border align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 115px;">Data da Aula</th>
+                  <th style="width: 145px;">Série / Tempo</th>
+                  <th style="width: 240px;">Eletiva</th>
+                  <th>Alunos Faltosos Registrados no Banco</th>
+                  <th class="text-center" style="width: 130px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaGerenciar">
+                <tr><td colspan="5" class="text-center py-4 text-muted">Clique em Buscar para listar as frequências lançadas.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 3: RELATÓRIO MENSAL DE FALTAS (CADA DIA = 2 FALTAS)   -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="relatorio" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Relatório Quantitativo de Faltas da Eletiva
+              </h5>
+              <small class="text-muted">Regra Oficial: <b>Cada dia faltoso corresponde automaticamente a 2 faltas</b> (2 tempos de aula) no relatório.</small>
+            </div>
+            <div class="d-flex gap-2">
+              <div class="form-check form-switch mt-1">
+                <input class="form-check-input" type="checkbox" id="chkApenasComFalta" checked onchange="renderizarTabelaRelatorioLocal()">
+                <label class="form-check-label small fw-bold text-secondary" for="chkApenasComFalta">Mostrar apenas alunos com falta</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 align-items-end mb-4">
+            <div class="col-12 col-md-3">
+              <label class="form-label"><i class="bi bi-person-badge me-1"></i>Professor(a)</label>
+              <select id="relProfessor" class="form-select fw-bold select-professor-travado" disabled onchange="atualizarEletivasRelatorio()"></select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Mês</label>
+              <select id="relMes" class="form-select fw-bold" onchange="gerarRelatorio()">
+                <option value="">Semestre Inteiro</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Semestre *</label>
+              <select id="relAno" class="form-select fw-bold" onchange="atualizarEletivasRelatorio()"></select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Eletiva do(a) Professor(a) *</label>
+              <select id="relEletiva" class="form-select fw-bold" onchange="gerarRelatorio()"></select>
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+              <button class="btn btn-danger fw-bold" onclick="gerarRelatorio()">
+                <i class="bi bi-calculator-fill me-1"></i>Calcular Faltas
+              </button>
+            </div>
+          </div>
+
+          <div id="areaTabelaRelatorio" style="display:none;">
+            <div class="alert alert-light border d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 px-3 mb-3">
+              <span class="small fw-bold text-dark" id="lblResumoAulasRelatorio">Resumo da Eletiva</span>
+              <button class="btn btn-danger btn-sm fw-bold" onclick="baixarPdfFaltas()">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar Relatório em PDF
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="text-center" style="width: 55px;">Nº</th>
+                    <th>Nome do(a) Aluno(a)</th>
+                    <th class="text-center" style="width: 120px;">Turma</th>
+                    <th class="text-center" style="width: 140px;">Dias Faltosos</th>
+                    <th>Datas das Faltas</th>
+                    <th class="text-center" style="width: 190px;">Total de Faltas (Dias × 2)</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaRelatorio"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Frequência das Eletivas.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    document.getElementById('freqData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('gerMes').value = "";
+    document.getElementById('relMes').value = "";
+
+    const perfilUser = String((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role)) || "Professor").trim().toUpperCase();
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "ADMINISTRADOR").trim().toUpperCase();
+    const isAdminOuGestao = perfilUser.includes("ADMIN") || perfilUser.includes("DIRE");
+
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Professor";
+
+    if (isAdminOuGestao) {
+      document.getElementById('btnDestravarProfAdmin').classList.remove('d-none');
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    const DIAS_SEMANA_MAP = ["DOMINGO", "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO"];
+
+    let catalogoEletivasGlobal = [];
+    let registrosGerenciarCache = [];
+    let dadosRelatorioCache = [];
+    let professorDestravadoManual = false;
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function extrairSerieBaseLocal(str) {
+      const s = String(str || "").replace(/["']/g, "").trim().toUpperCase();
+      if (s.startsWith("1")) return "1ª SÉRIE";
+      if (s.startsWith("2")) return "2ª SÉRIE";
+      if (s.startsWith("3")) return "3ª SÉRIE";
+      return s;
+    }
+
+    // Normaliza qualquer item vindo de getFiltrosFrequencia (seja do formato antigo ou novo)
+    function normalizarCatalogoRecebido(catalogoBruto) {
+      if (!Array.isArray(catalogoBruto)) return [];
+      return catalogoBruto.map(c => ({
+        id: String(c.id || "").trim(),
+        semestre: String(c.semestre || c.ano || "").trim(),
+        serieBase: extrairSerieBaseLocal(c.serieBase || c.turma || ""),
+        tempoEletivo: String(c.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase(),
+        dia: String(c.dia || "").trim().toUpperCase(),
+        eletiva: String(c.eletiva || c.nome || "").trim(),
+        professor: String(c.professor || "").trim().toUpperCase()
+      })).filter(x => x.semestre && x.eletiva);
+    }
+
+    function professorCombinaComEletiva(profSelecionado, profDaEletiva) {
+      const pSel = String(profSelecionado || "").trim().toUpperCase();
+      const pElet = String(profDaEletiva || "").trim().toUpperCase();
+      if (!pSel || pSel === "TODOS") return true;
+      if (!pElet) return false;
+      return pElet === pSel || pElet.includes(pSel) || pSel.includes(pElet);
+    }
+
+    window.onload = async function() {
+      await recarregarCatalogoServidor(false);
+    };
+
+    async function recarregarCatalogoServidor(exibirLoading) {
+      if (exibirLoading) Swal.fire({ title: 'Sincronizando eletivas do professor...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const dados = await chamarAPI({ action: 'getFiltrosFrequencia' });
+      let catNormalizado = normalizarCatalogoRecebido(dados && dados.catalogo);
+
+      // Fallback de segurança caso o servidor ainda não tenha retornado o catálogo na primeira chamada
+      if (catNormalizado.length === 0) {
+        const [e262, e261] = await Promise.all([
+          chamarAPI({ action: 'buscarEletivasCadastradas', ano: '2026.2' }),
+          chamarAPI({ action: 'buscarEletivasCadastradas', ano: '2026.1' })
+        ]);
+        const combinados = [].concat(Array.isArray(e262) ? e262 : [], Array.isArray(e261) ? e261 : []);
+        catNormalizado = normalizarCatalogoRecebido(combinados);
+      }
+
+      if (exibirLoading) Swal.close();
+      catalogoEletivasGlobal = catNormalizado;
+
+      // 1. Monta lista de Professores garantindo que o usuário logado esteja selecionado e travado
+      const profsSet = new Set();
+      if (nomeUser) profsSet.add(nomeUser);
+      catalogoEletivasGlobal.forEach(c => { if (c.professor) profsSet.add(c.professor); });
+      if (dados && Array.isArray(dados.professores)) {
+        dados.professores.forEach(p => { if (p) profsSet.add(String(p).trim().toUpperCase()); });
+      }
+
+      const listaProfs = Array.from(profsSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      let htmlProfs = '';
+      if (isAdminOuGestao) {
+        htmlProfs += `<option value="TODOS">-- TODAS AS ELETIVAS DA ESCOLA --</option>`;
+      }
+      listaProfs.forEach(p => {
+        htmlProfs += `<option value="${p}" ${p === nomeUser ? 'selected' : ''}>${p}</option>`;
+      });
+
+      ['freqProfessor', 'gerProfessor', 'relProfessor'].forEach(idSel => {
+        const el = document.getElementById(idSel);
+        el.innerHTML = htmlProfs;
+        el.value = nomeUser;
+        el.disabled = !professorDestravadoManual;
+      });
+
+      // 2. Monta lista de Semestres onde o professor possui eletiva cadastrada
+      const semestresSet = new Set();
+      catalogoEletivasGlobal.forEach(c => { if (c.semestre) semestresSet.add(c.semestre); });
+      if (dados && Array.isArray(dados.anos)) {
+        dados.anos.forEach(a => { if (a) semestresSet.add(String(a).trim()); });
+      }
+      if (semestresSet.size === 0) {
+        ["2026.2", "2026.1", "2025.2"].forEach(s => semestresSet.add(s));
+      }
+
+      const listaSemestres = Array.from(semestresSet).sort().reverse();
+      // Descobre o semestre mais recente em que o professor logado tem eletiva na aba ELETIVA 2025
+      let semPadraoProf = listaSemestres[0];
+      const temNoSemestrePadrao = catalogoEletivasGlobal.some(c => c.semestre === semPadraoProf && professorCombinaComEletiva(nomeUser, c.professor));
+      if (!temNoSemestrePadrao) {
+        const outroSemDoProf = listaSemestres.find(s => catalogoEletivasGlobal.some(c => c.semestre === s && professorCombinaComEletiva(nomeUser, c.professor)));
+        if (outroSemDoProf) semPadraoProf = outroSemDoProf;
+      }
+
+      let htmlSem = '';
+      listaSemestres.forEach(s => {
+        htmlSem += `<option value="${s}" ${s === semPadraoProf ? 'selected' : ''}>${s}</option>`;
+      });
+
+      ['freqAno', 'gerAno', 'relAno'].forEach(idAno => {
+        const el = document.getElementById(idAno);
+        el.innerHTML = htmlSem;
+        el.value = semPadraoProf;
+      });
+
+      aoMudarProfessorOuSemestreLancamento();
+      atualizarEletivasGerir();
+      atualizarEletivasRelatorio();
+    }
+
+    function alternarTravaProfessorAdmin() {
+      if (!isAdminOuGestao) return;
+      professorDestravadoManual = !professorDestravadoManual;
+      ['freqProfessor', 'gerProfessor', 'relProfessor'].forEach(idSel => {
+        document.getElementById(idSel).disabled = !professorDestravadoManual;
+      });
+      const btn = document.getElementById('btnDestravarProfAdmin');
+      btn.innerHTML = professorDestravadoManual
+        ? '<i class="bi bi-lock-fill me-1"></i>Travar no Meu Nome'
+        : '<i class="bi bi-unlock me-1"></i>Trocar Professor';
+
+      if (!professorDestravadoManual) {
+        ['freqProfessor', 'gerProfessor', 'relProfessor'].forEach(idSel => {
+          document.getElementById(idSel).value = nomeUser;
+        });
+        aoMudarProfessorOuSemestreLancamento();
+        atualizarEletivasGerir();
+        atualizarEletivasRelatorio();
+      }
+    }
+
+    // =========================================================
+    // CASCATA EXATA DA ABA 1: PROFESSOR + SEMESTRE -> SÉRIE BASE -> TEMPO ELETIVO -> ELETIVA
+    // =========================================================
+    function obterEletivasDoProfessorNoSemestre(prof, semestre) {
+      let filtradas = catalogoEletivasGlobal.filter(c =>
+        c.semestre === semestre && professorCombinaComEletiva(prof, c.professor)
+      );
+      // Caso o professor ainda não tenha o nome preenchido na coluna G de alguma eletiva, mas seja Admin
+      if (filtradas.length === 0 && isAdminOuGestao) {
+        filtradas = catalogoEletivasGlobal.filter(c => c.semestre === semestre);
+      }
+      return filtradas;
+    }
+
+    function aoMudarProfessorOuSemestreLancamento() {
+      const prof = document.getElementById('freqProfessor').value;
+      const sem = document.getElementById('freqAno').value;
+      // Sincroniza o mesmo professor nas outras abas
+      document.getElementById('gerProfessor').value = prof;
+      document.getElementById('relProfessor').value = prof;
+
+      const eletivasProf = obterEletivasDoProfessorNoSemestre(prof, sem);
+
+      // Puxa exatamente as Séries Base em que este professor tem eletiva neste semestre
+      const seriesSet = new Set();
+      eletivasProf.forEach(c => { if (c.serieBase) seriesSet.add(c.serieBase); });
+      const seriesArr = Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+      const selSerie = document.getElementById('freqSerieBase');
+      const valorAntSerie = selSerie.value;
+      let htmlSerie = `<option value="">Todas (${seriesArr.length})</option>`;
+      seriesArr.forEach(s => { htmlSerie += `<option value="${s}">${s}</option>`; });
+      selSerie.innerHTML = htmlSerie;
+
+      if (valorAntSerie && seriesArr.includes(valorAntSerie)) {
+        selSerie.value = valorAntSerie;
+      } else if (seriesArr.length === 1) {
+        selSerie.value = seriesArr[0];
+      }
+
+      aoMudarSerieBaseLancamento();
+      atualizarEletivasGerir();
+      atualizarEletivasRelatorio();
+    }
+
+    function aoMudarSerieBaseLancamento() {
+      const prof = document.getElementById('freqProfessor').value;
+      const sem = document.getElementById('freqAno').value;
+      const serieSel = document.getElementById('freqSerieBase').value;
+
+      const eletivasProf = obterEletivasDoProfessorNoSemestre(prof, sem).filter(c =>
+        !serieSel || c.serieBase === serieSel
+      );
+
+      // Puxa exatamente os Tempos Eletivos disponíveis para o Professor + Semestre + Série Base
+      const temposSet = new Set();
+      eletivasProf.forEach(c => { if (c.tempoEletivo) temposSet.add(c.tempoEletivo); });
+      const temposArr = Array.from(temposSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+      const selTempo = document.getElementById('freqTempoEletivo');
+      const valorAntTempo = selTempo.value;
+      let htmlTempo = `<option value="">Todos (${temposArr.length})</option>`;
+      temposArr.forEach(t => { htmlTempo += `<option value="${t}">${t}</option>`; });
+      selTempo.innerHTML = htmlTempo;
+
+      if (valorAntTempo && temposArr.includes(valorAntTempo)) {
+        selTempo.value = valorAntTempo;
+      } else if (temposArr.length === 1) {
+        selTempo.value = temposArr[0];
+      }
+
+      aoMudarTempoEletivoLancamento();
+    }
+
+    function aoMudarTempoEletivoLancamento() {
+      const prof = document.getElementById('freqProfessor').value;
+      const sem = document.getElementById('freqAno').value;
+      const serieSel = document.getElementById('freqSerieBase').value;
+      const tempoSel = document.getElementById('freqTempoEletivo').value;
+
+      const eletivasProf = obterEletivasDoProfessorNoSemestre(prof, sem).filter(c =>
+        (!serieSel || c.serieBase === serieSel) &&
+        (!tempoSel || c.tempoEletivo === tempoSel)
+      );
+
+      const selElet = document.getElementById('freqEletiva');
+      let htmlElet = `<option value="">Selecione a Eletiva (${eletivasProf.length})...</option>`;
+      eletivasProf.forEach(c => {
+        const labelExtra = (!serieSel || !tempoSel) ? ` [${c.serieBase} • ${c.tempoEletivo}]` : '';
+        htmlElet += `<option value="${c.eletiva}" data-serie="${c.serieBase}" data-tempo="${c.tempoEletivo}" data-dia="${c.dia}">${c.eletiva}${labelExtra}</option>`;
+      });
+      selElet.innerHTML = htmlElet;
+
+      if (eletivasProf.length === 1) {
+        selElet.selectedIndex = 1;
+        aoSelecionarEletivaFinal();
+      }
+    }
+
+    function aoSelecionarEletivaFinal() {
+      const selElet = document.getElementById('freqEletiva');
+      const opt = selElet.options[selElet.selectedIndex];
+      if (opt && opt.value) {
+        if (opt.dataset.serie) document.getElementById('freqSerieBase').value = opt.dataset.serie;
+        if (opt.dataset.tempo) document.getElementById('freqTempoEletivo').value = opt.dataset.tempo;
+        buscarAlunosTurma();
+      }
+    }
+
+    async function buscarAlunosTurma(faltososPreCarregados = null) {
+      const ano = document.getElementById('freqAno').value;
+      const serieBase = document.getElementById('freqSerieBase').value;
+      const tempoEletivo = document.getElementById('freqTempoEletivo').value;
+      const eletiva = document.getElementById('freqEletiva').value;
+
+      if (!ano || !eletiva) {
+        return Swal.fire('Atenção', 'Selecione a Eletiva para carregar os alunos.', 'warning');
+      }
+
+      let faltososParaUsar = (faltososPreCarregados !== null)
+        ? faltososPreCarregados
+        : document.getElementById('faltososOculto').value;
+
+      const btn = document.getElementById('btnBuscarAlunos');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Carregando...';
+
+      const alunos = await chamarAPI({
+        action: 'getAlunosFrequencia',
+        ano: ano,
+        eletiva: eletiva,
+        serieBase: serieBase,
+        tempoEletivo: tempoEletivo
+      });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-people-fill me-2"></i>Carregar Diário (A-Z)';
+
+      if (!Array.isArray(alunos) || alunos.length === 0) {
+        document.getElementById('areaFrequencia').style.display = 'none';
+        return Swal.fire('Aviso', 'Nenhum aluno encontrado matriculado nesta eletiva para o semestre selecionado.', 'info');
+      }
+
+      document.getElementById('contadorAlunos').innerText = `${alunos.length} Alunos`;
+      document.getElementById('lblTituloDiarioAberto').innerHTML = `<i class="bi bi-list-check me-2"></i>${eletiva}`;
+      document.getElementById('lblSubtituloDiarioAberto').innerText =
+        `Semestre: ${ano} • ${serieBase || ''} • ${tempoEletivo || ''} • Professor(a): ${document.getElementById('freqProfessor').value}`;
+
+      const divLista = document.getElementById('listaAlunos');
+      let listaFaltosos = (faltososParaUsar && faltososParaUsar !== "100% PRESENÇA")
+        ? faltososParaUsar.split(',').map(n => n.trim().toUpperCase()).filter(Boolean)
+        : [];
+
+      let html = '';
+      alunos.forEach((item, index) => {
+        const nomeLimpo = String(item.nome || item || "").trim().toUpperCase();
+        const turmaAl = item.turma || serieBase || "";
+        const presente = !listaFaltosos.includes(nomeLimpo);
+
+        html += `
+          <div class="aluno-row border-bottom px-3 py-2 d-flex justify-content-between align-items-center ${presente ? '' : 'linha-falta'}">
+            <div class="d-flex align-items-center gap-3">
+              <div class="form-check form-switch m-0">
+                <input class="form-check-input check-presenca" type="checkbox" style="cursor: pointer; width: 2.6em; height: 1.3em;" ${presente ? 'checked' : ''} onchange="alternarStatus(this)">
+              </div>
+              <span class="status-text ${presente ? 'badge bg-success' : 'badge bg-danger'}" style="min-width: 82px;">
+                ${presente ? 'Presente (P)' : 'Faltou (F)'}
+              </span>
+              <div class="aluno-nome ${presente ? 'text-dark fw-semibold' : 'text-danger fw-bold'}">
+                ${index + 1}. <span class="nome-estudante">${nomeLimpo}</span>
+              </div>
+            </div>
+            ${turmaAl ? `<span class="badge bg-light text-secondary border">${turmaAl}</span>` : ''}
+          </div>`;
+      });
+
+      divLista.innerHTML = html;
+      atualizarContadorFaltososRodape();
+      document.getElementById('areaFrequencia').style.display = 'block';
+    }
+
+    function alternarStatus(checkbox) {
+      const row = checkbox.closest('.aluno-row');
+      const spanStatus = row.querySelector('.status-text');
+      const nomeDiv = row.querySelector('.aluno-nome');
+      if (checkbox.checked) {
+        spanStatus.innerText = "Presente (P)";
+        spanStatus.className = "status-text badge bg-success";
+        nomeDiv.className = "aluno-nome text-dark fw-semibold";
+        row.classList.remove('linha-falta');
+      } else {
+        spanStatus.innerText = "Faltou (F)";
+        spanStatus.className = "status-text badge bg-danger";
+        nomeDiv.className = "aluno-nome text-danger fw-bold";
+        row.classList.add('linha-falta');
+      }
+      atualizarContadorFaltososRodape();
+    }
+
+    function marcarTodosEletiva(presenteBool) {
+      document.querySelectorAll('.aluno-row .check-presenca').forEach(chk => {
+        chk.checked = presenteBool;
+        alternarStatus(chk);
+      });
+    }
+
+    function atualizarContadorFaltososRodape() {
+      const totalFaltosos = document.querySelectorAll('.aluno-row .check-presenca:not(:checked)').length;
+      const el = document.getElementById('resumoFaltososRodape');
+      if (totalFaltosos === 0) {
+        el.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>100% de Presença (Nenhum aluno faltoso)</span>';
+      } else {
+        el.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>${totalFaltosos} aluno(s) faltoso(s) serão enviados para o banco de dados (equivale a 2 faltas no relatório)</span>`;
+      }
+    }
+
+    async function salvarDiario() {
+      const dataIso = document.getElementById('freqData').value;
+      const semestre = document.getElementById('freqAno').value;
+      const serieBase = document.getElementById('freqSerieBase').value;
+      const tempoEletivo = document.getElementById('freqTempoEletivo').value;
+      const eletiva = document.getElementById('freqEletiva').value;
+
+      if (!dataIso || !semestre || !eletiva) {
+        return Swal.fire('Atenção', 'Preencha a Data, o Semestre e a Eletiva.', 'warning');
+      }
+
+      const p = dataIso.split('-');
+      const dataBr = `${p[2]}/${p[1]}/${p[0]}`;
+      const dtObj = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+      const diaSemanaNome = DIAS_SEMANA_MAP[dtObj.getDay()] || "";
+
+      let faltososArray = [];
+      document.querySelectorAll('.aluno-row').forEach(row => {
+        if (!row.querySelector('.check-presenca').checked) {
+          faltososArray.push(row.querySelector('.nome-estudante').innerText.trim());
+        }
+      });
+
+      const dadosParaSalvar = {
+        id: document.getElementById('freqIdEdit').value,
+        linha: document.getElementById('freqLinhaEdit').value || null,
+        data: dataBr,
+        diaSemana: diaSemanaNome,
+        semestre: semestre,
+        serieBase: serieBase || "1ª SÉRIE",
+        tempoEletivo: tempoEletivo || "TEMPO ELETIVO 1",
+        professor: document.getElementById('freqProfessor').value,
+        eletiva: eletiva,
+        faltosos: faltososArray.join(" , ")
+      };
+
+      const btn = document.getElementById('btnSalvar');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando Faltosos ao Banco...';
+
+      const res = await chamarAPI({ action: 'salvarFrequencia', dadosFrequencia: dadosParaSalvar });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-2"></i>Salvar Frequência no Banco de Dados';
+
+      if (res && res.success) {
+        Swal.fire({
+          title: 'Frequência Registrada!',
+          text: res.msg,
+          icon: 'success',
+          confirmButtonColor: '#15438c'
+        });
+        cancelarModoEdicaoFrequencia();
+      } else if (res && res.jaExiste) {
+        Swal.fire({
+          title: 'Chamada Duplicada Bloqueada!',
+          text: res.msg,
+          icon: 'warning',
+          confirmButtonColor: '#15438c'
+        });
+      } else {
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar a frequência.', 'error');
+      }
+    }
+
+    function cancelarModoEdicaoFrequencia() {
+      document.getElementById('freqIdEdit').value = "";
+      document.getElementById('freqLinhaEdit').value = "";
+      document.getElementById('faltososOculto').value = "";
+      document.getElementById('badgeEdicao').classList.add('d-none');
+      document.getElementById('btnCancelarEdicaoFreq').classList.add('d-none');
+      document.getElementById('areaFrequencia').style.display = 'none';
+    }
+
+    // =========================================================
+    // ABA 2: GERIR FREQUÊNCIAS DO PROFESSOR
+    // =========================================================
+    function atualizarEletivasGerir() {
+      const prof = document.getElementById('gerProfessor').value;
+      const sem = document.getElementById('gerAno').value;
+      const eletivasProf = obterEletivasDoProfessorNoSemestre(prof, sem);
+
+      const setElet = new Set();
+      eletivasProf.forEach(item => { if (item.eletiva) setElet.add(item.eletiva); });
+      const arr = Array.from(setElet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      let html = `<option value="">Todas as Eletivas do Professor (${arr.length})...</option>`;
+      arr.forEach(e => { html += `<option value="${e}">${e}</option>`; });
+      document.getElementById('gerEletiva').innerHTML = html;
+    }
+
+    async function buscarFrequencias() {
+      const prof = document.getElementById('gerProfessor').value;
+      const mes = document.getElementById('gerMes').value;
+      const semestre = document.getElementById('gerAno').value;
+      const elet = document.getElementById('gerEletiva').value;
+
+      if (!semestre) return;
+
+      const tbody = document.getElementById('tabelaGerenciar');
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Buscando frequências lançadas...</td></tr>';
+
+      const regs = await chamarAPI({
+        action: 'buscarFrequenciasGerenciamento',
+        mes: mes,
+        semestre: semestre,
+        eletiva: elet,
+        professor: (prof === 'TODOS' ? '' : prof)
+      });
+
+      let listaBruta = Array.isArray(regs) ? regs : [];
+
+      // Garante filtro pelas eletivas vinculadas ao professor selecionado
+      if (prof && prof !== 'TODOS' && !elet) {
+        const nomesEletProf = new Set(obterEletivasDoProfessorNoSemestre(prof, semestre).map(x => x.eletiva.toUpperCase()));
+        if (nomesEletProf.size > 0) {
+          listaBruta = listaBruta.filter(r => nomesEletProf.has(String(r.eletiva || "").trim().toUpperCase()));
+        }
+      }
+
+      registrosGerenciarCache = listaBruta;
+      if (registrosGerenciarCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma frequência encontrada para este filtro.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      registrosGerenciarCache.forEach((r, idx) => {
+        const strFaltosos = String(r.faltosos || "").trim();
+        const qtdFaltosos = r.qtdFaltosos !== undefined
+          ? r.qtdFaltosos
+          : ((strFaltosos && strFaltosos !== "100% PRESENÇA") ? strFaltosos.split(',').filter(Boolean).length : 0);
+
+        const badgeFaltosos = (qtdFaltosos === 0 || strFaltosos === "100% PRESENÇA")
+          ? '<span class="badge bg-success">100% Presença</span>'
+          : `<span class="badge bg-danger me-1">${qtdFaltosos} faltoso(s)</span> <small class="text-secondary">${strFaltosos}</small>`;
+
+        html += `
+          <tr>
+            <td class="fw-bold text-dark">${r.data}</td>
+            <td>
+              <span class="badge bg-secondary">${r.serieBase || '-'}</span>
+              <div class="small text-muted fw-semibold">${r.tempoEletivo || ''}</div>
+            </td>
+            <td class="fw-bold text-primary small">${r.eletiva}</td>
+            <td>${badgeFaltosos}</td>
+            <td class="text-center text-nowrap">
+              <button class="btn btn-sm btn-outline-primary me-1" title="Editar Faltosos desta Data" onclick="iniciarEdicaoPorIndice(${idx})">
+                <i class="bi bi-pencil-square"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" title="Excluir Chamada" onclick="deletarFrequencia('${r.id}', ${r.linha || 0})">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function iniciarEdicaoPorIndice(idx) {
+      const r = registrosGerenciarCache[idx];
+      if (!r) return;
+
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('lancamento-tab')).show();
+      document.getElementById('freqIdEdit').value = r.id || "";
+      document.getElementById('freqLinhaEdit').value = r.linha || "";
+      document.getElementById('faltososOculto').value = r.faltosos || "";
+      document.getElementById('badgeEdicao').classList.remove('d-none');
+      document.getElementById('btnCancelarEdicaoFreq').classList.remove('d-none');
+
+      if (r.data && r.data.includes('/')) {
+        const p = r.data.split('/');
+        document.getElementById('freqData').value = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+      }
+      document.getElementById('freqAno').value = r.semestre;
+      aoMudarProfessorOuSemestreLancamento();
+
+      if (r.serieBase) {
+        document.getElementById('freqSerieBase').value = extrairSerieBaseLocal(r.serieBase);
+        aoMudarSerieBaseLancamento();
+      }
+      if (r.tempoEletivo) {
+        document.getElementById('freqTempoEletivo').value = r.tempoEletivo;
+        aoMudarTempoEletivoLancamento();
+      }
+      document.getElementById('freqEletiva').value = r.eletiva;
+
+      buscarAlunosTurma(r.faltosos);
+    }
+
+    async function deletarFrequencia(id, linha) {
+      const conf = await Swal.fire({
+        title: 'Excluir Chamada?',
+        text: 'Deseja realmente excluir este registro de frequência da eletiva?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, Excluir',
+        cancelButtonText: 'Cancelar'
+      });
+      if (!conf.isConfirmed) return;
+
+      Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({ action: 'excluirFrequencia', id: id, linha: linha });
+      Swal.close();
+
+      if (res && (res.success || res.msg)) {
+        Swal.fire({ title: 'Excluído!', text: res.msg || 'Excluído com sucesso!', icon: 'success', timer: 1400, showConfirmButton: false });
+        buscarFrequencias();
+      }
+    }
+
+    // =========================================================
+    // ABA 3: RELATÓRIO DE FALTAS (CADA DIA FALTOSO = 2 FALTAS)
+    // =========================================================
+    function atualizarEletivasRelatorio() {
+      const prof = document.getElementById('relProfessor').value;
+      const sem = document.getElementById('relAno').value;
+      const eletivasProf = obterEletivasDoProfessorNoSemestre(prof, sem);
+
+      const setElet = new Set();
+      eletivasProf.forEach(item => { if (item.eletiva) setElet.add(item.eletiva); });
+      const arr = Array.from(setElet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      let html = `<option value="">Selecione a Eletiva (${arr.length})...</option>`;
+      arr.forEach(e => { html += `<option value="${e}">${e}</option>`; });
+      const selRel = document.getElementById('relEletiva');
+      selRel.innerHTML = html;
+
+      if (arr.length === 1) {
+        selRel.selectedIndex = 1;
+      }
+    }
+
+    async function gerarRelatorio() {
+      const mes = document.getElementById('relMes').value;
+      const semestre = document.getElementById('relAno').value;
+      const elet = document.getElementById('relEletiva').value;
+
+      if (!semestre || !elet) {
+        return Swal.fire('Atenção', 'Selecione o Semestre e a Eletiva para gerar o relatório de faltas.', 'warning');
+      }
+
+      const tbody = document.getElementById('tabelaRelatorio');
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Calculando faltas (1 dia faltoso = 2 faltas)...</td></tr>';
+      document.getElementById('areaTabelaRelatorio').style.display = 'block';
+
+      const rel = await chamarAPI({
+        action: 'getRelatorioFaltas',
+        mes: mes,
+        semestre: semestre,
+        eletiva: elet
+      });
+
+      dadosRelatorioCache = Array.isArray(rel) ? rel : [];
+      renderizarTabelaRelatorioLocal();
+    }
+
+    function renderizarTabelaRelatorioLocal() {
+      const tbody = document.getElementById('tabelaRelatorio');
+      const apenasComFalta = document.getElementById('chkApenasComFalta').checked;
+      const elet = document.getElementById('relEletiva').value;
+      const sem = document.getElementById('relAno').value;
+
+      let listaExibir = dadosRelatorioCache.slice();
+      if (apenasComFalta) {
+        listaExibir = listaExibir.filter(a => Number(a.faltas) > 0);
+      }
+
+      const totalDias = (dadosRelatorioCache[0] && dadosRelatorioCache[0].totalDiasAula !== undefined)
+        ? dadosRelatorioCache[0].totalDiasAula
+        : '-';
+      document.getElementById('lblResumoAulasRelatorio').innerHTML =
+        `<i class="bi bi-journal-bookmark-fill text-primary me-1"></i><b>${elet} (${sem})</b> — Dias de aula lançados no período: <b>${totalDias}</b> (Cada dia faltoso = <b>2 faltas</b>)`;
+
+      if (listaExibir.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-success fw-bold py-4"><i class="bi bi-check-circle-fill me-1"></i>100% de frequência! Nenhuma falta registrada para este filtro.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaExibir.forEach((a, idx) => {
+        const totalFaltasDuplas = Number(a.faltas) || 0;
+        const diasFaltados = a.diasFaltosos !== undefined ? a.diasFaltosos : Math.round(totalFaltasDuplas / 2);
+        const corBadge = totalFaltasDuplas >= 6 ? 'bg-danger' : (totalFaltasDuplas > 0 ? 'bg-warning text-dark' : 'bg-success');
+
+        html += `
+          <tr>
+            <td class="text-center fw-bold text-muted">${idx + 1}</td>
+            <td class="fw-bold text-dark">${a.nome}</td>
+            <td class="text-center"><span class="badge bg-secondary">${a.turma || '-'}</span></td>
+            <td class="text-center fw-bold">${diasFaltados} dia(s)</td>
+            <td class="small text-secondary">${a.datasFaltas || '-'}</td>
+            <td class="text-center"><span class="badge ${corBadge} fs-6 px-3">${totalFaltasDuplas} falta(s)</span></td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+   // 1º Passo: Coloque a palavra "async" antes de "function"
+async function baixarPdfFaltas() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const eletiva = document.getElementById('relEletiva').value;
+  const semestre = document.getElementById('relAno').value;
+  const prof = document.getElementById('relProfessor').value;
+  const selMes = document.getElementById('relMes');
+  const nomeMes = selMes.options[selMes.selectedIndex].text;
+
+  // 2º Passo: Substitua os doc.text antigos por esta chamada que desenha o Brasão e o Cabeçalho:
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "RELATÓRIO QUANTITATIVO DE FALTAS DE ELETIVA",
+    subtitulo1: `Eletiva: ${eletiva}   |   Semestre: ${semestre}   |   Período: ${nomeMes}`,
+    subtitulo2: `Professor(a): ${prof}   |   Regra: Cada dia faltoso corresponde a 2 faltas`
+  });
+
+  const linhas = [];
+  document.querySelectorAll('#tabelaRelatorio tr').forEach(tr => {
+    if (tr.cells.length >= 6) {
+      linhas.push([
+        tr.cells[0].innerText.trim(),
+        tr.cells[1].innerText.trim(),
+        tr.cells[2].innerText.trim(),
+        tr.cells[3].innerText.trim(),
+        tr.cells[4].innerText.trim(),
+        tr.cells[5].innerText.trim()
+      ]);
+    }
+  });
+
+  // 3º Passo: Dentro do doc.autoTable, troque "startY: 30" por "startY: startY"
+  doc.autoTable({
+    startY: startY, // <--- AGORA USA A ALTURA EXATA LOGO ABAIXO DO CABEÇALHO COM BRASÃO!
+    head: [['Nº', 'Nome do(a) Aluno(a)', 'Turma', 'Dias Faltosos', 'Datas', 'Total Faltas (×2)']],
+    body: linhas,
+    styles: { fontSize: 8.5, cellPadding: 2.2 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
+  });
+
+  doc.save(`Relatorio_Faltas_${eletiva.replace(/[^a-zA-Z0-9]/g, '_')}_${semestre}.pdf`);
+}
+  </script>
+</body>
+</html>

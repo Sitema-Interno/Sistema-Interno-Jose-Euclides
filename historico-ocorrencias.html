@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consultar Histórico Disciplinar (RAC) - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1360px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.86rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 9px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .moldura-3x4-disc {
+      width: 98px;
+      height: 130px;
+      border-radius: 10px;
+      border: 2px solid var(--azul-primario);
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(21, 67, 140, 0.12);
+    }
+
+    .moldura-3x4-disc img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Cartões de Bimestre com Nota Fixa e Ocorrências */
+    .kpi-card-disc {
+      border: 1px solid #cbd5e1;
+      border-left: 5px solid var(--azul-primario);
+      border-radius: 12px;
+      padding: 11px 13px;
+      background: #ffffff;
+      height: 100%;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    }
+
+    .kpi-card-disc:hover {
+      background: #f0f7ff;
+      border-color: #60a5fa;
+      transform: translateY(-1px);
+    }
+
+    .kpi-card-disc.ativo {
+      background: #dbeafe;
+      border: 2px solid var(--azul-primario);
+      border-left: 5px solid var(--azul-primario);
+    }
+
+    .pilula-nota-bimestre {
+      display: inline-block;
+      font-weight: 900;
+      font-size: 0.92rem;
+      padding: 2px 9px;
+      border-radius: 7px;
+    }
+
+    .nota-alta {
+      background-color: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    .nota-media {
+      background-color: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    .nota-baixa {
+      background-color: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    .tabela-enquadrada {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-enquadrada th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      padding: 10px 8px;
+    }
+
+    .tabela-enquadrada td {
+      vertical-align: middle;
+      font-size: 0.82rem;
+      padding: 10px 8px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Administrador</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- CARD 1: FILTROS DO HISTÓRICO (POR ALUNO, BIMESTRE OU PERÍODO DE DATAS) -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-clock-history me-2"></i>Consultar Histórico Disciplinar de Ocorrências (CRO)
+          </h5>
+          <small class="text-muted">Pesquise o(a) aluno(a) e filtre as ocorrências por <b>Bimestre</b> ou por <b>Período Personalizado (Data Inicial e Data Final)</b>.</small>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="limparFiltrosPeriodoBimestre()">
+          <i class="bi bi-eraser me-1"></i>Limpar Período / Ver Tudo
+        </button>
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-2">
+          <label class="form-label">Turma (Opcional)</label>
+          <select id="filtroSerieAux" class="form-select fw-bold" onchange="atualizarDatalistAlunosPorSerie()">
+            <option value="">Todas...</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Aluno(a) (Digite para buscar) *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="bi bi-person-search text-primary"></i></span>
+            <input type="text" id="inputAlunoHistDisc" class="form-control text-uppercase fw-bold" list="datalistAlunosDisc" placeholder="Digite o nome do(a) aluno(a)..." onkeydown="if(event.key==='Enter') buscarHistoricoDisciplinarAluno()">
+          </div>
+          <datalist id="datalistAlunosDisc"></datalist>
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label class="form-label"><i class="bi bi-calendar3-range text-primary me-1"></i>Filtrar por Bimestre</label>
+          <select id="selectBimestreFiltro" class="form-select fw-bold" onchange="aoSelecionarBimestreFiltro()">
+            <option value="">Todos os Bimestres</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Data Inicial (Período)</label>
+          <input type="date" id="inputDataIniFiltro" class="form-control fw-bold" onchange="aoAlterarDatasManualmente()">
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Data Final (Período)</label>
+          <div class="d-flex gap-1">
+            <input type="date" id="inputDataFimFiltro" class="form-control fw-bold" onchange="aoAlterarDatasManualmente()">
+            <button class="btn btn-principal px-3" type="button" id="btnBuscarHistDisc" onclick="buscarHistoricoDisciplinarAluno()" title="Consultar Histórico">
+              <i class="bi bi-search"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2: FICHA DISCIPLINAR DO ALUNO, NOTAS FIXAS POR BIMESTRE E TABELA DE OCORRÊNCIAS -->
+    <div class="card p-4 d-none" id="cardResultadoDisciplinar">
+      <div class="card-header-custom">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="moldura-3x4-disc" id="boxFotoAlunoDisc">
+            <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+              <span class="badge bg-primary" id="lblSerieAlunoDisc">SÉRIE</span>
+              <span class="badge bg-light text-dark border" id="lblPeriodoAtivoBadge">Período: Ano Inteiro</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold" id="lblNotaPeriodoBadge">Nota RAC: 10,0</span>
+            </div>
+            <h4 class="fw-bold m-0 text-dark" id="lblNomeAlunoDisc">NOME DO ALUNO</h4>
+            <div class="small text-muted mt-1" id="lblSubtituloResumoDisc">
+              Histórico Disciplinar Oficial • Pontuação Inicial por Bimestre: <b>10,0 pts</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <select id="filtroGravidadeInterno" class="form-select form-select-sm fw-bold" style="width: 195px;" onchange="aplicarFiltroPeriodoEBimestreNaTabela()">
+            <option value="">Todas as Gravidades</option>
+            <option value="GRAU 0">GRAU 0 (ACOMPANHAMENTO)</option>
+            <option value="GRAU I ">GRAU I (LEVES)</option>
+            <option value="GRAU II ">GRAU II (MÉDIAS)</option>
+            <option value="GRAU III">GRAU III (GRAVES)</option>
+            <option value="GRAV">GRAVÍSSIMAS</option>
+          </select>
+          <button class="btn btn-danger fw-bold px-3" onclick="gerarPdfHistoricoDisciplinar()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar Relatório PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Cartões Rápidos por Bimestre com Nota Fixa RAC e Quantidade de Ocorrências -->
+      <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+        <small class="fw-bold text-uppercase text-muted" style="font-size: 0.7rem;">
+          <i class="bi bi-award-fill text-primary me-1"></i>Notas Fixas e Ocorrências por Bimestre (Clique em um bimestre abaixo para filtrar a tabela):
+        </small>
+        <small class="text-muted" style="font-size: 0.7rem;">
+          Cada bimestre inicia com <b>10,0 pontos</b> e desconta conforme a pontuação de cada ocorrência.
+        </small>
+      </div>
+      <div class="row g-2 mb-4" id="containerCardsBimestres"></div>
+
+      <!-- Tabela de Ocorrências Enquadrada 100% na Tela -->
+      <div class="w-100">
+        <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
+          <thead>
+            <tr>
+              <th style="width: 4%;" class="text-center">Nº</th>
+              <th style="width: 12%;">Data / Hora</th>
+              <th style="width: 10%;" class="text-center">Bimestre</th>
+              <th style="width: 8%;" class="text-center">Série</th>
+              <th style="width: 24%;">Ocorrência Registrada</th>
+              <th style="width: 15%;" class="text-center">Gravidade / Desconto</th>
+              <th style="width: 16%;">Observações</th>
+              <th style="width: 11%;">Professor / Servidor</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyOcorrenciasAluno"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Histórico Disciplinar (CRO).
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    if (usuarioLogado) {
+      document.getElementById('lblNomeUsuario').innerText = (usuarioLogado.nome || usuarioLogado.usuario?.nome || "USUÁRIO").toUpperCase();
+      document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Servidor";
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let listaAlunosCache = [];
+    let listaBimestresEscola = [];
+    let mapPontuacoesRac = {};
+    let dadosAlunoSelecionado = null;
+    let todasOcorrenciasDoAluno = [];
+    let ocorrenciasFiltradasNaTela = [];
+    let resumoCalculadoBimestres = [];
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function extrairTimestampSeguroLocal(dataValor) {
+      if (!dataValor) return 0;
+      if (typeof dataValor === 'number') return dataValor;
+      const str = String(dataValor).trim();
+      const mBr = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}))?/);
+      if (mBr) {
+        return new Date(
+          parseInt(mBr[3], 10),
+          parseInt(mBr[2], 10) - 1,
+          parseInt(mBr[1], 10),
+          mBr[4] ? parseInt(mBr[4], 10) : 12,
+          mBr[5] ? parseInt(mBr[5], 10) : 0,
+          0
+        ).getTime();
+      }
+      const mIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (mIso) {
+        return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 12, 0, 0).getTime();
+      }
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+
+    // Calcula quantos pontos a ocorrência desconta com base na aba 'PONTUAÇÃO DAS OCORRÊNCIAS'
+    function obterDescontoPontosDaOcorrencia(ocorrenciaObj) {
+      const grav = String(ocorrenciaObj.gravidade || "").trim().toUpperCase();
+      const desc = String(ocorrenciaObj.ocorrencia || "").trim().toUpperCase();
+
+      // 1. Procura correspondência exata ou parcial no mapa vindo da aba 'PONTUAÇÃO DAS OCORRÊNCIAS'
+      if (mapPontuacoesRac && Object.keys(mapPontuacoesRac).length > 0) {
+        if (mapPontuacoesRac[grav] !== undefined) return Math.abs(parseFloat(mapPontuacoesRac[grav]) || 0);
+        if (mapPontuacoesRac[desc] !== undefined) return Math.abs(parseFloat(mapPontuacoesRac[desc]) || 0);
+
+        for (const ch in mapPontuacoesRac) {
+          const chaveUp = String(ch).trim().toUpperCase();
+          if (chaveUp && (grav.includes(chaveUp) || chaveUp.includes(grav))) {
+            return Math.abs(parseFloat(mapPontuacoesRac[ch]) || 0);
+          }
+        }
+      }
+
+      // 2. Fallback padrão caso a gravidade não esteja listada literalmente na aba
+      if (grav.includes("GRAU 0") || grav.includes("ACOMPANHAMENTO")) return 0;
+      if (grav.includes("GRAVÍSSIMA") || grav.includes("GRAVISSIMA") || grav.includes("GRAU IV")) return 2.0;
+      if (grav.includes("GRAU III") || grav.includes("MAIS GRAVE") || desc.startsWith("[GRAVE]")) return 1.0;
+      if (grav.includes("GRAU II") || grav.includes("MÉDIA") || grav.includes("MEDIA") || desc.startsWith("[MÉDIA]")) return 0.5;
+      if (grav.includes("GRAU I") || grav.includes("LEVE") || desc.startsWith("[LEVE]")) return 0.2;
+      return 0.2;
+    }
+
+    function formatarNotaBr(num) {
+      return Number(num).toFixed(1).replace('.', ',');
+    }
+
+    function obterClasseCorNota(nota) {
+      if (nota >= 8.0) return 'nota-alta';
+      if (nota >= 6.0) return 'nota-media';
+      return 'nota-baixa';
+    }
+
+    window.onload = async function() {
+      const [resFiltros, resBim, resSer, resPontos] = await Promise.all([
+        chamarAPI({ action: 'getFiltrosOcorrencias' }),
+        chamarAPI({ action: 'listarConfig', tipo: 'BIMESTRE' }),
+        chamarAPI({ action: 'listarConfig', tipo: 'SERIE' }),
+        chamarAPI({ action: 'listarConfig', tipo: 'PONTUACAO' })
+      ]);
+
+      // 1. Pontuações configuradas na aba PONTUAÇÃO DAS OCORRÊNCIAS
+      if (resPontos && Array.isArray(resPontos.lista)) {
+        resPontos.lista.forEach(item => {
+          const k = String(item.col1 || "").trim().toUpperCase();
+          const v = parseFloat(String(item.col2 || "0").replace(',', '.')) || 0;
+          if (k) mapPontuacoesRac[k] = v;
+        });
+      }
+
+      // 2. Séries
+      const seriesSet = new Set();
+      if (resSer && Array.isArray(resSer.lista)) {
+        resSer.lista.forEach(s => {
+          const ns = String(s.col2 || s.col1 || "").replace(/["']/g, "").trim().toUpperCase();
+          if (ns && ns !== "SÉRIE" && ns !== "TRANSFERIDO") seriesSet.add(ns);
+        });
+      }
+      if (resFiltros && Array.isArray(resFiltros.series)) {
+        resFiltros.series.forEach(s => seriesSet.add(String(s).replace(/["']/g, "").trim().toUpperCase()));
+      }
+      const seriesArr = Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+      let htmlSer = '<option value="">Todas...</option>';
+      seriesArr.forEach(s => { htmlSer += `<option value="${s}">${s}</option>`; });
+      document.getElementById('filtroSerieAux').innerHTML = htmlSer;
+
+      // 3. Alunos
+      if (resFiltros && Array.isArray(resFiltros.alunos)) {
+        listaAlunosCache = resFiltros.alunos;
+        atualizarDatalistAlunosPorSerie();
+      }
+
+      // 4. Bimestres da aba BIMESTRE
+      if (resBim && Array.isArray(resBim.lista)) {
+        listaBimestresEscola = resBim.lista.map(b => {
+          const dtIniIso = String(b.col2 || "").trim();
+          const dtFimIso = String(b.col3 || "").trim();
+          const tsIni = extrairTimestampSeguroLocal(dtIniIso);
+          const tsFim = extrairTimestampSeguroLocal(dtFimIso);
+          return {
+            nome: String(b.col1 || "").trim(),
+            inicio: tsIni > 0 ? new Date(tsIni).setHours(0, 0, 0, 0) : 0,
+            fim: tsFim > 0 ? new Date(tsFim).setHours(23, 59, 59, 999) : 0,
+            inicioIso: dtIniIso.includes('-') ? dtIniIso : "",
+            fimIso: dtFimIso.includes('-') ? dtFimIso : ""
+          };
+        }).filter(b => b.nome);
+        popularSelectBimestresNaTela();
+      }
+    };
+
+    function popularSelectBimestresNaTela() {
+      const sel = document.getElementById('selectBimestreFiltro');
+      const valAnt = sel.value;
+      let html = '<option value="">Todos os Bimestres (Ano Inteiro)</option>';
+      listaBimestresEscola.forEach((b, idx) => {
+        html += `<option value="${idx}">${b.nome}</option>`;
+      });
+      sel.innerHTML = html;
+      if (valAnt !== "" && listaBimestresEscola[valAnt]) sel.value = valAnt;
+    }
+
+    function atualizarDatalistAlunosPorSerie() {
+      const serie = document.getElementById('filtroSerieAux').value.trim().toUpperCase();
+      const filtrados = serie
+        ? listaAlunosCache.filter(a => String(a.serie || "").replace(/["']/g, "").trim().toUpperCase() === serie)
+        : listaAlunosCache;
+
+      let html = '';
+      filtrados.forEach(a => {
+        html += `<option value="${a.nome}">${a.serie || ''}</option>`;
+      });
+      document.getElementById('datalistAlunosDisc').innerHTML = html;
+    }
+
+    function aoSelecionarBimestreFiltro() {
+      const idxBim = document.getElementById('selectBimestreFiltro').value;
+      const inpIni = document.getElementById('inputDataIniFiltro');
+      const inpFim = document.getElementById('inputDataFimFiltro');
+
+      if (idxBim === "") {
+        inpIni.value = "";
+        inpFim.value = "";
+      } else {
+        const bim = listaBimestresEscola[Number(idxBim)];
+        if (bim) {
+          if (bim.inicioIso) inpIni.value = bim.inicioIso;
+          else if (bim.inicio > 0) inpIni.value = new Date(bim.inicio).toISOString().slice(0, 10);
+
+          if (bim.fimIso) inpFim.value = bim.fimIso;
+          else if (bim.fim > 0) inpFim.value = new Date(bim.fim).toISOString().slice(0, 10);
+        }
+      }
+
+      if (dadosAlunoSelecionado) {
+        aplicarFiltroPeriodoEBimestreNaTabela();
+      }
+    }
+
+    function aoAlterarDatasManualmente() {
+      document.getElementById('selectBimestreFiltro').value = "";
+      if (dadosAlunoSelecionado) {
+        aplicarFiltroPeriodoEBimestreNaTabela();
+      }
+    }
+
+    function limparFiltrosPeriodoBimestre() {
+      document.getElementById('selectBimestreFiltro').value = "";
+      document.getElementById('inputDataIniFiltro').value = "";
+      document.getElementById('inputDataFimFiltro').value = "";
+      document.getElementById('filtroGravidadeInterno').value = "";
+      if (dadosAlunoSelecionado) {
+        aplicarFiltroPeriodoEBimestreNaTabela();
+      }
+    }
+
+    function identificarBimestreDaOcorrencia(tsOco) {
+      if (!tsOco || listaBimestresEscola.length === 0) return "-";
+      for (const b of listaBimestresEscola) {
+        if (b.inicio > 0 && b.fim > 0 && tsOco >= b.inicio && tsOco <= b.fim) {
+          return b.nome;
+        }
+      }
+      return "Fora do Bimestre";
+    }
+
+    async function buscarHistoricoDisciplinarAluno() {
+      const nomeDigitado = document.getElementById('inputAlunoHistDisc').value.replace(/\s+/g, " ").trim().toUpperCase();
+      if (!nomeDigitado) {
+        return Swal.fire('Atenção', 'Digite ou selecione o nome do(a) aluno(a) para consultar o histórico disciplinar.', 'warning');
+      }
+
+      const btn = document.getElementById('btnBuscarHistDisc');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+      const res = await chamarAPI({ action: 'getDadosHistorico', nome: nomeDigitado });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search"></i>';
+
+      if (!res || !res.success) {
+        return Swal.fire('Erro', (res && res.error) || 'Não foi possível carregar o histórico disciplinar.', 'error');
+      }
+
+      dadosAlunoSelecionado = res.aluno || { nome: nomeDigitado, serie: '-', foto: '' };
+      if (res.pontuacoes && Object.keys(res.pontuacoes).length > 0) {
+        mapPontuacoesRac = Object.assign({}, mapPontuacoesRac, res.pontuacoes);
+      }
+
+      if (Array.isArray(res.bimestres) && res.bimestres.length > 0 && listaBimestresEscola.length === 0) {
+        listaBimestresEscola = res.bimestres.map(b => ({
+          nome: String(b.nome || "").trim(),
+          inicio: Number(b.inicio) || 0,
+          fim: Number(b.fim) || 0,
+          inicioIso: b.inicioIso || (b.inicio ? new Date(b.inicio).toISOString().slice(0, 10) : ""),
+          fimIso: b.fimIso || (b.fim ? new Date(b.fim).toISOString().slice(0, 10) : "")
+        }));
+        popularSelectBimestresNaTela();
+      }
+
+      const brutas = Array.isArray(res.ocorrencias) ? res.ocorrencias : [];
+      todasOcorrenciasDoAluno = brutas.map(o => {
+        const ts = o.timestamp || extrairTimestampSeguroLocal(o.data);
+        let dataFmt = String(o.data || "").trim();
+        if (dataFmt.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(dataFmt)) {
+          const dtObj = new Date(ts);
+          if (!isNaN(dtObj.getTime())) {
+            dataFmt = dtObj.toLocaleDateString('pt-BR') + ' ' + dtObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          }
+        }
+        const itemNormalizado = {
+          data: dataFmt,
+          ts: ts,
+          bimestre: (o.bimestre && o.bimestre !== "Fora do Bimestre") ? o.bimestre : identificarBimestreDaOcorrencia(ts),
+          serie: String(o.serie || dadosAlunoSelecionado.serie || "-").replace(/["']/g, ""),
+          ocorrencia: String(o.ocorrencia || "-").trim(),
+          gravidade: String(o.gravidade || "-").trim().toUpperCase(),
+          professor: String(o.professor || "-").trim(),
+          observacoes: String(o.observacoes || "").trim(),
+          descontoPontos: 0
+        };
+        itemNormalizado.descontoPontos = obterDescontoPontosDaOcorrencia(itemNormalizado);
+        return itemNormalizado;
+      }).sort((a, b) => b.ts - a.ts);
+
+      document.getElementById('lblNomeAlunoDisc').innerText = dadosAlunoSelecionado.nome || nomeDigitado;
+      document.getElementById('lblSerieAlunoDisc').innerText = String(dadosAlunoSelecionado.serie || 'ALUNO').replace(/["']/g, '');
+
+      const boxFoto = document.getElementById('boxFotoAlunoDisc');
+      if (dadosAlunoSelecionado.foto && dadosAlunoSelecionado.foto.startsWith('data:image')) {
+        boxFoto.innerHTML = `<img src="${dadosAlunoSelecionado.foto}" alt="3x4">`;
+      } else {
+        boxFoto.innerHTML = '<i class="bi bi-person-circle fs-1 text-primary"></i>';
+        chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: nomeDigitado }).then(rFoto => {
+          if (rFoto && rFoto.success && rFoto.foto && rFoto.foto.startsWith('data:image')) {
+            dadosAlunoSelecionado.foto = rFoto.foto;
+            boxFoto.innerHTML = `<img src="${rFoto.foto}" alt="3x4">`;
+          }
+        });
+      }
+
+      aplicarFiltroPeriodoEBimestreNaTabela();
+      document.getElementById('cardResultadoDisciplinar').classList.remove('d-none');
+    }
+
+    function selecionarBimestrePelosCards(idxBimStr) {
+      document.getElementById('selectBimestreFiltro').value = idxBimStr;
+      aoSelecionarBimestreFiltro();
+    }
+
+    function aplicarFiltroPeriodoEBimestreNaTabela() {
+      const idxBimSel = document.getElementById('selectBimestreFiltro').value;
+      const dtIniIso = document.getElementById('inputDataIniFiltro').value;
+      const dtFimIso = document.getElementById('inputDataFimFiltro').value;
+      const gravFiltro = document.getElementById('filtroGravidadeInterno').value.trim().toUpperCase();
+
+      let tsIniFiltro = 0;
+      let tsFimFiltro = 0;
+      let labelPeriodo = "Ano Inteiro (Todos os Bimestres)";
+
+      if (dtIniIso) {
+        const pI = dtIniIso.split('-');
+        tsIniFiltro = new Date(parseInt(pI[0], 10), parseInt(pI[1], 10) - 1, parseInt(pI[2], 10), 0, 0, 0, 0).getTime();
+      }
+      if (dtFimIso) {
+        const pF = dtFimIso.split('-');
+        tsFimFiltro = new Date(parseInt(pF[0], 10), parseInt(pF[1], 10) - 1, parseInt(pF[2], 10), 23, 59, 59, 999).getTime();
+      }
+
+      if (idxBimSel !== "" && listaBimestresEscola[Number(idxBimSel)]) {
+        const bObj = listaBimestresEscola[Number(idxBimSel)];
+        labelPeriodo = `${bObj.nome}`;
+        if (!tsIniFiltro && bObj.inicio > 0) tsIniFiltro = bObj.inicio;
+        if (!tsFimFiltro && bObj.fim > 0) tsFimFiltro = bObj.fim;
+      } else if (dtIniIso || dtFimIso) {
+        const strI = dtIniIso ? dtIniIso.split('-').reverse().join('/') : 'Início';
+        const strF = dtFimIso ? dtFimIso.split('-').reverse().join('/') : 'Hoje';
+        labelPeriodo = `Período: ${strI} até ${strF}`;
+      }
+
+      document.getElementById('lblPeriodoAtivoBadge').innerText = labelPeriodo;
+
+      ocorrenciasFiltradasNaTela = todasOcorrenciasDoAluno.filter(o => {
+        if (tsIniFiltro > 0 && o.ts > 0 && o.ts < tsIniFiltro) return false;
+        if (tsFimFiltro > 0 && o.ts > 0 && o.ts > tsFimFiltro) return false;
+        if (gravFiltro && !o.gravidade.includes(gravFiltro)) return false;
+        return true;
+      });
+
+      renderizarCardsResumoBimestresComNotasFixas(idxBimSel);
+      renderizarLinhasTabelaDisciplinar();
+    }
+
+    function renderizarCardsResumoBimestresComNotasFixas(idxBimAtivo) {
+      const container = document.getElementById('containerCardsBimestres');
+      resumoCalculadoBimestres = [];
+
+      let somaNotasBimestres = 0;
+
+      // Calcula a Nota Fixa (10,0 - descontos) para cada Bimestre cadastrado
+      listaBimestresEscola.forEach((bim, idx) => {
+        const ocorrenciasDoBim = todasOcorrenciasDoAluno.filter(o =>
+          (bim.inicio > 0 && bim.fim > 0 && o.ts >= bim.inicio && o.ts <= bim.fim) ||
+          o.bimestre === bim.nome
+        );
+
+        let pontosPerdidosBim = 0;
+        ocorrenciasDoBim.forEach(o => {
+          pontosPerdidosBim += (o.descontoPontos || 0);
+        });
+
+        const notaFixaBimestre = Math.max(0, 10 - pontosPerdidosBim);
+        somaNotasBimestres += notaFixaBimestre;
+
+        const perIni = bim.inicioIso ? bim.inicioIso.split('-').reverse().slice(0, 2).join('/') : '';
+        const perFim = bim.fimIso ? bim.fimIso.split('-').reverse().slice(0, 2).join('/') : '';
+
+        resumoCalculadoBimestres.push({
+          idx: idx,
+          nome: bim.nome,
+          periodoCurto: (perIni && perFim) ? `${perIni} a ${perFim}` : '',
+          qtdOcorrencias: ocorrenciasDoBim.length,
+          pontosPerdidos: pontosPerdidosBim,
+          notaFixa: notaFixaBimestre
+        });
+      });
+
+      const mediaAnualRac = resumoCalculadoBimestres.length > 0
+        ? (somaNotasBimestres / resumoCalculadoBimestres.length)
+        : 10.0;
+
+      // Atualiza o badge de nota no topo da ficha do aluno
+      const badgeNotaTopo = document.getElementById('lblNotaPeriodoBadge');
+      if (idxBimAtivo !== "" && resumoCalculadoBimestres[Number(idxBimAtivo)]) {
+        const bSel = resumoCalculadoBimestres[Number(idxBimAtivo)];
+        badgeNotaTopo.innerText = `Nota Fixa (${bSel.nome}): ${formatarNotaBr(bSel.notaFixa)}`;
+      } else {
+        badgeNotaTopo.innerText = `Média Disciplinar Anual: ${formatarNotaBr(mediaAnualRac)}`;
+      }
+
+      // Card 1: Resumo Geral / Média dos 4 Bimestres
+      let html = `
+        <div class="col-6 col-md-2">
+          <div class="kpi-card-disc ${idxBimAtivo === '' ? 'ativo' : ''}" onclick="selecionarBimestrePelosCards('')">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.66rem;">Total Geral</span>
+              <span class="badge bg-primary">${todasOcorrenciasDoAluno.length} reg.</span>
+            </div>
+            <div class="my-1">
+              <span class="pilula-nota-bimestre ${obterClasseCorNota(mediaAnualRac)}">Média: ${formatarNotaBr(mediaAnualRac)}</span>
+            </div>
+            <div class="text-muted mt-1" style="font-size: 0.63rem;">Todas as ocorrências</div>
+          </div>
+        </div>`;
+
+      // Cards dos Bimestres (1º, 2º, 3º e 4º Bimestre) com a Nota Fixa em destaque!
+      resumoCalculadoBimestres.forEach(b => {
+        const classeCorNota = obterClasseCorNota(b.notaFixa);
+        const txtDesconto = b.pontosPerdidos > 0 ? `(-${formatarNotaBr(b.pontosPerdidos)} pt)` : `(Sem perda)`;
+
+        html += `
+          <div class="col-6 col-md-2">
+            <div class="kpi-card-disc ${String(idxBimAtivo) === String(b.idx) ? 'ativo' : ''}" onclick="selecionarBimestrePelosCards('${b.idx}')">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-dark text-uppercase text-truncate" style="font-size: 0.68rem;">${b.nome}</span>
+                <span class="badge ${b.qtdOcorrencias > 0 ? 'bg-danger' : 'bg-success'}">${b.qtdOcorrencias} oc.</span>
+              </div>
+              <div class="my-1 d-flex align-items-center justify-content-between">
+                <span class="pilula-nota-bimestre ${classeCorNota}">Nota: ${formatarNotaBr(b.notaFixa)}</span>
+                <small class="fw-bold ${b.pontosPerdidos > 0 ? 'text-danger' : 'text-success'}" style="font-size: 0.63rem;">${txtDesconto}</small>
+              </div>
+              <div class="text-muted mt-1" style="font-size: 0.62rem;">
+                <i class="bi bi-calendar3 me-1"></i>${b.periodoCurto || 'Filtrar bimestre'}
+              </div>
+            </div>
+          </div>`;
+      });
+
+      // Card Final: Exibidas no Filtro Atual
+      let perdaNoFiltro = 0;
+      ocorrenciasFiltradasNaTela.forEach(o => { perdaNoFiltro += (o.descontoPontos || 0); });
+
+      html += `
+        <div class="col-12 col-md-2">
+          <div class="kpi-card-disc" style="border-left-color: #dc2626; cursor: default;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.65rem;">No Filtro</span>
+              <span class="badge bg-dark">${ocorrenciasFiltradasNaTela.length} reg.</span>
+            </div>
+            <div class="fs-5 fw-bold text-danger my-1">
+              -${formatarNotaBr(perdaNoFiltro)} pt(s)
+            </div>
+            <div class="text-muted" style="font-size: 0.62rem;">Desconto no período filtrado</div>
+          </div>
+        </div>`;
+
+      container.innerHTML = html;
+    }
+
+    function obterBadgeGravidadeHtml(grav, desconto) {
+      const g = String(grav || "").toUpperCase();
+      const tagPontos = desconto > 0
+        ? `<div class="text-danger fw-bold mt-1" style="font-size: 0.68rem;">(-${formatarNotaBr(desconto)} pt)</div>`
+        : `<div class="text-muted mt-1" style="font-size: 0.66rem;">(0,0 pt)</div>`;
+
+      if (g.includes("GRAVÍSSIMA") || g.includes("GRAVISSIMA") || g.includes("GRAU IV")) {
+        return `<span class="badge bg-danger">${grav}</span>${tagPontos}`;
+      }
+      if (g.includes("GRAU III") || g.includes("GRAVE")) {
+        return `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">${grav}</span>${tagPontos}`;
+      }
+      if (g.includes("GRAU II") || g.includes("MÉDIA") || g.includes("MEDIA")) {
+        return `<span class="badge bg-warning text-dark">${grav}</span>${tagPontos}`;
+      }
+      if (g.includes("GRAU 0")) {
+        return `<span class="badge bg-info-subtle text-info-emphasis border">${grav}</span>${tagPontos}`;
+      }
+      return `<span class="badge bg-secondary-subtle text-secondary border">${grav || 'LEVE'}</span>${tagPontos}`;
+    }
+
+    function renderizarLinhasTabelaDisciplinar() {
+      const tbody = document.getElementById('tbodyOcorrenciasAluno');
+      if (ocorrenciasFiltradasNaTela.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+              Nenhuma ocorrência registrada para este(a) aluno(a) no período/bimestre selecionado (Nota Disciplinar 10,0).
+            </td>
+          </tr>`;
+        return;
+      }
+
+      let html = '';
+      ocorrenciasFiltradasNaTela.forEach((o, idx) => {
+        html += `
+          <tr>
+            <td class="text-center fw-bold text-muted">${idx + 1}</td>
+            <td class="small fw-bold text-dark">${o.data}</td>
+            <td class="text-center"><span class="badge bg-primary-subtle text-primary border">${o.bimestre || '-'}</span></td>
+            <td class="text-center"><span class="badge bg-secondary">${o.serie}</span></td>
+            <td class="fw-bold text-danger small">${o.ocorrencia}</td>
+            <td class="text-center">${obterBadgeGravidadeHtml(o.gravidade, o.descontoPontos)}</td>
+            <td class="small text-muted">${o.observacoes || '-'}</td>
+            <td class="small fw-semibold text-secondary">${o.professor || '-'}</td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    async function gerarPdfHistoricoDisciplinar() {
+  if (!dadosAlunoSelecionado) {
+    return Swal.fire('Atenção', 'Consulte um aluno antes de gerar o PDF.', 'warning');
+  }
+
+  if (!dadosAlunoSelecionado.foto || !dadosAlunoSelecionado.foto.startsWith('data:image')) {
+    const rF = await chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: dadosAlunoSelecionado.nome });
+    if (rF && rF.success && rF.foto) dadosAlunoSelecionado.foto = rF.foto;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+  const periodoTxt = document.getElementById('lblPeriodoAtivoBadge').innerText;
+  const resumoNotasStr = resumoCalculadoBimestres
+    .map(b => `${b.nome}: Nota ${formatarNotaBr(b.notaFixa)} (${b.qtdOcorrencias} oc.)`)
+    .join("  |  ");
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: 'HISTÓRICO DISCIPLINAR INDIVIDUAL DO ALUNO (REGISTRO RAC)',
+    subtitulo1: `ALUNO(A): ${dadosAlunoSelecionado.nome}   |   TURMA: ${String(dadosAlunoSelecionado.serie || '-').replace(/["']/g, '')}   |   ${periodoTxt}`,
+    subtitulo2: `NOTAS POR BIMESTRE:  ${resumoNotasStr}`,
+    exibirMolduraFoto: true,
+    fotoAlunoBase64: dadosAlunoSelecionado.foto
+  });
+
+  const rowsPdf = ocorrenciasFiltradasNaTela.map((o, i) => [
+    i + 1, o.data, o.bimestre || '-', o.serie, o.ocorrencia,
+    `${o.gravidade} (-${formatarNotaBr(o.descontoPontos)} pt)`, o.observacoes || '-', o.professor || '-'
+  ]);
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Nº', 'Data / Hora', 'Bimestre', 'Turma', 'Ocorrência Registrada', 'Gravidade / Desconto', 'Observações', 'Professor / Servidor']],
+    body: rowsPdf.length > 0 ? rowsPdf : [['-', '-', '-', '-', 'Nenhuma ocorrência registrada no período selecionado.', '-', '-', '-']],
+    styles: { fontSize: 7.8, cellPadding: 2.1 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] }
+  });
+
+  doc.save(`Historico_Disciplinar_${dadosAlunoSelecionado.nome.replace(/\s+/g, '_')}.pdf`);
+}
+
+      try {
+        const imgElement = document.getElementById('logoEscola');
+        if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
+          const canvas = document.createElement('canvas');
+          canvas.width = imgElement.naturalWidth;
+          canvas.height = imgElement.naturalHeight;
+          canvas.getContext('2d').drawImage(imgElement, 0, 0);
+          doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 22, 22);
+        }
+      } catch (e) {}
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(21, 67, 140);
+      doc.text("EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 16);
+
+      doc.setFontSize(10.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text("HISTÓRICO DISCIPLINAR INDIVIDUAL DO ALUNO (REGISTRO CRO E NOTAS POR BIMESTRE)", 40, 22);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Filtro Aplicado: ${periodoTxt}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 40, 27);
+
+      doc.setDrawColor(21, 67, 140);
+      doc.setLineWidth(0.5);
+      doc.line(14, 34, 283, 34);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`ALUNO(A): ${dadosAlunoSelecionado.nome}`, 14, 40);
+      doc.text(`SÉRIE / TURMA: ${String(dadosAlunoSelecionado.serie || '-').replace(/["']/g, '')}`, 155, 40);
+      doc.text(`OCORRÊNCIAS NO PERÍODO: ${ocorrenciasFiltradasNaTela.length}`, 225, 40);
+
+      // Quadro de Notas Fixas por Bimestre no PDF
+      const resumoNotasStr = resumoCalculadoBimestres
+        .map(b => `${b.nome}: Nota ${formatarNotaBr(b.notaFixa)} (${b.qtdOcorrencias} oc.)`)
+        .join("   |   ");
+
+      doc.setFillColor(241, 245, 249);
+      doc.roundedRect(14, 43, 269, 8, 1.5, 1.5, 'F');
+      doc.setFontSize(8.5);
+      doc.setTextColor(21, 67, 140);
+      doc.text(`NOTAS DISCIPLINARES POR BIMESTRE:   ${resumoNotasStr}`, 18, 48.2);
+
+      const rowsPdf = ocorrenciasFiltradasNaTela.map((o, i) => [
+        i + 1,
+        o.data,
+        o.bimestre || '-',
+        o.serie,
+        o.ocorrencia,
+        `${o.gravidade} (-${formatarNotaBr(o.descontoPontos)} pt)`,
+        o.observacoes || '-',
+        o.professor || '-'
+      ]);
+
+      doc.autoTable({
+        startY: 54,
+        head: [['Nº', 'Data / Hora', 'Bimestre', 'Turma', 'Ocorrência Registrada', 'Gravidade / Desconto', 'Observações', 'Professor / Servidor']],
+        body: rowsPdf.length > 0 ? rowsPdf : [['-', '-', '-', '-', 'Nenhuma ocorrência registrada no período selecionado.', '-', '-', '-']],
+        styles: { fontSize: 7.8, cellPadding: 2.1 },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 16;
+      if (finalY < 192) {
+        doc.setDrawColor(100, 116, 139);
+        doc.setLineWidth(0.3);
+        doc.line(35, finalY, 125, finalY);
+        doc.line(170, finalY, 260, finalY);
+        doc.setFontSize(8.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text("Assinatura da Gestão / Coordenação / PDT", 80, finalY + 5, { align: "center" });
+        doc.text("Assinatura do Responsável / Aluno(a)", 215, finalY + 5, { align: "center" });
+      }
+
+      doc.save(`Historico_Disciplinar_${dadosAlunoSelecionado.nome.replace(/\s+/g, '_')}.pdf`);
+    
+  </script>
+</body>
+</html>

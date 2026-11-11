@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Busca Ativa Escolar - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.07;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 18px 30px 10px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1440px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 86px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.85rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.68rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.35rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 20px 15px 40px 15px;
+      max-width: 1340px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .acao-box {
+      border: 1px solid #cbd5e1;
+      border-left: 5px solid var(--azul-primario);
+      border-radius: 12px;
+      padding: 16px;
+      background: #f8fafc;
+      margin-bottom: 14px;
+    }
+
+    .kpi-status-box {
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: #ffffff;
+      border-left: 5px solid var(--azul-primario);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+    }
+
+    .table th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Servidor</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- PAINEL DE CORES DOS STATUS DA BUSCA ATIVA -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="kpi-status-box" style="border-left-color: #198754;">
+          <div class="small fw-bold text-uppercase text-success"><i class="bi bi-check-circle-fill me-1"></i>Situação Resolvida</div>
+          <div class="fs-3 fw-bold text-success mt-1" id="kpiResolvida">0</div>
+          <small class="text-muted">Ciclo encerrado (Verde)</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-status-box" style="border-left-color: #0d6efd;">
+          <div class="small fw-bold text-uppercase text-primary"><i class="bi bi-clock-history me-1"></i>Em Andamento</div>
+          <div class="fs-3 fw-bold text-primary mt-1" id="kpiAndamento">0</div>
+          <small class="text-muted">Acompanhamento ativo (Azul)</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-status-box" style="border-left-color: #ffc107;">
+          <div class="small fw-bold text-uppercase text-warning text-dark"><i class="bi bi-star-fill text-warning me-1"></i>Resultado Positivo</div>
+          <div class="fs-3 fw-bold text-warning text-dark mt-1" id="kpiPositivo">0</div>
+          <small class="text-muted">Retorno favorável (Amarelo)</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-status-box" style="border-left-color: #dc3545;">
+          <div class="small fw-bold text-uppercase text-danger"><i class="bi bi-x-octagon-fill me-1"></i>Sem Resultado</div>
+          <div class="fs-3 fw-bold text-danger mt-1" id="kpiSemResultado">0</div>
+          <small class="text-muted">Requer nova ação (Vermelho)</small>
+        </div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="buscaTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="tab-lista-ba" data-bs-toggle="tab" data-bs-target="#abaListaBusca" type="button" role="tab">
+          <i class="bi bi-clipboard2-pulse-fill text-primary me-2"></i>Casos em Acompanhamento e Relatório (<span id="badgeTotalBa">0</span>)
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="tab-form-ba" data-bs-toggle="tab" data-bs-target="#abaFormBusca" type="button" role="tab">
+          <i class="bi bi-plus-circle-fill text-success me-2"></i><span id="lblAbaFormBa">Nova Ficha de Busca Ativa</span>
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ========================================================= -->
+      <!-- ABA 1: CASOS EM ACOMPANHAMENTO E RELATÓRIO COLORIDO       -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade show active" id="abaListaBusca" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-shield-check me-2"></i>Controle de Busca Ativa Escolar (Evasão e Faltas)
+              </h5>
+              <small class="text-muted">Legenda oficial: <span class="badge bg-success">Situação Resolvida</span> <span class="badge bg-primary">Em Andamento</span> <span class="badge bg-warning text-dark">Resultado Positivo</span> <span class="badge bg-danger">Sem Resultado</span></small>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-principal btn-sm" onclick="irParaNovaFichaBa()">
+                <i class="bi bi-plus-lg me-1"></i>Nova Ficha
+              </button>
+              <button class="btn btn-danger btn-sm fw-bold" onclick="gerarPdfBuscaAtiva()">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar PDF Colorido
+              </button>
+              <button class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarTudoBuscaAtiva(true)">
+                <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3 p-3 bg-light rounded border">
+            <div class="col-12 col-md-3">
+              <label class="form-label">Série / Turma (Aba SÉRIE)</label>
+              <select id="filtroBaSerie" class="form-select form-select-sm fw-bold" onchange="filtrarTabelaBuscaAtiva()">
+                <option value="">Todas as Séries...</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Status da Última Ação</label>
+              <select id="filtroBaStatus" class="form-select form-select-sm fw-bold" onchange="filtrarTabelaBuscaAtiva()">
+                <option value="">Todos os Status</option>
+                <option value="SITUAÇÃO RESOLVIDA">Situação Resolvida (Verde)</option>
+                <option value="EM ANDAMENTO">Em Andamento (Azul)</option>
+                <option value="RESULTADO POSITIVO">Resultado Positivo (Amarelo)</option>
+                <option value="SEM RESULTADO">Sem Resultado (Vermelho)</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Pesquisar Aluno ou Motivo</label>
+              <input type="text" id="filtroBaTexto" class="form-control form-control-sm" placeholder="Digite o nome do aluno..." oninput="filtrarTabelaBuscaAtiva()">
+            </div>
+            <div class="col-12 col-md-2 d-flex align-items-end">
+              <button class="btn btn-outline-secondary btn-sm w-100" onclick="limparFiltrosBa()">
+                <i class="bi bi-eraser me-1"></i>Limpar
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover border align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Série</th>
+                  <th>Aluno(a)</th>
+                  <th>Descrição / Motivo</th>
+                  <th class="text-center">Última Etapa</th>
+                  <th class="text-center">Status Atual</th>
+                  <th class="text-end" style="width: 140px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyBuscaAtiva">
+                <tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Carregando fichas de Busca Ativa...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 2: CADASTRO / EDIÇÃO DE FICHA DE BUSCA ATIVA          -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="abaFormBusca" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="tituloFormBa">
+                <i class="bi bi-journal-medical me-2"></i>Cadastro de Intervenção — Busca Ativa
+              </h5>
+              <small class="text-muted">Não é permitido abrir nova situação para o mesmo aluno se a anterior ainda não estiver como <b>SITUAÇÃO RESOLVIDA</b>.</small>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limparFormularioBuscaAtiva()">
+              <i class="bi bi-eraser me-1"></i>Limpar Campos
+            </button>
+          </div>
+
+          <form id="formBuscaAtiva" onsubmit="event.preventDefault(); salvarFichaBuscaAtiva();">
+            <input type="hidden" id="baLinhaHidden">
+            <input type="hidden" id="baIdHidden">
+
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-md-3">
+                <label class="form-label">Série / Turma (Aba SÉRIE) *</label>
+                <select id="baSerie" class="form-select fw-bold" required onchange="atualizarDatalistAlunosBa()">
+                  <option value="">Selecione a turma...</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Nome Completo do(a) Aluno(a) *</label>
+                <input type="text" id="baAluno" class="form-control text-uppercase fw-bold" list="datalistAlunosBa" required placeholder="Digite ou selecione o aluno..." onchange="verificarSeAlunoTemFichaAberta()">
+                <datalist id="datalistAlunosBa"></datalist>
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label">Data do Registro</label>
+                <input type="text" id="baData" class="form-control bg-light fw-bold" readonly>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Descrição Detalhada da Situação (Motivo da Busca Ativa) *</label>
+                <textarea id="baDescricao" class="form-control" rows="2" required placeholder="Ex: Aluno com faltas consecutivas sem justificativa..."></textarea>
+              </div>
+            </div>
+
+            <!-- 5 Etapas de Ação -->
+            <div id="containerCincoAcoes"></div>
+
+            <div class="mt-4 d-flex gap-2">
+              <button type="submit" id="btnSalvarBa" class="btn btn-principal flex-grow-1 py-3 shadow-sm">
+                <i class="bi bi-check-circle-fill me-2"></i>Salvar Ficha de Busca Ativa
+              </button>
+              <button type="button" id="btnCancelarBa" class="btn btn-outline-secondary py-3 d-none" onclick="cancelarEdicaoBa()">
+                Cancelar Edição
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Controle de Busca Ativa.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    const nomeServidorLogado = (usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || "ADMINISTRADOR")).toUpperCase();
+    if (usuarioLogado) {
+      document.getElementById('lblNomeUsuario').innerText = nomeServidorLogado;
+      document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Servidor";
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let listaBuscaGlobal = [];
+    let listaBuscaFiltrada = [];
+    let listaAlunosCache = [];
+    let anexosBase64PorAcao = ["", "", "", "", ""];
+
+    window.onload = async function() {
+      gerarCamposCincoAcoesHtml();
+      limparFormularioBuscaAtiva();
+      await carregarTudoBuscaAtiva(false);
+    };
+
+    function gerarCamposCincoAcoesHtml() {
+      let html = '';
+      for (let i = 1; i <= 5; i++) {
+        html += `
+          <div class="acao-box">
+            <div class="fw-bold text-primary mb-2">
+              <i class="bi bi-chevron-right me-1"></i>${i}ª Ação ${i > 1 ? '<small class="text-muted fw-normal">(Preencha caso a ação anterior não tenha resolvido a situação)</small>' : ''}
+            </div>
+            <div class="row g-2">
+              <div class="col-12 col-md-5">
+                <label class="form-label">Ação Tomada ${i}</label>
+                <input type="text" id="baAcao_${i}" class="form-control form-control-sm" placeholder="Ex: Ligação, Mensagem WhatsApp, Visita Domiciliar...">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label">Responsável ${i}</label>
+                <input type="text" id="baResp_${i}" class="form-control form-control-sm text-uppercase" value="${nomeServidorLogado}">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Resultado / Status ${i}</label>
+                <select id="baRes_${i}" class="form-select form-select-sm fw-bold">
+                  <option value="">-- Selecione --</option>
+                  <option value="EM ANDAMENTO">EM ANDAMENTO (Azul)</option>
+                  <option value="RESULTADO POSITIVO">RESULTADO POSITIVO (Amarelo)</option>
+                  <option value="SITUAÇÃO RESOLVIDA">SITUAÇÃO RESOLVIDA (Verde)</option>
+                  <option value="SEM RESULTADO">SEM RESULTADO (Vermelho)</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-5">
+                <label class="form-label">Anexo (Foto ou PDF) ${i}</label>
+                <input type="file" id="baFile_${i}" class="form-control form-control-sm" accept="image/*,.pdf" onchange="lerAnexoAcao(${i}, this)">
+              </div>
+              <div class="col-12 col-md-7">
+                <label class="form-label">Observação ${i}</label>
+                <input type="text" id="baObs_${i}" class="form-control form-control-sm" placeholder="Observações adicionais da ${i}ª ação...">
+              </div>
+            </div>
+          </div>`;
+      }
+      document.getElementById('containerCincoAcoes').innerHTML = html;
+    }
+
+    function lerAnexoAcao(num, input) {
+      if (!input.files || !input.files[0]) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        anexosBase64PorAcao[num - 1] = e.target.result;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+
+    // Descobre o status e o número da última ação preenchida de uma ficha
+    function obterInfoUltimaAcaoFicha(item) {
+      const acoes = item.acoes || [];
+      let ultimoStatus = "EM ANDAMENTO";
+      let ultimaEtapa = "1ª Ação";
+      let ultimaAcaoTxt = "";
+
+      for (let i = 0; i < acoes.length; i++) {
+        const ac = String(acoes[i].acao || "").trim();
+        const rs = String(acoes[i].resultado || "").trim().toUpperCase();
+        if (ac !== "" || rs !== "") {
+          ultimoStatus = rs || "EM ANDAMENTO";
+          ultimaEtapa = `${i + 1}ª Ação`;
+          ultimaAcaoTxt = ac;
+        }
+      }
+      return { status: ultimoStatus, etapa: ultimaEtapa, acaoTxt: ultimaAcaoTxt };
+    }
+
+    // Retorna o Badge HTML com as cores exatas pedidas pelo usuário:
+    // Situação Resolvida = Verde | Em Andamento = Azul | Resultado Positivo = Amarelo | Sem Resultado = Vermelho
+    function gerarBadgeColoridoStatusBusca(statusRaw) {
+      const s = String(statusRaw || "EM ANDAMENTO").trim().toUpperCase();
+      if (s.includes("RESOLVIDA")) {
+        return `<span class="badge bg-success text-white px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>SITUAÇÃO RESOLVIDA</span>`;
+      }
+      if (s.includes("POSITIVO")) {
+        return `<span class="badge bg-warning text-dark border border-warning px-2 py-1"><i class="bi bi-star-fill me-1"></i>RESULTADO POSITIVO</span>`;
+      }
+      if (s.includes("SEM RESULTADO")) {
+        return `<span class="badge bg-danger text-white px-2 py-1"><i class="bi bi-x-circle-fill me-1"></i>SEM RESULTADO</span>`;
+      }
+      return `<span class="badge bg-primary text-white px-2 py-1"><i class="bi bi-clock-history me-1"></i>EM ANDAMENTO</span>`;
+    }
+
+    async function carregarTudoBuscaAtiva(exibirAlerta) {
+      if (exibirAlerta) Swal.fire({ title: 'Sincronizando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        const [resBa, resSer, resFiltros] = await Promise.all([
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarBuscaAtiva' }) }).then(r => r.json()).catch(() => null),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json()).catch(() => null),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => null)
+        ]);
+
+        if (exibirAlerta) Swal.close();
+
+        let seriesOficiais = [];
+        if (resSer && Array.isArray(resSer.lista) && resSer.lista.length > 0) {
+          resSer.lista.forEach(s => {
+            let ns = String(s.col2 || s.col1 || "").replace(/["']/g, "").trim().toUpperCase();
+            if (ns && ns !== "SÉRIE" && ns !== "TRANSFERIDO" && !seriesOficiais.includes(ns)) seriesOficiais.push(ns);
+          });
+        } else if (resFiltros && Array.isArray(resFiltros.series)) {
+          seriesOficiais = resFiltros.series;
+        }
+        seriesOficiais.sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+        let htmlSerieFiltro = '<option value="">Todas as Séries...</option>';
+        let htmlSerieForm = '<option value="">Selecione a turma...</option>';
+        seriesOficiais.forEach(s => {
+          htmlSerieFiltro += `<option value="${s}">${s}</option>`;
+          htmlSerieForm += `<option value="${s}">${s}</option>`;
+        });
+        document.getElementById('filtroBaSerie').innerHTML = htmlSerieFiltro;
+        document.getElementById('baSerie').innerHTML = htmlSerieForm;
+
+        if (resFiltros && Array.isArray(resFiltros.alunos)) {
+          listaAlunosCache = resFiltros.alunos;
+          atualizarDatalistAlunosBa();
+        }
+
+        if (resBa && resBa.success) {
+          listaBuscaGlobal = resBa.lista || [];
+          document.getElementById('badgeTotalBa').innerText = listaBuscaGlobal.length;
+          atualizarKpisBuscaAtiva();
+          filtrarTabelaBuscaAtiva();
+        }
+      } catch (e) {
+        if (exibirAlerta) Swal.close();
+      }
+    }
+
+    function atualizarKpisBuscaAtiva() {
+      let cRes = 0, cAnd = 0, cPos = 0, cSem = 0;
+      listaBuscaGlobal.forEach(item => {
+        const st = obterInfoUltimaAcaoFicha(item).status;
+        if (st.includes("RESOLVIDA")) cRes++;
+        else if (st.includes("POSITIVO")) cPos++;
+        else if (st.includes("SEM RESULTADO")) cSem++;
+        else cAnd++;
+      });
+      document.getElementById('kpiResolvida').innerText = cRes;
+      document.getElementById('kpiAndamento').innerText = cAnd;
+      document.getElementById('kpiPositivo').innerText = cPos;
+      document.getElementById('kpiSemResultado').innerText = cSem;
+    }
+
+    function atualizarDatalistAlunosBa() {
+      const serieSel = document.getElementById('baSerie').value.trim().toUpperCase();
+      const filtrados = serieSel
+        ? listaAlunosCache.filter(a => String(a.serie || "").replace(/["']/g, "").trim().toUpperCase() === serieSel)
+        : listaAlunosCache;
+
+      let html = '';
+      filtrados.forEach(a => { html += `<option value="${a.nome}">${a.serie || ''}</option>`; });
+      document.getElementById('datalistAlunosBa').innerHTML = html;
+    }
+
+    // Verifica imediatamente ao selecionar o aluno se ele já possui ficha não resolvida!
+    function verificarSeAlunoTemFichaAberta() {
+      const linhaEditando = document.getElementById('baLinhaHidden').value;
+      if (linhaEditando) return;
+
+      const nomeDigitado = document.getElementById('baAluno').value.replace(/\s+/g, " ").trim().toUpperCase();
+      if (!nomeDigitado) return;
+
+      const alCad = listaAlunosCache.find(a => String(a.nome || "").trim().toUpperCase() === nomeDigitado);
+      if (alCad && alCad.serie && !document.getElementById('baSerie').value) {
+        document.getElementById('baSerie').value = String(alCad.serie).replace(/["']/g, "").trim().toUpperCase();
+      }
+
+      // Procura ficha existente para o aluno cuja última ação NÃO seja "SITUAÇÃO RESOLVIDA"
+      const fichaAberta = listaBuscaGlobal.find(f => {
+        const mesmoAluno = String(f.aluno || "").replace(/\s+/g, " ").trim().toUpperCase() === nomeDigitado;
+        if (!mesmoAluno) return false;
+        const info = obterInfoUltimaAcaoFicha(f);
+        return !info.status.includes("RESOLVIDA");
+      });
+
+      if (fichaAberta) {
+        const info = obterInfoUltimaAcaoFicha(fichaAberta);
+        Swal.fire({
+          title: 'Ficha em Aberto para este Aluno!',
+          html: `O(a) aluno(a) <b>${nomeDigitado}</b> já possui uma situação cadastrada cuja última etapa (<b>${info.etapa}</b>) está com status <b>${info.status}</b>.<br><br>Só é permitido abrir uma nova situação quando a anterior estiver como <b>SITUAÇÃO RESOLVIDA</b>.<br><br>Deseja abrir a ficha existente para lançar a próxima ação?`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#15438c',
+          cancelButtonColor: '#64748b',
+          confirmButtonText: '<i class="bi bi-pencil-square me-1"></i>Sim, Abrir Ficha Existente',
+          cancelButtonText: 'Cancelar'
+        }).then(r => {
+          if (r.isConfirmed) {
+            carregarFichaParaEdicaoPorObjeto(fichaAberta);
+          } else {
+            document.getElementById('baAluno').value = "";
+          }
+        });
+      }
+    }
+
+    function limparFiltrosBa() {
+      document.getElementById('filtroBaSerie').value = '';
+      document.getElementById('filtroBaStatus').value = '';
+      document.getElementById('filtroBaTexto').value = '';
+      filtrarTabelaBuscaAtiva();
+    }
+
+    function filtrarTabelaBuscaAtiva() {
+      const serieF = document.getElementById('filtroBaSerie').value.trim().toUpperCase();
+      const statusF = document.getElementById('filtroBaStatus').value.trim().toUpperCase();
+      const textoF = document.getElementById('filtroBaTexto').value.trim().toUpperCase();
+
+      listaBuscaFiltrada = listaBuscaGlobal.filter(item => {
+        const serieLimpa = String(item.serie || "").replace(/["']/g, "").trim().toUpperCase();
+        const info = obterInfoUltimaAcaoFicha(item);
+
+        const bateSerie = !serieF || serieLimpa === serieF;
+        const bateStatus = !statusF || info.status === statusF;
+        const bateTexto = !textoF ||
+          String(item.aluno || "").toUpperCase().includes(textoF) ||
+          String(item.descricao || "").toUpperCase().includes(textoF);
+
+        return bateSerie && bateStatus && bateTexto;
+      });
+
+      const tbody = document.getElementById('tbodyBuscaAtiva');
+      if (listaBuscaFiltrada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhuma ficha encontrada para os filtros selecionados.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaBuscaFiltrada.forEach((item, idx) => {
+        const info = obterInfoUltimaAcaoFicha(item);
+        const badgeHtml = gerarBadgeColoridoStatusBusca(info.status);
+
+        html += `
+          <tr>
+            <td class="small fw-semibold text-secondary">${String(item.data || "").split(' ')[0]}</td>
+            <td><span class="badge bg-light text-dark border">${String(item.serie || "").replace(/["']/g, "")}</span></td>
+            <td class="fw-bold text-dark">${item.aluno}</td>
+            <td class="small">${item.descricao || '-'}</td>
+            <td class="text-center"><span class="badge bg-secondary-subtle text-dark border">${info.etapa}</span></td>
+            <td class="text-center">${badgeHtml}</td>
+            <td class="text-end text-nowrap">
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editarFichaBaPorIndice(${idx})" title="Editar / Adicionar Próxima Ação">
+                <i class="bi bi-pencil-square"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="excluirFichaBa(${item.linha}, '${item.aluno}')" title="Excluir Ficha">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function irParaNovaFichaBa() {
+      limparFormularioBuscaAtiva();
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-form-ba')).show();
+    }
+
+    function editarFichaBaPorIndice(idxFiltrado) {
+      const item = listaBuscaFiltrada[idxFiltrado];
+      if (item) carregarFichaParaEdicaoPorObjeto(item);
+    }
+
+    function carregarFichaParaEdicaoPorObjeto(item) {
+      limparFormularioBuscaAtiva();
+      document.getElementById('baLinhaHidden').value = item.linha;
+      document.getElementById('baIdHidden').value = item.id || "";
+      document.getElementById('baSerie').value = String(item.serie || "").replace(/["']/g, "").trim().toUpperCase();
+      document.getElementById('baAluno').value = item.aluno || "";
+      document.getElementById('baData').value = item.data || "";
+      document.getElementById('baDescricao').value = item.descricao || "";
+
+      (item.acoes || []).forEach((ac, idx) => {
+        const n = idx + 1;
+        document.getElementById(`baAcao_${n}`).value = ac.acao || "";
+        document.getElementById(`baResp_${n}`).value = ac.responsavel || nomeServidorLogado;
+        document.getElementById(`baRes_${n}`).value = String(ac.resultado || "").trim().toUpperCase();
+        document.getElementById(`baObs_${n}`).value = ac.obs || "";
+        anexosBase64PorAcao[idx] = ac.anexo || "";
+      });
+
+      document.getElementById('lblAbaFormBa').innerText = "Editando Ficha";
+      document.getElementById('tituloFormBa').innerHTML = `<i class="bi bi-pencil-square me-2"></i>Editando Ficha de Busca Ativa: ${item.aluno}`;
+      document.getElementById('btnCancelarBa').classList.remove('d-none');
+
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-form-ba')).show();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoBa() {
+      limparFormularioBuscaAtiva();
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-lista-ba')).show();
+    }
+
+    function limparFormularioBuscaAtiva() {
+      document.getElementById('formBuscaAtiva').reset();
+      document.getElementById('baLinhaHidden').value = "";
+      document.getElementById('baIdHidden').value = "";
+      const agora = new Date();
+      document.getElementById('baData').value = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      anexosBase64PorAcao = ["", "", "", "", ""];
+
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById(`baResp_${i}`).value = nomeServidorLogado;
+        document.getElementById(`baRes_${i}`).value = (i === 1) ? "EM ANDAMENTO" : "";
+      }
+
+      document.getElementById('lblAbaFormBa').innerText = "Nova Ficha de Busca Ativa";
+      document.getElementById('tituloFormBa').innerHTML = `<i class="bi bi-journal-medical me-2"></i>Cadastro de Intervenção — Busca Ativa`;
+      document.getElementById('btnCancelarBa').classList.add('d-none');
+    }
+
+    async function salvarFichaBuscaAtiva() {
+      const acoesArr = [];
+      for (let i = 1; i <= 5; i++) {
+        const acTxt = document.getElementById(`baAcao_${i}`).value.trim();
+        const resTxt = document.getElementById(`baRes_${i}`).value;
+        acoesArr.push({
+          acao: acTxt,
+          responsavel: document.getElementById(`baResp_${i}`).value.trim().toUpperCase(),
+          resultado: acTxt ? (resTxt || "EM ANDAMENTO") : resTxt,
+          anexo: anexosBase64PorAcao[i - 1] || "",
+          obs: document.getElementById(`baObs_${i}`).value.trim()
+        });
+      }
+
+      const btn = document.getElementById('btnSalvarBa');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando Ficha...';
+
+      const payload = {
+        action: 'salvarBuscaAtiva',
+        dados: {
+          linha: document.getElementById('baLinhaHidden').value || null,
+          id: document.getElementById('baIdHidden').value || "",
+          data: document.getElementById('baData').value,
+          serie: document.getElementById('baSerie').value,
+          aluno: document.getElementById('baAluno').value.trim().toUpperCase(),
+          descricao: document.getElementById('baDescricao').value.trim(),
+          acoes: acoesArr
+        }
+      };
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }).then(r => r.json()).catch(() => null);
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Salvar Ficha de Busca Ativa';
+
+      if (res && res.success) {
+        Swal.fire({ title: 'Sucesso!', text: res.msg, icon: 'success', confirmButtonColor: '#15438c' });
+        limparFormularioBuscaAtiva();
+        await carregarTudoBuscaAtiva(false);
+        bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-lista-ba')).show();
+      } else {
+        Swal.fire({ title: 'Nova Ficha Bloqueada!', text: (res && res.error) || 'Não foi possível salvar.', icon: 'warning', confirmButtonColor: '#15438c' });
+      }
+    }
+
+    async function excluirFichaBa(linha, aluno) {
+      const conf = await Swal.fire({
+        title: 'Excluir Ficha de Busca Ativa?',
+        text: `Deseja remover o registro de ${aluno}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, Excluir'
+      });
+      if (!conf.isConfirmed) return;
+
+      await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'excluirBuscaAtiva', linha: linha }) });
+      await carregarTudoBuscaAtiva(false);
+    }
+
+    function gerarPdfBuscaAtiva() {
+      if (listaBuscaFiltrada.length === 0) {
+        return Swal.fire('Atenção', 'Não há registros filtrados para exportar.', 'warning');
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(21, 67, 140);
+      doc.text("RELATÓRIO DE BUSCA ATIVA ESCOLAR — EEMTI DR. JOSÉ EUCLIDES", 14, 15);
+
+      doc.setFontSize(9);
+      doc.setTextColor(90, 90, 90);
+      doc.text(`Total de Casos Listados: ${listaBuscaFiltrada.length}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 21);
+
+      const rows = listaBuscaFiltrada.map(item => {
+        const info = obterInfoUltimaAcaoFicha(item);
+        return [
+          String(item.data || "").split(' ')[0],
+          String(item.serie || "").replace(/["']/g, ""),
+          item.aluno,
+          item.descricao || '-',
+          `${info.etapa}: ${info.acaoTxt || '-'}`,
+          info.status
+        ];
+      });
+
+      doc.autoTable({
+        startY: 25,
+        head: [['Data', 'Série / Turma', 'Aluno(a)', 'Motivo / Situação', 'Última Ação Realizada', 'Status Atual']],
+        body: rows,
+        styles: { fontSize: 8.2, cellPadding: 2.3 },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        didParseCell: function(data) {
+          if (data.section === 'body' && data.column.index === 5) {
+            const st = String(data.cell.raw || "").toUpperCase();
+            if (st.includes("RESOLVIDA")) {
+              data.cell.styles.fillColor = [25, 135, 84]; // Verde
+              data.cell.styles.textColor = [255, 255, 255];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (st.includes("POSITIVO")) {
+              data.cell.styles.fillColor = [255, 193, 7]; // Amarelo
+              data.cell.styles.textColor = [30, 41, 59];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (st.includes("SEM RESULTADO")) {
+              data.cell.styles.fillColor = [220, 53, 69]; // Vermelho
+              data.cell.styles.textColor = [255, 255, 255];
+              data.cell.styles.fontStyle = 'bold';
+            } else {
+              data.cell.styles.fillColor = [13, 110, 253]; // Azul (Em Andamento)
+              data.cell.styles.textColor = [255, 255, 255];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        }
+      });
+
+      doc.save(`Relatorio_Busca_Ativa_Jose_Euclides_${new Date().toISOString().slice(0, 10)}.pdf`);
+    }
+  </script>
+</body>
+</html>

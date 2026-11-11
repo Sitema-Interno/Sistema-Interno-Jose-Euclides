@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoria e Recuperação de Dados - EEMTI</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+    
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.06; z-index: -1; pointer-events: none; }
+    .navbar-custom { background-color: #fff; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .navbar-brand { font-weight: 700; font-size: 1.45rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 52px; object-fit: contain; mix-blend-mode: multiply; }
+    
+    .main-container { padding: 30px 15px; max-width: 1450px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: #fff; margin-bottom: 24px; }
+    
+    .stat-card { border-left: 4px solid #0f766e; padding: 16px 20px; border-radius: 10px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+    .stat-card.edicao { border-left-color: #f59e0b; }
+    .stat-card.exclusao { border-left-color: #ef4444; }
+    .stat-card.restaurado { border-left-color: #10b981; }
+
+    .badge-edicao { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 700; }
+    .badge-exclusao { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-weight: 700; }
+    .badge-restauracao { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; font-weight: 700; }
+
+    .box-detalhes { font-size: 0.82rem; line-height: 1.5; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; }
+    .tag-antes { background-color: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; }
+    .tag-depois { background-color: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; }
+    
+    .backup-code { font-family: monospace; font-size: 0.75rem; color: #475569; background: #f1f5f9; padding: 6px 8px; border-radius: 6px; border: 1px dashed #cbd5e1; max-height: 65px; overflow-y: auto; word-break: break-all; }
+    
+    .btn-restaurar { background-color: #0f766e; color: white; border: none; font-weight: 600; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; transition: 0.2s; }
+    .btn-restaurar:hover { background-color: #0d645e; color: white; transform: translateY(-1px); }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+    const nomeUser = (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1 || "Usuário").toUpperCase();
+    const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
+  </script>
+</head>
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1450 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>Central de Auditoria e Recuperação<div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR Portela</div></div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
+          <i class="bi bi-shield-lock-fill text-success me-1"></i><span id="txtUserTop"></span>
+        </span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+          <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    
+    <!-- Cards de Estatísticas -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="stat-card">
+          <span class="text-muted small fw-semibold d-block">Total de Registos</span>
+          <h3 class="fw-bold m-0 text-dark" id="countTotal">0</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card edicao">
+          <span class="text-muted small fw-semibold d-block">Edições Registadas</span>
+          <h3 class="fw-bold m-0 text-warning" id="countEdicoes">0</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card exclusao">
+          <span class="text-muted small fw-semibold d-block">Exclusões Registadas</span>
+          <h3 class="fw-bold m-0 text-danger" id="countExclusoes">0</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card restaurado">
+          <span class="text-muted small fw-semibold d-block">Dados Restaurados</span>
+          <h3 class="fw-bold m-0 text-success" id="countRestaurados">0</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel de Filtros e Tabela -->
+    <div class="card p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2">
+        <div>
+          <h5 class="fw-bold m-0"><i class="bi bi-clock-history text-primary me-2"></i>Histórico de Alterações e Restauro</h5>
+          <small class="text-muted">Clique em <b>"Restaurar"</b> para readicionar um item excluído ou reverter uma edição para o valor anterior.</small>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarAuditoria()">
+            <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista
+          </button>
+          <button class="btn btn-outline-danger btn-sm fw-bold" onclick="exportarPDFAuditoria()">
+            <i class="bi bi-file-pdf-fill me-1"></i> Exportar PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <label class="form-label small fw-bold">Filtrar por Tipo de Ação</label>
+          <select id="filtroTipo" class="form-select form-select-sm" onchange="renderizarTabela()">
+            <option value="">Todas as Ações (Edições, Exclusões...)</option>
+            <option value="EXCLUS">Apenas Exclusões</option>
+            <option value="EDIÇ">Apenas Edições</option>
+            <option value="RESTAURA">Apenas Restaurações</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold">Filtrar por Professor / Usuário</label>
+          <select id="filtroUsuario" class="form-select form-select-sm" onchange="renderizarTabela()">
+            <option value="">Todos os Usuários</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Pesquisar Aluno, Eletiva, Data ou Conteúdo</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+            <input type="text" id="filtroBusca" class="form-control" placeholder="Digite o nome de um aluno, disciplina, data ou texto..." onkeyup="renderizarTabela()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela de Auditoria -->
+      <div class="table-responsive">
+        <table class="table table-hover align-middle border" id="tabelaAuditoria">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 135px;">Data / Hora</th>
+              <th style="width: 170px;">Quem Realizou</th>
+              <th style="width: 190px;">Módulo / Ação</th>
+              <th>Detalhes (O que tinha ANTES vs DEPOIS)</th>
+              <th style="width: 240px;">Backup Integral (Coluna E)</th>
+              <th style="width: 145px;" class="text-center">Restauração</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAuditoria">
+            <tr><td colspan="6" class="text-center py-4 text-muted">A carregar registos de auditoria...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    let listaAuditoriaGlobal = [];
+
+    window.onload = async function() {
+      document.getElementById('txtUserTop').innerText = nomeUser;
+      await carregarAuditoria();
+    };
+
+    async function fetchAPI(payload) {
+      payload.usuarioLogado = nomeUser;
+      try {
+        const res = await fetch(API_URL + "?v=" + new Date().getTime(), {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        return await res.json();
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+
+    async function carregarAuditoria() {
+      Swal.fire({
+        title: 'A carregar Auditoria...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const res = await fetchAPI({ action: 'listarAuditoria' });
+      Swal.close();
+
+      if (res && res.success) {
+        listaAuditoriaGlobal = res.lista || [];
+        preencherFiltroUsuarios();
+        atualizarContadores();
+        renderizarTabela();
+      } else {
+        Swal.fire('Erro', res.error || 'Não foi possível carregar a aba AUDITORIA.', 'error');
+      }
+    }
+
+    function preencherFiltroUsuarios() {
+      const usuariosSet = new Set();
+      listaAuditoriaGlobal.forEach(item => {
+        if (item.usuario) usuariosSet.add(item.usuario.trim().toUpperCase());
+      });
+      const sel = document.getElementById('filtroUsuario');
+      const valorAtual = sel.value;
+      let html = '<option value="">Todos os Usuários</option>';
+      Array.from(usuariosSet).sort().forEach(u => {
+        html += `<option value="${u}">${u}</option>`;
+      });
+      sel.innerHTML = html;
+      sel.value = valorAtual;
+    }
+
+    function atualizarContadores() {
+      let total = listaAuditoriaGlobal.length;
+      let edicoes = 0, exclusoes = 0, restaurados = 0;
+
+      listaAuditoriaGlobal.forEach(item => {
+        const acao = (item.moduloAcao || "").toUpperCase();
+        const status = (item.status || "").toUpperCase();
+        if (acao.includes("EDIÇ") || acao.includes("EDIC")) edicoes++;
+        if (acao.includes("EXCLUS")) exclusoes++;
+        if (status.includes("RESTAURADO") || acao.includes("RESTAURA")) restaurados++;
+      });
+
+      document.getElementById('countTotal').innerText = total;
+      document.getElementById('countEdicoes').innerText = edicoes;
+      document.getElementById('countExclusoes').innerText = exclusoes;
+      document.getElementById('countRestaurados').innerText = restaurados;
+    }
+
+    function formatarDetalhesVisuais(texto) {
+      if (!texto) return "-";
+      let seguro = texto
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      // Destaca visualmente ANTES, DEPOIS e O que existia antes
+      seguro = seguro
+        .replace(/ANTES\s*(\([^)]*\))?:/gi, '<span class="tag-antes"><i class="bi bi-arrow-counterclockwise me-1"></i>ANTES$1:</span>')
+        .replace(/O que existia antes:/gi, '<span class="tag-antes"><i class="bi bi-trash3 me-1"></i>EXISTIA ANTES:</span>')
+        .replace(/->\s*DEPOIS\s*(\([^)]*\))?:/gi, '<br><span class="tag-depois mt-1 d-inline-block"><i class="bi bi-arrow-right me-1"></i>DEPOIS$1:</span>');
+
+      return `<div class="box-detalhes">${seguro}</div>`;
+    }
+
+    function renderizarTabela() {
+      const tipoFiltro = document.getElementById('filtroTipo').value.toUpperCase();
+      const userFiltro = document.getElementById('filtroUsuario').value.toUpperCase();
+      const buscaFiltro = document.getElementById('filtroBusca').value.toUpperCase().trim();
+
+      const filtrados = listaAuditoriaGlobal.filter(item => {
+        const acaoUpper = (item.moduloAcao || "").toUpperCase();
+        const userUpper = (item.usuario || "").toUpperCase();
+        const textoCompleto = `${item.dataHora} ${item.usuario} ${item.moduloAcao} ${item.detalhes} ${item.backup}`.toUpperCase();
+
+        const bateTipo = !tipoFiltro || acaoUpper.includes(tipoFiltro);
+        const bateUser = !userFiltro || userUpper === userFiltro;
+        const bateBusca = !buscaFiltro || textoCompleto.includes(buscaFiltro);
+
+        return bateTipo && bateUser && bateBusca;
+      });
+
+      const tbody = document.getElementById('tbodyAuditoria');
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhum registo de auditoria encontrado para este filtro.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      filtrados.forEach((item) => {
+        const acaoUpper = (item.moduloAcao || "").toUpperCase();
+        let badgeClasse = "bg-secondary text-white";
+        let iconeAcao = "bi-info-circle";
+
+        if (acaoUpper.includes("EXCLUS")) {
+          badgeClasse = "badge-exclusao";
+          iconeAcao = "bi-trash3-fill";
+        } else if (acaoUpper.includes("EDIÇ") || acaoUpper.includes("EDIC")) {
+          badgeClasse = "badge-edicao";
+          iconeAcao = "bi-pencil-square";
+        } else if (acaoUpper.includes("RESTAURA")) {
+          badgeClasse = "badge-restauracao";
+          iconeAcao = "bi-check-circle-fill";
+        }
+
+        const temBackup = item.backup && item.backup.trim() !== "";
+        const isRestauracaoLog = acaoUpper.includes("RESTAURA");
+        const jaRestaurado = item.status && item.status.toUpperCase().includes("RESTAURADO");
+
+        let botaoRestaurarHTML = '';
+        if (!temBackup || isRestauracaoLog) {
+          botaoRestaurarHTML = `<span class="text-muted small">-</span>`;
+        } else if (jaRestaurado) {
+          botaoRestaurarHTML = `
+            <span class="badge bg-success bg-opacity-10 text-success border border-success d-block mb-1" title="${item.status}">
+              <i class="bi bi-check2-all me-1"></i>Já Restaurado
+            </span>
+            <button class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:0.7rem;" onclick="confirmarRestauracao(${item.linhaAuditoria})">
+              Restaurar Novamente
+            </button>`;
+        } else {
+          const rotuloBotao = acaoUpper.includes("EXCLUS") ? "Readicionar" : "Reverter Edição";
+          botaoRestaurarHTML = `
+            <button class="btn-restaurar w-100 shadow-sm" onclick="confirmarRestauracao(${item.linhaAuditoria})">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>${rotuloBotao}
+            </button>`;
+        }
+
+        html += `
+          <tr>
+            <td class="small fw-bold text-secondary">${item.dataHora}</td>
+            <td><span class="fw-bold text-dark small"><i class="bi bi-person-badge me-1 text-primary"></i>${item.usuario}</span></td>
+            <td><span class="badge ${badgeClasse} p-2 text-wrap text-start d-inline-block"><i class="bi ${iconeAcao} me-1"></i>${item.moduloAcao}</span></td>
+            <td>${formatarDetalhesVisuais(item.detalhes)}</td>
+            <td><div class="backup-code" title="Dados brutos para recuperação">${item.backup || 'Sem backup'}</div></td>
+            <td class="text-center">${botaoRestaurarHTML}</td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    async function confirmarRestauracao(linhaAuditoria) {
+      const item = listaAuditoriaGlobal.find(x => x.linhaAuditoria === linhaAuditoria);
+      if (!item) return;
+
+      const isExclusao = (item.moduloAcao || "").toUpperCase().includes("EXCLUS");
+      const acaoExplicacao = isExclusao
+        ? "Este registo foi <b>EXCLUÍDO</b>. Ao confirmar, o sistema vai <b>readicionar a linha completa</b> de volta na aba original."
+        : "Este registo foi <b>EDITADO</b>. Ao confirmar, o sistema vai <b>substituir os dados atuais pelos dados antigos</b> que existiam antes da edição.";
+
+      const confirm = await Swal.fire({
+        title: isExclusao ? 'Readicionar Registo Excluído?' : 'Reverter para antes da Edição?',
+        html: `
+          <div class="text-start small">
+            <p>${acaoExplicacao}</p>
+            <div class="p-2 bg-light border rounded mb-2">
+              <b>Ação original:</b> ${item.moduloAcao}<br>
+              <b>Realizada por:</b> ${item.usuario} em ${item.dataHora}
+            </div>
+            <label class="fw-bold text-secondary mb-1">Dados que serão restaurados (Backup Coluna E):</label>
+            <div class="p-2 bg-dark text-white rounded font-monospace" style="font-size:0.75rem; word-break:break-all;">
+              ${item.backup}
+            </div>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0f766e',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '<i class="bi bi-arrow-counterclockwise me-1"></i>Sim, Restaurar Agora!',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (!confirm.isConfirmed) return;
+
+      Swal.fire({
+        title: 'A restaurar dados na planilha...',
+        text: 'Aguarde enquanto o backup é reposto na aba original.',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const res = await fetchAPI({
+        action: 'restaurarRegistroAuditoria',
+        linhaAuditoria: linhaAuditoria
+      });
+
+      if (res && res.success) {
+        await Swal.fire({
+          title: 'Restaurado com Sucesso!',
+          text: res.msg,
+          icon: 'success',
+          confirmButtonColor: '#0f766e'
+        });
+        await carregarAuditoria();
+      } else {
+        Swal.fire('Erro ao Restaurar', res.error || 'Não foi possível restaurar este registo.', 'error');
+      }
+    }
+
+    function exportarPDFAuditoria() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 118, 110);
+      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 14, 15);
+
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      doc.text("RELATÓRIO DE AUDITORIA DE EDIÇÕES E EXCLUSÕES DO SISTEMA", 14, 21);
+
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Emitido por: ${nomeUser} em ${new Date().toLocaleString('pt-BR')}`, 283, 21, { align: 'right' });
+
+      doc.setDrawColor(15, 118, 110);
+      doc.setLineWidth(0.4);
+      doc.line(14, 24, 283, 24);
+
+      const linhasPDF = listaAuditoriaGlobal.map(it => [
+        it.dataHora,
+        it.usuario,
+        it.moduloAcao,
+        it.detalhes,
+        it.status || "ATIVO"
+      ]);
+
+      doc.autoTable({
+        startY: 28,
+        head: [['Data/Hora', 'Usuário', 'Módulo / Ação', 'Detalhes (Antes vs Depois)', 'Status']],
+        body: linhasPDF,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 8 },
+        styles: { fontSize: 7, cellPadding: 2 },
+        columnStyles: {
+          0: { cellWidth: 28 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 48 },
+          3: { cellWidth: 128 },
+          4: { cellWidth: 30 }
+        }
+      });
+
+      doc.save("Relatorio_Auditoria_EEMTI.pdf");
+    }
+  </script>
+</body>
+</html>

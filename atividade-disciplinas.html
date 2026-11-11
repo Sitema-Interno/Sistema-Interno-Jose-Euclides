@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Atividades Contínuas - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1340px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.86rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 9px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .switch-tipo-box {
+      display: inline-flex;
+      background: #f1f5f9;
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-switch-tipo {
+      border: none;
+      background: transparent;
+      font-weight: 800;
+      font-size: 0.82rem;
+      padding: 7px 16px;
+      border-radius: 8px;
+      color: #475569;
+      transition: all 0.15s;
+    }
+
+    .btn-switch-tipo.ativo {
+      background: var(--azul-primario);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(21, 67, 140, 0.25);
+    }
+
+    /* DESTAQUE DE COR EM TODO O NOME DO ALUNO E NA LINHA CONFORME OPÇÃO SELECIONADA */
+    .linha-aluno-ativ {
+      transition: all 0.15s ease;
+    }
+
+    .linha-aluno-ativ.status-realizou {
+      background-color: #f0fdf4 !important;
+    }
+    .linha-aluno-ativ.status-realizou .texto-nome-aluno,
+    .linha-aluno-ativ.status-realizou .num-aluno {
+      color: #15803d !important;
+      font-weight: 800 !important;
+    }
+
+    .linha-aluno-ativ.status-nao-realizou {
+      background-color: #fef2f2 !important;
+    }
+    .linha-aluno-ativ.status-nao-realizou .texto-nome-aluno,
+    .linha-aluno-ativ.status-nao-realizou .num-aluno {
+      color: #dc2626 !important;
+      font-weight: 800 !important;
+    }
+
+    .linha-aluno-ativ.status-ausente {
+      background-color: #fffbeb !important;
+    }
+    .linha-aluno-ativ.status-ausente .texto-nome-aluno,
+    .linha-aluno-ativ.status-ausente .num-aluno {
+      color: #b45309 !important;
+      font-weight: 800 !important;
+    }
+
+    .btn-status-ativ {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 7px;
+      transition: all 0.15s;
+    }
+
+    .btn-opt-realizou {
+      border: 1.5px solid #16a34a;
+      color: #15803d;
+      background: #ffffff;
+    }
+    .btn-opt-realizou.ativo {
+      background: #16a34a;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+    }
+
+    .btn-opt-nao {
+      border: 1.5px solid #dc2626;
+      color: #dc2626;
+      background: #ffffff;
+    }
+    .btn-opt-nao.ativo {
+      background: #dc2626;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-opt-ausente {
+      border: 1.5px solid #f59e0b;
+      color: #b45309;
+      background: #ffffff;
+    }
+    .btn-opt-ausente.ativo {
+      background: #f59e0b;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+    }
+
+    .tabela-enquadrada {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-enquadrada th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      padding: 10px 8px;
+    }
+
+    .tabela-enquadrada td {
+      vertical-align: middle;
+      font-size: 0.84rem;
+      padding: 10px 8px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Professor</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- ABAS DO MÓDULO DE ATIVIDADES -->
+    <ul class="nav nav-tabs mb-4" id="ativTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="tab-lancar-ativ-btn" data-bs-toggle="tab" data-bs-target="#abaLancarAtiv" type="button" role="tab">
+          <i class="bi bi-check2-square text-primary me-2"></i>Lançamento de Atividade Contínua (Disciplina ou Eletiva)
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold text-danger" id="tab-relatorio-ativ-btn" data-bs-toggle="tab" data-bs-target="#abaRelatorioAtiv" type="button" role="tab" onclick="carregarRelatorioUnificadoServidor(false)">
+          <i class="bi bi-calculator-fill me-2"></i>Relatório por Mês / Bimestre / Período & Cálculo de Nota
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ========================================================= -->
+      <!-- ABA 1: LANÇAMENTO UNIFICADO (DISCIPLINA OU ELETIVA)       -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade show active" id="abaLancarAtiv" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-funnel-fill me-2"></i>1. Escolha o Tipo de Componente e os Dados da Aula
+              </h5>
+              <small class="text-muted">Todos os lançamentos são salvos em <b>ATIVIDADES</b> (preenchendo a coluna <b>SEMESTRE</b> apenas quando selecionar Eletiva).</small>
+            </div>
+
+            <div class="switch-tipo-box">
+              <button type="button" class="btn-switch-tipo ativo" id="btnModoDisciplina" onclick="alternarModoLancamento('DISCIPLINA')">
+                <i class="bi bi-book-half me-1"></i>1. Disciplina Curricular
+              </button>
+              <button type="button" class="btn-switch-tipo" id="btnModoEletiva" onclick="alternarModoLancamento('ELETIVA')">
+                <i class="bi bi-stars me-1"></i>2. Eletiva (Do Professor)
+              </button>
+            </div>
+          </div>
+
+          <!-- BLOCO A: FILTROS PARA DISCIPLINA CURRICULAR (SEM COLUNA SEMESTRE) -->
+          <div class="row g-3 align-items-end" id="blocoFiltrosDisciplina">
+            <div class="col-6 col-md-2">
+              <label class="form-label">Data da Atividade *</label>
+              <input type="date" id="discData" class="form-control fw-bold">
+            </div>
+
+            <div class="col-6 col-md-4">
+              <label class="form-label">Disciplina Curricular (Aba DISCIPLINAS) *</label>
+              <select id="discSelectNome" class="form-select fw-bold"></select>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label">Série / Turma (Aba SÉRIE) *</label>
+              <select id="discSelectSerie" class="form-select fw-bold"></select>
+            </div>
+
+            <div class="col-6 col-md-1">
+              <label class="form-label">Aula *</label>
+              <select id="discSelectAula" class="form-select fw-bold">
+                <option value="1ª AULA">1ª Aula</option>
+                <option value="2ª AULA">2ª Aula</option>
+                <option value="3ª AULA">3ª Aula</option>
+                <option value="4ª AULA">4ª Aula</option>
+                <option value="5ª AULA">5ª Aula</option>
+                <option value="6ª AULA">6ª Aula</option>
+                <option value="7ª AULA">7ª Aula</option>
+                <option value="8ª AULA">8ª Aula</option>
+                <option value="9ª AULA">9ª Aula</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-2 d-grid">
+              <button type="button" class="btn btn-principal py-2" id="btnCarregarDisc" onclick="carregarListaAlunosParaAtividade()">
+                <i class="bi bi-search me-1"></i>Carregar
+              </button>
+            </div>
+          </div>
+
+          <!-- BLOCO B: FILTROS PARA ELETIVA (COM CAMPO SEMESTRE E ELETIVAS DO PROFESSOR) -->
+          <div class="row g-3 align-items-end d-none" id="blocoFiltrosEletiva">
+            <div class="col-6 col-md-2">
+              <label class="form-label">Data da Atividade *</label>
+              <input type="date" id="eletData" class="form-control fw-bold">
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label">Semestre (Coluna C) *</label>
+              <select id="eletSelectSemestre" class="form-select fw-bold" onchange="filtrarEletivasDoProfessorLogado()"></select>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label"><i class="bi bi-lock-fill text-primary me-1"></i>Professor(a) Cadastrado(a)</label>
+              <input type="text" id="eletProfInput" class="form-control fw-bold bg-light text-primary" readonly>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">Minha Eletiva Cadastrada (Aba ELETIVA 2025) *</label>
+              <select id="eletSelectNome" class="form-select fw-bold" onchange="aoSelecionarEletivaDoProf()">
+                <option value="">Sincronizando eletivas...</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-2 d-grid">
+              <button type="button" class="btn btn-principal py-2" onclick="carregarListaAlunosParaAtividade()">
+                <i class="bi bi-search me-1"></i>Carregar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA DE ALUNOS COM OPÇÕES REALIZOU / NÃO REALIZOU / AUSENTE -->
+        <div class="card p-4 d-none" id="cardListaAlunosAtiv">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0 text-dark" id="lblTituloTurmaAberta">Turma — Disciplina</h5>
+              <small class="text-muted">Ao clicar em uma opção, todo o nome do(a) aluno(a) muda imediatamente para a cor correspondente.</small>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="marcarTodosAlunosStatus('REALIZOU')">
+                <i class="bi bi-check-all me-1"></i>Todos Realizou
+              </button>
+              <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="marcarTodosAlunosStatus('NÃO REALIZOU')">
+                <i class="bi bi-x-circle me-1"></i>Todos Não Realizou
+              </button>
+              <button type="button" class="btn btn-outline-warning text-dark btn-sm fw-bold" onclick="marcarTodosAlunosStatus('AUSENTE')">
+                <i class="bi bi-person-dash me-1"></i>Todos Ausente
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table border align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 55px;" class="text-center">#</th>
+                  <th>NOME DO(A) ALUNO(A)</th>
+                  <th style="width: 120px;" class="text-center">TURMA</th>
+                  <th style="width: 340px;" class="text-center">CATEGORIA DA ATIVIDADE</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAlunosLancamentoAtiv"></tbody>
+            </table>
+          </div>
+
+          <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="small fw-bold" id="lblResumoContagemRodape"></div>
+            <button type="button" class="btn btn-principal px-5 py-2 fw-bold shadow-sm" id="btnSalvarAtividadeBanco" onclick="salvarAtividadeNoBancoUnificado()">
+              <i class="bi bi-cloud-arrow-up-fill me-2"></i>Enviar Atividade para o Banco de Dados
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 2: RELATÓRIO POR MÊS, BIMESTRE OU PERÍODO & NOTA      -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="abaRelatorioAtiv" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-bar-chart-line-fill me-2"></i>Filtrar Notas de Atividades (Por Mês, Bimestre ou Período)
+              </h5>
+              <small class="text-muted">Puxa todos os alunos matriculados na Turma ou Eletiva e calcula a nota (<b>0,0 a 10,0</b>) tomando como referência a <b>quantidade total de atividades enviadas</b> e a <b>quantidade realizada pelo aluno</b>.</small>
+            </div>
+            <div class="switch-tipo-box">
+              <button type="button" class="btn-switch-tipo ativo" id="btnRelModoDisciplina" onclick="alternarModoRelatorio('DISCIPLINA')">
+                Disciplina Curricular
+              </button>
+              <button type="button" class="btn-switch-tipo" id="btnRelModoEletiva" onclick="alternarModoRelatorio('ELETIVA')">
+                Minha Eletiva
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+              <label class="form-label">Mês</label>
+              <select id="relAtivMes" class="form-select form-select-sm fw-bold" onchange="aoMudarMesRelatorio()">
+                <option value="">Todos os Meses</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label"><i class="bi bi-calendar3-range text-primary me-1"></i>Bimestre</label>
+              <select id="relAtivBimestre" class="form-select form-select-sm fw-bold" onchange="aoMudarBimestreRelatorio()">
+                <option value="">Todos os Bimestres</option>
+              </select>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label">De (Início)</label>
+              <input type="date" id="relAtivDataIni" class="form-control form-control-sm fw-bold" onchange="aoMudarDatasManuaisRelatorio()">
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label">Até (Fim)</label>
+              <input type="date" id="relAtivDataFim" class="form-control form-control-sm fw-bold" onchange="aoMudarDatasManuaisRelatorio()">
+            </div>
+
+            <div class="col-6 col-md-2" id="colRelSerieTurma">
+              <label class="form-label">Série (Aba SÉRIE)</label>
+              <select id="relAtivSerie" class="form-select form-select-sm fw-bold" onchange="calcularTabelaRelatorioNotas()"></select>
+            </div>
+
+            <div class="col-6 col-md-2 d-none" id="colRelSemestreElet">
+              <label class="form-label">Semestre da Eletiva</label>
+              <select id="relAtivSemestreElet" class="form-select form-select-sm fw-bold" onchange="atualizarSelectComponentesRelatorio()"></select>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <label class="form-label" id="lblComponenteRelatorio">Disciplina</label>
+              <select id="relAtivComponente" class="form-select form-select-sm fw-bold" onchange="calcularTabelaRelatorioNotas()"></select>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pt-3 border-top">
+            <div class="small fw-bold text-primary" id="lblResumoAulasRelatorioAtiv">Selecione os filtros acima para contabilizar as atividades.</div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarRelatorioUnificadoServidor(true)">
+                <i class="bi bi-arrow-clockwise me-1"></i>Sincronizar Banco
+              </button>
+              <button type="button" class="btn btn-danger btn-sm fw-bold px-3" onclick="baixarPdfRelatorioNotasAtividades()">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABELA DE CONTABILIZAÇÃO DE ATIVIDADES E NOTA CALCULADA (0 A 10) -->
+        <div class="card p-4">
+          <h6 class="fw-bold text-dark mb-3">
+            <i class="bi bi-award-fill text-primary me-2"></i>Contabilização de Atividades Enviadas e Nota Calculada (0,0 a 10,0)
+          </h6>
+
+          <div class="w-100">
+            <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
+              <thead>
+                <tr>
+                  <th style="width: 5%;" class="text-center">Nº</th>
+                  <th style="width: 31%;">Aluno(a) Matriculado(a)</th>
+                  <th style="width: 12%;" class="text-center">Turma</th>
+                  <th style="width: 13%;" class="text-center">Atividades Enviadas</th>
+                  <th style="width: 13%;" class="text-center">Entregues (Realizadas)</th>
+                  <th style="width: 11%;" class="text-center">Não Realizou</th>
+                  <th style="width: 8%;" class="text-center">Ausente</th>
+                  <th style="width: 12%;" class="text-center">Nota Calculada</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyRelatorioNotasAtiv">
+                <tr><td colspan="8" class="text-center py-4 text-muted">Selecione uma disciplina ou eletiva para listar os alunos matriculados e calcular a nota.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Controle de Atividades Contínuas.
+  </footer>
+
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const hojeIso = new Date().toISOString().slice(0, 10);
+    document.getElementById('discData').value = hojeIso;
+    document.getElementById('eletData').value = hojeIso;
+
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "PROFESSOR").trim().toUpperCase();
+    const perfilUser = String((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role)) || "Professor").trim().toUpperCase();
+    const isAdminOuGestao = perfilUser.includes("ADMIN") || perfilUser.includes("DIRE") || perfilUser.includes("COORD");
+
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Professor";
+    document.getElementById('eletProfInput').value = nomeUser;
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    const CACHE_ATIV_INIT_KEY = "cache_ativ_rapido_v2";
+
+    let modoLancamentoAtual = "DISCIPLINA";
+    let modoRelatorioAtual = "DISCIPLINA";
+
+    // Listas padrão já carregadas em 0ms para abrir a tela imediatamente sem travar!
+    let disciplinasCurricularesLista = JSON.parse(localStorage.getItem(CACHE_ATIV_INIT_KEY + "_disc") || 'null') || [
+      "ARTE", "BIOLOGIA", "EDUCAÇÃO FÍSICA", "FILOSOFIA", "FÍSICA", "GEOGRAFIA",
+      "HISTÓRIA", "INGLÊS", "MATEMÁTICA", "PORTUGUÊS", "QUÍMICA", "REDAÇÃO", "SOCIOLOGIA"
+    ];
+    let seriesOficiaisLista = JSON.parse(localStorage.getItem(CACHE_ATIV_INIT_KEY + "_ser") || 'null') || [
+      "1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C", "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C", "3ª SÉRIE A", "3ª SÉRIE B"
+    ];
+    let todosAlunosEscolaCache = JSON.parse(localStorage.getItem(CACHE_ATIV_INIT_KEY + "_alunos") || '[]');
+    let catalogoEletivasGlobal = JSON.parse(localStorage.getItem(CACHE_ATIV_INIT_KEY + "_elet") || '[]');
+    let listaBimestresEscola = JSON.parse(localStorage.getItem(CACHE_ATIV_INIT_KEY + "_bim") || '[]');
+
+    let alunosCarregadosParaChamada = [];
+    let todosLancamentosAtividadesBanco = [];
+    let cacheAlunosPorEletivaRelatorio = {};
+    let linhasCalculadasRelatorioAtual = [];
+
+    async function chamarAPI(payload) {
+      try {
+        const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+        const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+        if (nomeAutor && !payload.usuarioLogado) payload.usuarioLogado = nomeAutor;
+
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function normalizarSeriePadrao(s) {
+      let str = String(s || "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+      const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)\s*([A-Z0-9].*)$/i);
+      return m ? `${m[1]}ª SÉRIE ${m[2].trim()}` : str;
+    }
+
+    function extrairCodigoEletivaLocal(nome) {
+      const str = String(nome || "").trim().toUpperCase();
+      const m = str.match(/^([A-Z]{2,4}\d{2,4})\s*[-|]/);
+      return m ? m[1] : str;
+    }
+
+    function limparSemAcento(txt) {
+      return String(txt || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+    }
+
+    function professorCombinaComEletiva(profLogado, profDaEletiva) {
+      const p1 = limparSemAcento(profLogado);
+      const p2 = limparSemAcento(profDaEletiva);
+      if (!p1 || !p2) return false;
+      return p1 === p2 || p2.includes(p1) || p1.includes(p2);
+    }
+
+    function extrairTimestampSeguroLocal(dataValor) {
+      if (!dataValor) return 0;
+      const str = String(dataValor).trim();
+      const mBr = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (mBr) {
+        return new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10), 12, 0, 0).getTime();
+      }
+      const mIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (mIso) {
+        return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 12, 0, 0).getTime();
+      }
+      return 0;
+    }
+
+    // Preenche todos os seletores da tela IMEDIATAMENTE (em 0ms, sem tela de loading!)
+    function renderizarSeletoresNaTela() {
+      // 1. Disciplinas
+      const selDisc = document.getElementById('discSelectNome');
+      const discAnt = selDisc.value;
+      let htmlDisc = '<option value="">Selecione a disciplina...</option>';
+      disciplinasCurricularesLista.forEach(d => { htmlDisc += `<option value="${d}">${d}</option>`; });
+      selDisc.innerHTML = htmlDisc;
+      if (discAnt && disciplinasCurricularesLista.includes(discAnt)) selDisc.value = discAnt;
+
+      // 2. Séries / Turmas
+      const selSerie = document.getElementById('discSelectSerie');
+      const selRelSerie = document.getElementById('relAtivSerie');
+      const serAnt = selSerie.value;
+      let htmlSer = '<option value="">Selecione a turma (Aba SÉRIE)...</option>';
+      let htmlRelSer = '';
+      seriesOficiaisLista.forEach(s => {
+        htmlSer += `<option value="${s}">${s}</option>`;
+        htmlRelSer += `<option value="${s}">${s}</option>`;
+      });
+      selSerie.innerHTML = htmlSer;
+      selRelSerie.innerHTML = htmlRelSer;
+      if (serAnt && seriesOficiaisLista.includes(serAnt)) selSerie.value = serAnt;
+
+      // 3. Semestres das Eletivas
+      const semSet = new Set();
+      catalogoEletivasGlobal.forEach(c => { if (c.semestre) semSet.add(c.semestre); });
+      if (semSet.size === 0) ["2026.2", "2026.1", "2025.2"].forEach(s => semSet.add(s));
+      const semArr = Array.from(semSet).sort().reverse();
+
+      let semPadraoProf = semArr[0];
+      const temNoPadrao = catalogoEletivasGlobal.some(c => c.semestre === semPadraoProf && professorCombinaComEletiva(nomeUser, c.professor));
+      if (!temNoPadrao) {
+        const outroSem = semArr.find(s => catalogoEletivasGlobal.some(c => c.semestre === s && professorCombinaComEletiva(nomeUser, c.professor)));
+        if (outroSem) semPadraoProf = outroSem;
+      }
+
+      let htmlSem = '';
+      semArr.forEach(s => {
+        htmlSem += `<option value="${s}" ${s === semPadraoProf ? 'selected' : ''}>${s}</option>`;
+      });
+      document.getElementById('eletSelectSemestre').innerHTML = htmlSem;
+      document.getElementById('relAtivSemestreElet').innerHTML = htmlSem;
+      filtrarEletivasDoProfessorLogado();
+
+      // 4. Bimestres
+      let htmlBim = '<option value="">Todos os Bimestres</option>';
+      listaBimestresEscola.forEach((b, idx) => {
+        htmlBim += `<option value="${idx}">${b.nome}</option>`;
+      });
+      document.getElementById('relAtivBimestre').innerHTML = htmlBim;
+
+      atualizarSelectComponentesRelatorio();
+    }
+
+    // ABERTURA INSTANTÂNEA DA PÁGINA (Sem Swal.fire travando a tela!)
+    window.onload = function() {
+      // 1. Popula os campos imediatamente na abertura
+      renderizarSeletoresNaTela();
+
+      // 2. Sincroniza silenciosamente em segundo plano com a planilha
+      chamarAPI({ action: 'listarDisciplinasCadastradas' }).then(resDisc => {
+        if (resDisc && Array.isArray(resDisc.disciplinas) && resDisc.disciplinas.length > 0) {
+          disciplinasCurricularesLista = resDisc.disciplinas;
+          try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_disc", JSON.stringify(disciplinasCurricularesLista)); } catch (e) {}
+          renderizarSeletoresNaTela();
+        }
+      });
+
+      chamarAPI({ action: 'listarConfig', tipo: 'SERIE' }).then(resSer => {
+        if (resSer && Array.isArray(resSer.lista) && resSer.lista.length > 0) {
+          const setS = new Set();
+          resSer.lista.forEach(s => {
+            const ns = normalizarSeriePadrao(s.col2 || s.col1);
+            if (ns && ns !== "SÉRIE" && ns !== "TRANSFERIDO") setS.add(ns);
+          });
+          if (setS.size > 0) {
+            seriesOficiaisLista = Array.from(setS).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+            try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_ser", JSON.stringify(seriesOficiaisLista)); } catch (e) {}
+            renderizarSeletoresNaTela();
+          }
+        }
+      });
+
+      chamarAPI({ action: 'listarConfig', tipo: 'BIMESTRE' }).then(resBim => {
+        if (resBim && Array.isArray(resBim.lista)) {
+          listaBimestresEscola = resBim.lista.map(b => ({
+            nome: String(b.col1 || "").trim(),
+            inicioIso: String(b.col2 || "").includes('-') ? String(b.col2).trim() : "",
+            fimIso: String(b.col3 || "").includes('-') ? String(b.col3).trim() : ""
+          })).filter(b => b.nome);
+          try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_bim", JSON.stringify(listaBimestresEscola)); } catch (e) {}
+          renderizarSeletoresNaTela();
+        }
+      });
+
+      chamarAPI({ action: 'getFiltrosFrequencia' }).then(resFreqElet => {
+        if (resFreqElet && Array.isArray(resFreqElet.catalogo)) {
+          catalogoEletivasGlobal = resFreqElet.catalogo.map(c => ({
+            semestre: String(c.semestre || c.ano || "").trim(),
+            serieBase: normalizarSeriePadrao(c.serieBase || c.turma || ""),
+            tempoEletivo: String(c.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase(),
+            eletiva: String(c.eletiva || c.nome || "").trim(),
+            professor: String(c.professor || "").trim().toUpperCase()
+          })).filter(x => x.semestre && x.eletiva);
+          try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_elet", JSON.stringify(catalogoEletivasGlobal)); } catch (e) {}
+          renderizarSeletoresNaTela();
+        }
+      });
+
+      // Carrega a lista de nomes/turmas dos alunos em segundo plano (guardando apenas nome e série, sem fotos pesadas)
+      chamarAPI({ action: 'getFiltrosOcorrencias' }).then(resFiltros => {
+        if (resFiltros && Array.isArray(resFiltros.alunos)) {
+          todosAlunosEscolaCache = resFiltros.alunos.map(a => ({
+            nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+            serie: normalizarSeriePadrao(a.serie)
+          }));
+          try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_alunos", JSON.stringify(todosAlunosEscolaCache)); } catch (e) {}
+        }
+      });
+    };
+
+    // =========================================================
+    // ABA 1: ALTERNAR ENTRE DISCIPLINA CURRICULAR E ELETIVA DO PROFESSOR
+    // =========================================================
+    function alternarModoLancamento(novoModo) {
+      modoLancamentoAtual = novoModo;
+      document.getElementById('btnModoDisciplina').classList.toggle('ativo', novoModo === 'DISCIPLINA');
+      document.getElementById('btnModoEletiva').classList.toggle('ativo', novoModo === 'ELETIVA');
+
+      document.getElementById('blocoFiltrosDisciplina').classList.toggle('d-none', novoModo !== 'DISCIPLINA');
+      document.getElementById('blocoFiltrosEletiva').classList.toggle('d-none', novoModo !== 'ELETIVA');
+      document.getElementById('cardListaAlunosAtiv').classList.add('d-none');
+    }
+
+    function filtrarEletivasDoProfessorLogado() {
+      const sem = document.getElementById('eletSelectSemestre').value;
+      let minhasEletivas = catalogoEletivasGlobal.filter(c =>
+        c.semestre === sem && professorCombinaComEletiva(nomeUser, c.professor)
+      );
+      if (minhasEletivas.length === 0 && isAdminOuGestao) {
+        minhasEletivas = catalogoEletivasGlobal.filter(c => c.semestre === sem);
+      }
+
+      const sel = document.getElementById('eletSelectNome');
+      if (minhasEletivas.length === 0) {
+        sel.innerHTML = `<option value="">Nenhuma eletiva cadastrada em seu nome (${sem})</option>`;
+        return;
+      }
+
+      let html = `<option value="">Selecione sua eletiva (${minhasEletivas.length})...</option>`;
+      minhasEletivas.forEach(e => {
+        html += `<option value="${e.eletiva}" data-tempo="${e.tempoEletivo}" data-serie="${e.serieBase}">${e.eletiva} [${e.serieBase} • ${e.tempoEletivo}]</option>`;
+      });
+      sel.innerHTML = html;
+
+      if (minhasEletivas.length === 1) {
+        sel.selectedIndex = 1;
+      }
+    }
+
+    function aoSelecionarEletivaDoProf() {
+      if (document.getElementById('eletSelectNome').value) {
+        carregarListaAlunosParaAtividade();
+      }
+    }
+
+    async function carregarListaAlunosParaAtividade() {
+      alunosCarregadosParaChamada = [];
+
+      if (modoLancamentoAtual === "DISCIPLINA") {
+        const disc = document.getElementById('discSelectNome').value;
+        const serie = document.getElementById('discSelectSerie').value;
+        const aula = document.getElementById('discSelectAula').value;
+
+        if (!disc || !serie) {
+          return Swal.fire('Atenção', 'Selecione a Disciplina Curricular e a Série / Turma.', 'warning');
+        }
+
+        // Se o cache em segundo plano ainda estiver baixando no 1º acesso, aguarda rapidamente
+        if (todosAlunosEscolaCache.length === 0) {
+          Swal.fire({ title: `Carregando alunos da ${serie}...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+          const resFiltros = await chamarAPI({ action: 'getFiltrosOcorrencias' });
+          Swal.close();
+          if (resFiltros && Array.isArray(resFiltros.alunos)) {
+            todosAlunosEscolaCache = resFiltros.alunos.map(a => ({
+              nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+              serie: normalizarSeriePadrao(a.serie)
+            }));
+            try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_alunos", JSON.stringify(todosAlunosEscolaCache)); } catch (e) {}
+          }
+        }
+
+        const alunosTurma = todosAlunosEscolaCache
+          .filter(a => a.serie === serie)
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        if (alunosTurma.length === 0) {
+          return Swal.fire('Aviso', `Nenhum aluno encontrado na turma ${serie}.`, 'info');
+        }
+
+        alunosCarregadosParaChamada = alunosTurma.map(a => ({
+          nome: a.nome,
+          serie: a.serie,
+          status: "REALIZOU"
+        }));
+
+        document.getElementById('lblTituloTurmaAberta').innerText =
+          `Turma: ${serie} — ${disc} (${aula}) — ${alunosCarregadosParaChamada.length} alunos`;
+      } else {
+        const sem = document.getElementById('eletSelectSemestre').value;
+        const selElet = document.getElementById('eletSelectNome');
+        const eletiva = selElet.value;
+        const opt = selElet.options[selElet.selectedIndex];
+        const tempoElet = opt ? (opt.dataset.tempo || "TEMPO ELETIVO 1") : "TEMPO ELETIVO 1";
+        const serieBase = opt ? (opt.dataset.serie || "") : "";
+
+        if (!sem || !eletiva) {
+          return Swal.fire('Atenção', 'Selecione o Semestre e a sua Eletiva cadastrada.', 'warning');
+        }
+
+        Swal.fire({ title: 'Carregando alunos matriculados na sua eletiva...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const resAl = await chamarAPI({
+          action: 'getAlunosFrequencia',
+          ano: sem,
+          eletiva: eletiva,
+          serieBase: serieBase,
+          tempoEletivo: tempoElet
+        });
+        Swal.close();
+
+        const listaAl = Array.isArray(resAl) ? resAl : [];
+        if (listaAl.length === 0) {
+          return Swal.fire('Aviso', 'Nenhum aluno encontrado matriculado nesta eletiva para o semestre selecionado.', 'info');
+        }
+
+        alunosCarregadosParaChamada = listaAl.map(item => ({
+          nome: String(item.nome || item || "").trim().toUpperCase(),
+          serie: normalizarSeriePadrao(item.turma || serieBase || "ELETIVA"),
+          status: "REALIZOU"
+        })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        document.getElementById('lblTituloTurmaAberta').innerText =
+          `Eletiva: ${eletiva} (${sem} • ${tempoElet}) — ${alunosCarregadosParaChamada.length} alunos`;
+      }
+
+      renderizarLinhasAlunosAtividade();
+      document.getElementById('cardListaAlunosAtiv').classList.remove('d-none');
+    }
+
+    function obterClasseCorLinhaPorStatus(status) {
+      if (status === "REALIZOU") return "status-realizou";
+      if (status === "NÃO REALIZOU") return "status-nao-realizou";
+      return "status-ausente";
+    }
+
+    function renderizarLinhasAlunosAtividade() {
+      const tbody = document.getElementById('tbodyAlunosLancamentoAtiv');
+      let html = '';
+
+      alunosCarregadosParaChamada.forEach((al, idx) => {
+        const st = al.status;
+        const classeCor = obterClasseCorLinhaPorStatus(st);
+
+        html += `
+          <tr class="linha-aluno-ativ ${classeCor}" id="rowAlAtiv_${idx}">
+            <td class="text-center num-aluno">${idx + 1}</td>
+            <td>
+              <span class="texto-nome-aluno" style="font-size: 0.9rem;">${al.nome}</span>
+            </td>
+            <td class="text-center"><span class="badge bg-light text-secondary border">${al.serie}</span></td>
+            <td class="text-center">
+              <div class="d-inline-flex gap-2">
+                <button type="button" class="btn-status-ativ btn-opt-realizou ${st === 'REALIZOU' ? 'ativo' : ''}"
+                        onclick="alterarStatusIndividualAluno(${idx}, 'REALIZOU')">
+                  Realizou
+                </button>
+                <button type="button" class="btn-status-ativ btn-opt-nao ${st === 'NÃO REALIZOU' ? 'ativo' : ''}"
+                        onclick="alterarStatusIndividualAluno(${idx}, 'NÃO REALIZOU')">
+                  Não Realizou
+                </button>
+                <button type="button" class="btn-status-ativ btn-opt-ausente ${st === 'AUSENTE' ? 'ativo' : ''}"
+                        onclick="alterarStatusIndividualAluno(${idx}, 'AUSENTE')">
+                  Ausente
+                </button>
+              </div>
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+      atualizarResumoContagemRodape();
+    }
+
+    function alterarStatusIndividualAluno(idx, novoStatus) {
+      if (!alunosCarregadosParaChamada[idx]) return;
+      alunosCarregadosParaChamada[idx].status = novoStatus;
+
+      const tr = document.getElementById(`rowAlAtiv_${idx}`);
+      if (tr) {
+        tr.classList.remove('status-realizou', 'status-nao-realizou', 'status-ausente');
+        tr.classList.add(obterClasseCorLinhaPorStatus(novoStatus));
+
+        const botoes = tr.querySelectorAll('.btn-status-ativ');
+        botoes[0].classList.toggle('ativo', novoStatus === 'REALIZOU');
+        botoes[1].classList.toggle('ativo', novoStatus === 'NÃO REALIZOU');
+        botoes[2].classList.toggle('ativo', novoStatus === 'AUSENTE');
+      }
+      atualizarResumoContagemRodape();
+    }
+
+    function marcarTodosAlunosStatus(novoStatus) {
+      alunosCarregadosParaChamada.forEach(al => {
+        al.status = novoStatus;
+      });
+      renderizarLinhasAlunosAtividade();
+    }
+
+    function atualizarResumoContagemRodape() {
+      const totRealizou = alunosCarregadosParaChamada.filter(a => a.status === 'REALIZOU').length;
+      const totNao = alunosCarregadosParaChamada.filter(a => a.status === 'NÃO REALIZOU').length;
+      const totAusente = alunosCarregadosParaChamada.filter(a => a.status === 'AUSENTE').length;
+
+      document.getElementById('lblResumoContagemRodape').innerHTML = `
+        <span class="text-success me-3"><i class="bi bi-check-circle-fill me-1"></i>Realizou: ${totRealizou}</span>
+        <span class="text-danger me-3"><i class="bi bi-x-circle-fill me-1"></i>Não Realizou: ${totNao}</span>
+        <span class="text-warning text-dark"><i class="bi bi-exclamation-circle-fill me-1"></i>Ausente: ${totAusente}</span>
+      `;
+    }
+
+    async function salvarAtividadeNoBancoUnificado() {
+      if (alunosCarregadosParaChamada.length === 0) return;
+
+      let dataIso = "";
+      let componenteNome = "";
+      let aulaOuTempo = "";
+      let seriePadrao = "";
+      let semestreColC = "";
+
+      if (modoLancamentoAtual === "DISCIPLINA") {
+        dataIso = document.getElementById('discData').value;
+        componenteNome = document.getElementById('discSelectNome').value;
+        seriePadrao = document.getElementById('discSelectSerie').value;
+        aulaOuTempo = document.getElementById('discSelectAula').value;
+        semestreColC = "";
+      } else {
+        dataIso = document.getElementById('eletData').value;
+        semestreColC = document.getElementById('eletSelectSemestre').value;
+        const selElet = document.getElementById('eletSelectNome');
+        componenteNome = selElet.value;
+        const opt = selElet.options[selElet.selectedIndex];
+        aulaOuTempo = opt ? (opt.dataset.tempo || "TEMPO ELETIVO 1") : "TEMPO ELETIVO 1";
+        seriePadrao = opt ? (opt.dataset.serie || "") : "";
+      }
+
+      if (!dataIso || !componenteNome) {
+        return Swal.fire('Atenção', 'Preencha a Data e selecione a Disciplina/Eletiva.', 'warning');
+      }
+
+      const p = dataIso.split('-');
+      const dataBr = `${p[2]}/${p[1]}/${p[0]}`;
+
+      const payloadDados = {
+        tipo: modoLancamentoAtual,
+        data: dataBr,
+        semestre: semestreColC,
+        disciplina: componenteNome,
+        aula: aulaOuTempo,
+        serie: seriePadrao,
+        registros: alunosCarregadosParaChamada.map(a => ({
+          aluno: a.nome,
+          serie: a.serie,
+          status: a.status
+        }))
+      };
+
+      const btn = document.getElementById('btnSalvarAtividadeBanco');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando na Planilha...';
+
+      const res = await chamarAPI({
+        action: 'salvarAtividadeDisciplinas',
+        dados: payloadDados
+      });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-2"></i>Enviar Atividade para o Banco de Dados';
+
+      if (res && res.success) {
+        Swal.fire({
+          title: res.offline ? 'Salvo no Modo Offline!' : 'Atividade Enviada!',
+          text: res.msg,
+          icon: res.offline ? 'info' : 'success',
+          confirmButtonColor: '#15438c'
+        });
+        todosLancamentosAtividadesBanco = [];
+      } else {
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar a atividade.', 'error');
+      }
+    }
+
+    // =========================================================
+    // ABA 2: RELATÓRIO E CÁLCULO DE NOTA COM BASE NOS ALUNOS MATRICULADOS
+    // =========================================================
+    function alternarModoRelatorio(novoModo) {
+      modoRelatorioAtual = novoModo;
+      document.getElementById('btnRelModoDisciplina').classList.toggle('ativo', novoModo === 'DISCIPLINA');
+      document.getElementById('btnRelModoEletiva').classList.toggle('ativo', novoModo === 'ELETIVA');
+
+      document.getElementById('colRelSerieTurma').classList.toggle('d-none', novoModo !== 'DISCIPLINA');
+      document.getElementById('colRelSemestreElet').classList.toggle('d-none', novoModo !== 'ELETIVA');
+      document.getElementById('lblComponenteRelatorio').innerText = (novoModo === 'DISCIPLINA') ? 'Disciplina' : 'Minha Eletiva';
+
+      atualizarSelectComponentesRelatorio();
+    }
+
+    function atualizarSelectComponentesRelatorio() {
+      const selComp = document.getElementById('relAtivComponente');
+      let html = '';
+
+      if (modoRelatorioAtual === "DISCIPLINA") {
+        disciplinasCurricularesLista.forEach(d => {
+          html += `<option value="${d}">${d}</option>`;
+        });
+      } else {
+        const sem = document.getElementById('relAtivSemestreElet').value;
+        let eletivasProf = catalogoEletivasGlobal.filter(c =>
+          c.semestre === sem && professorCombinaComEletiva(nomeUser, c.professor)
+        );
+        if (eletivasProf.length === 0 && isAdminOuGestao) {
+          eletivasProf = catalogoEletivasGlobal.filter(c => c.semestre === sem);
+        }
+
+        if (eletivasProf.length === 0) {
+          html = `<option value="">Nenhuma eletiva vinculada (${sem})</option>`;
+        } else {
+          const vistos = new Set();
+          eletivasProf.forEach(e => {
+            const ch = e.eletiva.toUpperCase();
+            if (!vistos.has(ch)) {
+              vistos.add(ch);
+              html += `<option value="${ch}" data-serie="${e.serieBase}" data-tempo="${e.tempoEletivo}">${e.eletiva}</option>`;
+            }
+          });
+        }
+      }
+      selComp.innerHTML = html;
+      if (todosLancamentosAtividadesBanco.length > 0) {
+        calcularTabelaRelatorioNotas();
+      }
+    }
+
+    function aoMudarMesRelatorio() {
+      const mes = document.getElementById('relAtivMes').value;
+      if (mes !== "") {
+        document.getElementById('relAtivBimestre').value = "";
+        document.getElementById('relAtivDataIni').value = "";
+        document.getElementById('relAtivDataFim').value = "";
+      }
+      calcularTabelaRelatorioNotas();
+    }
+
+    function aoMudarBimestreRelatorio() {
+      const idxBim = document.getElementById('relAtivBimestre').value;
+      const inpIni = document.getElementById('relAtivDataIni');
+      const inpFim = document.getElementById('relAtivDataFim');
+
+      if (idxBim === "") {
+        inpIni.value = "";
+        inpFim.value = "";
+      } else {
+        document.getElementById('relAtivMes').value = "";
+        const bim = listaBimestresEscola[Number(idxBim)];
+        if (bim) {
+          inpIni.value = bim.inicioIso || "";
+          inpFim.value = bim.fimIso || "";
+        }
+      }
+      calcularTabelaRelatorioNotas();
+    }
+
+    function aoMudarDatasManuaisRelatorio() {
+      document.getElementById('relAtivMes').value = "";
+      document.getElementById('relAtivBimestre').value = "";
+      calcularTabelaRelatorioNotas();
+    }
+
+    function normalizarListaVindaDoServidor(bruta) {
+      const expandida = [];
+      (bruta || []).forEach(r => {
+        const strAlunos = String(r.aluno || "").trim();
+        if (!strAlunos) return;
+        const statusLimpo = String(r.status || "REALIZOU").trim().toUpperCase() || "REALIZOU";
+        const discUp = String(r.disciplina || "").trim().toUpperCase();
+
+        strAlunos.split(',').forEach(nomeParte => {
+          const nomeIndiv = String(nomeParte || "").replace(/\s+/g, " ").trim().toUpperCase();
+          if (nomeIndiv) {
+            expandida.push({
+              id: r.id || "",
+              data: String(r.data || "").trim(),
+              semestre: String(r.semestre || "").trim(),
+              disciplina: discUp,
+              codigoEletiva: extrairCodigoEletivaLocal(discUp),
+              aula: String(r.aula || "1ª AULA").trim().toUpperCase(),
+              serie: normalizarSeriePadrao(r.serie || ""),
+              aluno: nomeIndiv,
+              status: statusLimpo
+            });
+          }
+        });
+      });
+      return expandida;
+    }
+
+    async function carregarRelatorioUnificadoServidor(forcarRecarga) {
+      if (todosLancamentosAtividadesBanco.length > 0 && !forcarRecarga) {
+        await calcularTabelaRelatorioNotas();
+        return;
+      }
+
+      const tbody = document.getElementById('tbodyRelatorioNotasAtiv');
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Consultando atividades enviadas no banco de dados...</td></tr>';
+
+      const res = await chamarAPI({ action: 'listarAtividadesUnificadas' });
+      const bruta = (res && Array.isArray(res.lista)) ? res.lista : [];
+      todosLancamentosAtividadesBanco = normalizarListaVindaDoServidor(bruta);
+
+      await calcularTabelaRelatorioNotas();
+    }
+
+    async function obterAlunosMatriculadosParaRelatorio(modo, serieTurma, semestreEletiva, nomeComponente) {
+      if (modo === "DISCIPLINA") {
+        return todosAlunosEscolaCache
+          .filter(a => a.serie === serieTurma)
+          .map(a => ({ nome: a.nome, serie: a.serie }))
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      }
+
+      const chaveCache = `${semestreEletiva}|${nomeComponente}`;
+      if (cacheAlunosPorEletivaRelatorio[chaveCache]) {
+        return cacheAlunosPorEletivaRelatorio[chaveCache];
+      }
+
+      const resAl = await chamarAPI({
+        action: 'getAlunosFrequencia',
+        ano: semestreEletiva,
+        eletiva: nomeComponente
+      });
+
+      const listaMatriculados = Array.isArray(resAl)
+        ? resAl.map(item => ({
+            nome: String(item.nome || item || "").replace(/\s+/g, " ").trim().toUpperCase(),
+            serie: normalizarSeriePadrao(item.turma || "ELETIVA")
+          })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+        : [];
+
+      cacheAlunosPorEletivaRelatorio[chaveCache] = listaMatriculados;
+      return listaMatriculados;
+    }
+
+    async function calcularTabelaRelatorioNotas() {
+      const mesFiltro = document.getElementById('relAtivMes').value;
+      const dtIniIso = document.getElementById('relAtivDataIni').value;
+      const dtFimIso = document.getElementById('relAtivDataFim').value;
+      const serieFiltro = document.getElementById('relAtivSerie').value;
+      const semestreEletFiltro = document.getElementById('relAtivSemestreElet').value;
+      const componenteFiltro = String(document.getElementById('relAtivComponente').value || "").trim().toUpperCase();
+      const codComponenteFiltro = extrairCodigoEletivaLocal(componenteFiltro);
+
+      const tbody = document.getElementById('tbodyRelatorioNotasAtiv');
+      if (!componenteFiltro) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Selecione uma Disciplina ou Eletiva para listar os alunos matriculados e calcular as notas.</td></tr>';
+        return;
+      }
+
+      const alunosMatriculados = await obterAlunosMatriculadosParaRelatorio(
+        modoRelatorioAtual,
+        serieFiltro,
+        semestreEletFiltro,
+        componenteFiltro
+      );
+
+      let tsIni = 0;
+      let tsFim = 0;
+      if (dtIniIso) {
+        const pI = dtIniIso.split('-');
+        tsIni = new Date(parseInt(pI[0], 10), parseInt(pI[1], 10) - 1, parseInt(pI[2], 10), 0, 0, 0, 0).getTime();
+      }
+      if (dtFimIso) {
+        const pF = dtFimIso.split('-');
+        tsFim = new Date(parseInt(pF[0], 10), parseInt(pF[1], 10) - 1, parseInt(pF[2], 10), 23, 59, 59, 999).getTime();
+      }
+
+      const lancamentosDoPeriodo = todosLancamentosAtividadesBanco.filter(reg => {
+        if (modoRelatorioAtual === "DISCIPLINA") {
+          if (reg.disciplina !== componenteFiltro) return false;
+          if (serieFiltro && reg.serie && reg.serie !== serieFiltro) return false;
+        } else {
+          const bateNomeOuCod = (reg.disciplina === componenteFiltro) ||
+                                (codComponenteFiltro && reg.codigoEletiva === codComponenteFiltro) ||
+                                reg.disciplina.includes(componenteFiltro);
+          if (!bateNomeOuCod) return false;
+          if (semestreEletFiltro && reg.semestre && reg.semestre !== semestreEletFiltro) return false;
+        }
+
+        const pData = String(reg.data || "").split('/');
+        const mesReg = pData.length === 3 ? String(parseInt(pData[1], 10)) : "";
+        if (mesFiltro && mesReg !== mesFiltro) return false;
+
+        const tsReg = extrairTimestampSeguroLocal(reg.data);
+        if (tsIni > 0 && tsReg > 0 && tsReg < tsIni) return false;
+        if (tsFim > 0 && tsReg > 0 && tsReg > tsFim) return false;
+
+        return true;
+      });
+
+      const atividadesDistintasMap = {};
+      lancamentosDoPeriodo.forEach(reg => {
+        const chaveAtividade = `${reg.data}|${reg.aula || 'ATIV'}`;
+        if (!atividadesDistintasMap[chaveAtividade]) {
+          atividadesDistintasMap[chaveAtividade] = {};
+        }
+        atividadesDistintasMap[chaveAtividade][reg.aluno] = reg.status || "REALIZOU";
+      });
+
+      const chavesAtividadesEnviadas = Object.keys(atividadesDistintasMap);
+      const totalAtividadesEnviadas = chavesAtividadesEnviadas.length;
+
+      document.getElementById('lblResumoAulasRelatorioAtiv').innerHTML =
+        `<i class="bi bi-journal-check me-1"></i><b>${componenteFiltro}</b> ${modoRelatorioAtual === 'DISCIPLINA' ? `(${serieFiltro})` : `(${semestreEletFiltro})`} — Total de Atividades Enviadas no Período: <b>${totalAtividadesEnviadas} atividade(s)</b>`;
+
+      const mapaAlunosCompletos = {};
+      alunosMatriculados.forEach(al => {
+        mapaAlunosCompletos[al.nome] = { nome: al.nome, serie: al.serie || serieFiltro || "-" };
+      });
+      lancamentosDoPeriodo.forEach(reg => {
+        if (!mapaAlunosCompletos[reg.aluno]) {
+          mapaAlunosCompletos[reg.aluno] = { nome: reg.aluno, serie: reg.serie || serieFiltro || "-" };
+        } else if ((!mapaAlunosCompletos[reg.aluno].serie || mapaAlunosCompletos[reg.aluno].serie === "ELETIVA") && reg.serie) {
+          mapaAlunosCompletos[reg.aluno].serie = reg.serie;
+        }
+      });
+
+      const listaAlunosOrdenada = Object.values(mapaAlunosCompletos).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      linhasCalculadasRelatorioAtual = [];
+
+      if (listaAlunosOrdenada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Nenhum aluno matriculado encontrado para esta seleção.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaAlunosOrdenada.forEach((al, idx) => {
+        let qtdRealizadas = 0;
+        let qtdNaoRealizou = 0;
+        let qtdAusente = 0;
+
+        chavesAtividadesEnviadas.forEach(chAtiv => {
+          const statusDoAlunoNaAtividade = atividadesDistintasMap[chAtiv][al.nome];
+
+          if (statusDoAlunoNaAtividade === "REALIZOU") {
+            qtdRealizadas++;
+          } else if (statusDoAlunoNaAtividade === "AUSENTE") {
+            qtdAusente++;
+          } else {
+            qtdNaoRealizou++;
+          }
+        });
+
+        const notaCalculadaNum = totalAtividadesEnviadas > 0
+          ? (qtdRealizadas / totalAtividadesEnviadas) * 10
+          : 0;
+        const notaFormatada = totalAtividadesEnviadas > 0
+          ? notaCalculadaNum.toFixed(1).replace('.', ',')
+          : '-';
+
+        const corBadgeNota = totalAtividadesEnviadas === 0
+          ? 'bg-secondary'
+          : (notaCalculadaNum >= 6.0 ? 'bg-success' : (notaCalculadaNum >= 4.0 ? 'bg-warning text-dark' : 'bg-danger'));
+
+        linhasCalculadasRelatorioAtual.push({
+          num: idx + 1,
+          aluno: al.nome,
+          serie: al.serie,
+          enviadas: totalAtividadesEnviadas,
+          realizadas: qtdRealizadas,
+          naoRealizadas: qtdNaoRealizou,
+          ausentes: qtdAusente,
+          notaStr: notaFormatada
+        });
+
+        html += `
+          <tr>
+            <td class="text-center fw-bold text-muted">${idx + 1}</td>
+            <td class="fw-bold text-dark">${al.nome}</td>
+            <td class="text-center"><span class="badge bg-secondary">${al.serie}</span></td>
+            <td class="text-center fw-bold text-primary">${totalAtividadesEnviadas}</td>
+            <td class="text-center"><span class="badge bg-success-subtle text-success border border-success-subtle px-2 fs-6">${qtdRealizadas}</span></td>
+            <td class="text-center"><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 fs-6">${qtdNaoRealizou}</span></td>
+            <td class="text-center"><span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 fs-6">${qtdAusente}</span></td>
+            <td class="text-center"><span class="badge ${corBadgeNota} fs-6 px-3">${notaFormatada}</span></td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    async function baixarPdfRelatorioNotasAtividades() {
+      if (linhasCalculadasRelatorioAtual.length === 0) {
+        return Swal.fire('Atenção', 'Não há registros calculados na tabela para gerar o PDF.', 'warning');
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+      const comp = document.getElementById('relAtivComponente').value;
+      const serieOuSem = modoRelatorioAtual === 'DISCIPLINA'
+        ? document.getElementById('relAtivSerie').value
+        : document.getElementById('relAtivSemestreElet').value;
+
+      let startY = 26;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: "RELATÓRIO DE ATIVIDADES CONTÍNUAS E NOTA CALCULADA",
+          subtitulo1: `Componente: ${comp}   |   Turma/Semestre: ${serieOuSem}`,
+          subtitulo2: `Professor(a): ${nomeUser}   |   Data: ${new Date().toLocaleDateString('pt-BR')}`
+        });
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(21, 67, 140);
+        doc.text("RELATÓRIO DE ATIVIDADES CONTÍNUAS E NOTA CALCULADA — EEMTI DR. JOSÉ EUCLIDES", 14, 15);
+        doc.setFontSize(9);
+        doc.setTextColor(70, 70, 70);
+        doc.text(`Componente: ${comp}   |   Turma/Semestre: ${serieOuSem}   |   Professor(a): ${nomeUser}`, 14, 21);
+      }
+
+      const rows = linhasCalculadasRelatorioAtual.map(r => [
+        r.num,
+        r.aluno,
+        r.serie,
+        r.enviadas,
+        r.realizadas,
+        r.naoRealizadas,
+        r.ausentes,
+        r.notaStr
+      ]);
+
+      doc.autoTable({
+        startY: startY,
+        head: [['Nº', 'Nome do(a) Aluno(a)', 'Turma', 'Enviadas', 'Entregues', 'Não Real.', 'Ausente', 'Nota (0-10)']],
+        body: rows,
+        styles: { fontSize: 8.2, cellPadding: 2.2 },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+
+      doc.save(`Notas_Atividades_${comp.replace(/[^a-zA-Z0-9]/g, '_')}_${serieOuSem.replace(/\s+/g, '_')}.pdf`);
+    }
+  </script>
+</body>
+</html>

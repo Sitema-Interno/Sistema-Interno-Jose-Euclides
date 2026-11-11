@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atendimento aos Alunos & Suspensões - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1340px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.86rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .select-pdt-travado:disabled {
+      background-color: #eff6ff !important;
+      border-color: #93c5fd !important;
+      color: var(--azul-primario) !important;
+      opacity: 1;
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .tabela-enquadrada {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-enquadrada th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.73rem;
+      text-transform: uppercase;
+      padding: 10px 8px;
+    }
+
+    .tabela-enquadrada td {
+      vertical-align: middle;
+      font-size: 0.82rem;
+      padding: 10px 8px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Professor</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- ABAS DO MÓDULO DE ATENDIMENTO E SUSPENSÕES -->
+    <ul class="nav nav-tabs mb-4" id="atendTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="tab-registrar-btn" data-bs-toggle="tab" data-bs-target="#abaRegistrarAtend" type="button" role="tab">
+          <i class="bi bi-journal-plus text-primary me-2"></i>Registrar Atendimento (Acordo com Responsável)
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold text-danger" id="tab-suspensao-btn" data-bs-toggle="tab" data-bs-target="#abaSuspensao" type="button" role="tab">
+          <i class="bi bi-exclamation-octagon-fill me-1"></i>Alunos Necessitados de Suspensão (<span id="badgeCountSuspensao">0</span>)
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold text-primary" id="tab-historico-btn" data-bs-toggle="tab" data-bs-target="#abaHistoricoAtend" type="button" role="tab">
+          <i class="bi bi-clock-history me-1"></i>Histórico de Atendimentos (<span id="badgeCountHistorico">0</span>)
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ========================================================= -->
+      <!-- ABA 1: REGISTRAR ATENDIMENTO AO RESPONSÁVEL               -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade show active" id="abaRegistrarAtend" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-person-lines-fill me-2"></i>Formulário de Atendimento ao Aluno / Responsável (RAC Atendimento)
+              </h5>
+              <small class="text-muted" id="lblSubtituloPermissaoAtend">Vinculado automaticamente à(s) turma(s) do PDT logado.</small>
+            </div>
+            <span class="badge bg-warning text-dark d-none" id="badgeResolvendoSuspensao">Resolvendo Suspensão Pendente</span>
+          </div>
+
+          <form id="formAtendimento" onsubmit="event.preventDefault(); salvarAtendimentoNoServidor();">
+            <input type="hidden" id="atendDataSuspRef" value="">
+
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                <label class="form-label"><i class="bi bi-lock-fill text-primary me-1" id="lockIconAba1"></i>Série / Turma (PDT) *</label>
+                <select id="atendSerie" class="form-select fw-bold select-pdt-travado" onchange="aoMudarSerieAtendimento()"></select>
+              </div>
+
+              <div class="col-12 col-md-5">
+                <label class="form-label">Nome do(a) Aluno(a) *</label>
+                <input type="text" id="atendAluno" class="form-control text-uppercase fw-bold" list="datalistAlunosAtend" placeholder="DIGITE OU SELECIONE O ALUNO DA SUA TURMA..." required>
+                <datalist id="datalistAlunosAtend"></datalist>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label"><i class="bi bi-lock-fill text-secondary me-1"></i>Data e Hora do Atendimento (Fixa)</label>
+                <input type="text" id="atendDataHora" class="form-control fw-bold bg-light text-primary" readonly>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">Parentesco do Responsável *</label>
+                <select id="atendParentesco" class="form-select fw-bold" required>
+                  <option value="Mãe">Mãe</option>
+                  <option value="Pai">Pai</option>
+                  <option value="Avó / Avô">Avó / Avô</option>
+                  <option value="Tio(a)">Tio(a)</option>
+                  <option value="Irmão / Irmã Maior">Irmão / Irmã Maior</option>
+                  <option value="Responsável Legal">Responsável Legal</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-5">
+                <label class="form-label">Nome do Responsável Presente *</label>
+                <input type="text" id="atendNomeResp" class="form-control text-uppercase fw-bold" placeholder="EX: MARIA EDILENE DA SILVA" required>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label"><i class="bi bi-lock-fill text-primary me-1"></i>Atendido Por (Servidor / PDT / Gestão)</label>
+                <input type="text" id="atendServidor" class="form-control fw-bold bg-light" readonly>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Consolidado do Atendimento / Acordos Firmados *</label>
+                <textarea id="atendConsolidado" class="form-control" rows="4" placeholder="Descreva os acordos firmados com o responsável, orientações repassadas e compromissos assumidos pelo(a) aluno(a)..." required></textarea>
+              </div>
+
+              <div class="col-12 mt-4">
+                <button type="submit" class="btn btn-principal w-100 py-3 fs-6 shadow-sm" id="btnSalvarAtendimento">
+                  <i class="bi bi-check2-circle me-2"></i>Salvar Atendimento e Resolver Pendência Disciplinar
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 2: ALUNOS NECESSITADOS DE SUSPENSÃO (FILTRADO POR PDT) -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="abaSuspensao" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0 text-danger">
+                <i class="bi bi-shield-exclamation me-2"></i>Alunos Necessitados de Suspensão
+              </h5>
+              <small class="text-muted">A data de início da suspensão vem preenchida automaticamente com a <b>data de hoje (dia da emissão do termo)</b>, podendo ser ajustada se necessário.</small>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-danger btn-sm fw-bold px-3" onclick="abrirModalSuspensaoManual()">
+                <i class="bi bi-plus-circle me-1"></i>Adicionar Suspensão Manual
+              </button>
+              <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="carregarTodosDadosAtendimentoESuspensao(true)">
+                <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-3 align-items-end mb-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label"><i class="bi bi-lock-fill text-primary me-1" id="lockIconAba2"></i>Filtrar por Série / Turma (PDT)</label>
+              <select id="suspFiltroSerie" class="form-select fw-bold select-pdt-travado" onchange="renderizarTabelaSuspensoes()"></select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Professor Diretor de Turma (PDT da Série)</label>
+              <input type="text" id="suspPdtDisplay" class="form-control fw-bold bg-light text-primary" readonly>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Pesquisar Aluno</label>
+              <input type="text" id="suspFiltroTexto" class="form-control text-uppercase" placeholder="Digite o nome..." oninput="renderizarTabelaSuspensoes()">
+            </div>
+          </div>
+
+          <div class="w-100">
+            <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
+              <thead>
+                <tr>
+                  <th style="width: 22%;">Aluno(a)</th>
+                  <th style="width: 16%;">Série / PDT</th>
+                  <th style="width: 10%;" class="text-center">Origem</th>
+                  <th style="width: 14%;" class="text-center">Início da Suspensão (Hoje)</th>
+                  <th style="width: 22%;">Motivo / Critério</th>
+                  <th style="width: 16%;" class="text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodySuspensoes">
+                <tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Verificando ocorrências e suspensões ativas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 3: HISTÓRICO DE ATENDIMENTOS REALIZADOS (FILTRADO PDT) -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="abaHistoricoAtend" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-clock-history me-2"></i>Histórico de Atendimentos Realizados aos Responsáveis
+              </h5>
+              <small class="text-muted">Consulte os acordos já firmados com as famílias na(s) sua(s) turma(s) e emita a 2ª via da Ata de Atendimento em PDF.</small>
+            </div>
+          </div>
+
+          <div class="row g-3 align-items-end mb-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label"><i class="bi bi-lock-fill text-primary me-1" id="lockIconAba3"></i>Filtrar por Série / Turma (PDT)</label>
+              <select id="histAtendFiltroSerie" class="form-select fw-bold select-pdt-travado" onchange="renderizarTabelaHistoricoAtendimentos()"></select>
+            </div>
+            <div class="col-12 col-md-8">
+              <label class="form-label">Pesquisar por Aluno ou Responsável</label>
+              <input type="text" id="histAtendFiltroTexto" class="form-control text-uppercase" placeholder="Digite o nome do aluno ou responsável..." oninput="renderizarTabelaHistoricoAtendimentos()">
+            </div>
+          </div>
+
+          <div class="w-100">
+            <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
+              <thead>
+                <tr>
+                  <th style="width: 12%;">Data / Hora</th>
+                  <th style="width: 10%;" class="text-center">Turma</th>
+                  <th style="width: 20%;">Aluno(a)</th>
+                  <th style="width: 18%;">Responsável / Parentesco</th>
+                  <th style="width: 22%;">Consolidado / Acordo</th>
+                  <th style="width: 10%;">Atendido Por</th>
+                  <th style="width: 8%;" class="text-center">Ata PDF</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyHistoricoAtend">
+                <tr><td colspan="7" class="text-center py-4 text-muted">Carregando histórico de atendimentos...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PARA ADICIONAR SUSPENSÃO MANUAL -->
+  <div class="modal fade" id="modalSuspManual" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill me-2"></i>Adicionar Suspensão Manual</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Série / Turma *</label>
+            <select id="manSuspSerie" class="form-select fw-bold select-pdt-travado" onchange="atualizarAlunosModalSuspManual()"></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Aluno(a) *</label>
+            <select id="manSuspAluno" class="form-select fw-bold"></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Data da Suspensão *</label>
+            <input type="date" id="manSuspData" class="form-control fw-bold">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Motivo / Justificativa da Suspensão *</label>
+            <textarea id="manSuspMotivo" class="form-control" rows="3" placeholder="Descreva o motivo pedagógico/disciplinar da suspensão manual..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary fw-bold" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger fw-bold" onclick="salvarSuspensaoManualNoServidor()">
+            <i class="bi bi-check2-circle me-1"></i>Confirmar Suspensão
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "USUÁRIO").trim().toUpperCase();
+    const perfilUser = String((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role)) || "Professor").trim().toUpperCase();
+    const isAdminOuGestao = perfilUser.includes("ADMIN") || perfilUser.includes("DIRE") || perfilUser.includes("COORD");
+
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Professor";
+    document.getElementById('atendServidor').value = nomeUser;
+
+    function atualizarRelogioFixoAtendimento() {
+      const ag = new Date();
+      const dtBr = ag.toLocaleDateString('pt-BR');
+      const hrBr = ag.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('atendDataHora').value = `${dtBr} ${hrBr}`;
+    }
+    atualizarRelogioFixoAtendimento();
+    setInterval(atualizarRelogioFixoAtendimento, 30000);
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let modalSuspManualInstancia;
+    let mapaPdtPorSerie = {};
+    let seriesOficiaisEscola = [];
+    let turmasPermitidasUsuario = []; // Apenas as turmas do PDT logado (ou todas se for Admin/Gestão)
+    let todosAlunosEscola = [];
+    let listaSuspensoesGlobal = [];
+    let listaSuspensoesFiltrada = [];
+    let listaHistoricoAtendGlobal = [];
+    let listaHistoricoAtendFiltrada = [];
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function normalizarSeriePadrao(s) {
+      let str = String(s || "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+      const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)\s*([A-Z0-9].*)$/i);
+      return m ? `${m[1]}ª SÉRIE ${m[2].trim()}` : str;
+    }
+
+    window.onload = async function() {
+      modalSuspManualInstancia = new bootstrap.Modal(document.getElementById('modalSuspManual'));
+      document.getElementById('manSuspData').value = new Date().toISOString().slice(0, 10);
+      await carregarTodosDadosAtendimentoESuspensao(false);
+    };
+
+    async function carregarTodosDadosAtendimentoESuspensao(mostrarLoading) {
+      if (mostrarLoading) {
+        Swal.fire({ title: 'Sincronizando atendimentos e suspensões...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      }
+
+      const [resPdt, resFiltros, resSusp, resHist] = await Promise.all([
+        chamarAPI({ action: 'listarPDT' }),
+        chamarAPI({ action: 'getFiltrosOcorrencias' }),
+        chamarAPI({ action: 'getAlunosParaPainelSuspensao' }),
+        chamarAPI({ action: 'listarAtendimentosAlunos' })
+      ]);
+
+      if (mostrarLoading) Swal.close();
+
+      // 1. Mapeia as turmas e PDTs da aba PDT
+      const setSeries = new Set();
+      if (resPdt && Array.isArray(resPdt.lista)) {
+        resPdt.lista.forEach(item => {
+          const s = normalizarSeriePadrao(item.serie);
+          const p = String(item.professor || "").trim().toUpperCase();
+          if (s && s !== "SÉRIE" && s !== "SERIE") {
+            setSeries.add(s);
+            if (p) mapaPdtPorSerie[s] = p;
+          }
+        });
+      }
+      if (resSusp && resSusp.pdtPorSerie) {
+        Object.keys(resSusp.pdtPorSerie).forEach(k => {
+          const s = normalizarSeriePadrao(k);
+          if (s) {
+            setSeries.add(s);
+            if (!mapaPdtPorSerie[s]) mapaPdtPorSerie[s] = String(resSusp.pdtPorSerie[k] || "").trim().toUpperCase();
+          }
+        });
+      }
+      if (setSeries.size === 0 && resFiltros && Array.isArray(resFiltros.series)) {
+        resFiltros.series.forEach(s => setSeries.add(normalizarSeriePadrao(s)));
+      }
+
+      seriesOficiaisEscola = Array.from(setSeries).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+      // 2. Identifica as turmas vinculadas ao PDT logado
+      const turmasDoPdt = seriesOficiaisEscola.filter(s => {
+        const pdtNome = mapaPdtPorSerie[s] || "";
+        return pdtNome && (pdtNome === nomeUser || pdtNome.includes(nomeUser) || nomeUser.includes(pdtNome));
+      });
+
+      const lblSub = document.getElementById('lblSubtituloPermissaoAtend');
+      if (isAdminOuGestao) {
+        turmasPermitidasUsuario = seriesOficiaisEscola.slice();
+        lblSub.innerHTML = `<i class="bi bi-unlock-fill text-success me-1"></i><b>Perfil Gestão/Admin:</b> visualização e filtro liberados para todas as turmas da escola.`;
+        ['lockIconAba1', 'lockIconAba2', 'lockIconAba3'].forEach(id => document.getElementById(id).classList.add('d-none'));
+      } else if (turmasDoPdt.length > 0) {
+        turmasPermitidasUsuario = turmasDoPdt.slice();
+        lblSub.innerHTML = `<i class="bi bi-person-check-fill text-primary me-1"></i><b>Perfil PDT (${turmasDoPdt.join(', ')}):</b> exibindo exclusivamente os alunos e suspensões da(s) sua(s) turma(s) PDT.`;
+      } else {
+        // Caso um professor que não é PDT acesse a página, permite filtrar pelas turmas disponíveis
+        turmasPermitidasUsuario = seriesOficiaisEscola.slice();
+        lblSub.innerHTML = `<i class="bi bi-info-circle text-secondary me-1"></i>Selecione a turma para filtrar os alunos.`;
+      }
+
+      // 3. Configura os selects de Série/Turma nas 3 Abas e no Modal
+      popularSelectsDeSerieRestritosAoPdt(turmasDoPdt);
+
+      // 4. Guarda a lista de alunos da escola
+      if (resFiltros && Array.isArray(resFiltros.alunos)) {
+        todosAlunosEscola = resFiltros.alunos.map(a => ({
+          nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+          serie: normalizarSeriePadrao(a.serie)
+        }));
+      }
+
+      // 5. Lista de Suspensões Ativas (filtrada pelas turmas permitidas ao PDT logado)
+      const setPermitidas = new Set(turmasPermitidasUsuario);
+      const brutasSusp = (resSusp && Array.isArray(resSusp.lista)) ? resSusp.lista : [];
+      listaSuspensoesGlobal = brutasSusp.map(item => ({
+        aluno: String(item.aluno || "").trim().toUpperCase(),
+        serie: normalizarSeriePadrao(item.serie),
+        pdt: mapaPdtPorSerie[normalizarSeriePadrao(item.serie)] || item.pdt || "Não atribuído",
+        tipoOrigem: item.tipoOrigem || "AUTOMÁTICA",
+        dataSuspensao: item.dataSuspensao || new Date().toLocaleDateString('pt-BR'),
+        motivo: item.motivo || "",
+        detalhesOcorrencias: item.detalhesOcorrencias || ""
+      })).filter(x => isAdminOuGestao || setPermitidas.has(x.serie));
+
+      // 6. Lista de Histórico de Atendimentos (filtrada pelas turmas permitidas ao PDT logado)
+      const brutasHist = (resHist && Array.isArray(resHist.lista)) ? resHist.lista : [];
+      listaHistoricoAtendGlobal = brutasHist.map(item => ({
+        id: item.id || "",
+        aluno: String(item.aluno || "").trim().toUpperCase(),
+        serie: normalizarSeriePadrao(item.serie),
+        parentesco: item.parentesco || "-",
+        data: item.data || "-",
+        nomeResponsavel: item.nomeResponsavel || "-",
+        atendidoPor: item.atendidoPor || "-",
+        consolidado: item.consolidado || "-"
+      })).filter(x => isAdminOuGestao || setPermitidas.has(x.serie));
+
+      aoMudarSerieAtendimento();
+      renderizarTabelaSuspensoes();
+      renderizarTabelaHistoricoAtendimentos();
+    }
+
+    function popularSelectsDeSerieRestritosAoPdt(turmasDoPdt) {
+      const temApenasUmaTurmaPdt = (!isAdminOuGestao && turmasDoPdt.length === 1);
+      const temMultiplasTurmasPdt = (!isAdminOuGestao && turmasDoPdt.length > 1);
+
+      let htmlOpcoes = '';
+      if (isAdminOuGestao) {
+        htmlOpcoes += `<option value="">Todas as Séries / Turmas (${turmasPermitidasUsuario.length})...</option>`;
+      } else if (temMultiplasTurmasPdt) {
+        htmlOpcoes += `<option value="">Minhas Turmas PDT (${turmasPermitidasUsuario.length})...</option>`;
+      }
+
+      turmasPermitidasUsuario.forEach(s => {
+        htmlOpcoes += `<option value="${s}">${s}</option>`;
+      });
+
+      ['atendSerie', 'suspFiltroSerie', 'histAtendFiltroSerie', 'manSuspSerie'].forEach(idSel => {
+        const el = document.getElementById(idSel);
+        if (!el) return;
+        const valAnt = el.value;
+        el.innerHTML = htmlOpcoes;
+        if (temApenasUmaTurmaPdt) {
+          el.value = turmasPermitidasUsuario[0];
+          el.disabled = true;
+        } else {
+          el.disabled = false;
+          if (valAnt && turmasPermitidasUsuario.includes(valAnt)) el.value = valAnt;
+        }
+      });
+    }
+
+    // =========================================================
+    // ABA 1: REGISTRAR ATENDIMENTO AO RESPONSÁVEL
+    // =========================================================
+    function aoMudarSerieAtendimento() {
+      const serieSel = document.getElementById('atendSerie').value;
+      const setPermitidas = new Set(turmasPermitidasUsuario);
+
+      const alunosFiltrados = todosAlunosEscola.filter(a => {
+        if (serieSel) return a.serie === serieSel;
+        return isAdminOuGestao || setPermitidas.has(a.serie);
+      });
+
+      let html = '';
+      alunosFiltrados.forEach(a => {
+        html += `<option value="${a.nome}">${a.serie}</option>`;
+      });
+      document.getElementById('datalistAlunosAtend').innerHTML = html;
+    }
+
+    async function salvarAtendimentoNoServidor() {
+      const serie = document.getElementById('atendSerie').value;
+      const aluno = document.getElementById('atendAluno').value.replace(/\s+/g, " ").trim().toUpperCase();
+      const dataHora = document.getElementById('atendDataHora').value;
+      const parentesco = document.getElementById('atendParentesco').value;
+      const nomeResp = document.getElementById('atendNomeResp').value.trim().toUpperCase();
+      const servidor = document.getElementById('atendServidor').value.trim().toUpperCase();
+      const consolidado = document.getElementById('atendConsolidado').value.trim();
+      const dataSuspRef = document.getElementById('atendDataSuspRef').value;
+
+      if (!aluno || !nomeResp || !consolidado) {
+        return Swal.fire('Atenção', 'Preencha o Nome do Aluno, o Nome do Responsável e o Consolidado do Atendimento.', 'warning');
+      }
+
+      // Valida se o aluno pertence às turmas permitidas ao PDT logado
+      const registroAluno = todosAlunosEscola.find(a => a.nome === aluno);
+      if (!isAdminOuGestao && registroAluno && !turmasPermitidasUsuario.includes(registroAluno.serie)) {
+        return Swal.fire('Acesso Restrito ao PDT', `O(a) aluno(a) ${aluno} pertence à turma ${registroAluno.serie}. Você só pode registrar atendimentos da(s) sua(s) turma(s) PDT (${turmasPermitidasUsuario.join(', ')}).`, 'error');
+      }
+
+      const btn = document.getElementById('btnSalvarAtendimento');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando Atendimento e Resolvendo Suspensão...';
+
+      const res = await chamarAPI({
+        action: 'salvarAtendimentoAluno',
+        dados: {
+          aluno: aluno,
+          serie: serie || (registroAluno ? registroAluno.serie : ""),
+          parentesco: parentesco,
+          dataHora: dataHora,
+          nomeResponsavel: nomeResp,
+          atendidoPor: servidor,
+          consolidado: consolidado,
+          dataSuspensao: dataSuspRef
+        }
+      });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle me-2"></i>Salvar Atendimento e Resolver Pendência Disciplinar';
+
+      if (res && res.success) {
+        await Swal.fire({
+          title: 'Atendimento Registrado!',
+          text: res.msg || 'Acordo registrado e pendência de suspensão resolvida com sucesso!',
+          icon: 'success',
+          confirmButtonColor: '#15438c'
+        });
+
+        document.getElementById('atendAluno').value = "";
+        document.getElementById('atendNomeResp').value = "";
+        document.getElementById('atendConsolidado').value = "";
+        document.getElementById('atendDataSuspRef').value = "";
+        document.getElementById('badgeResolvendoSuspensao').classList.add('d-none');
+
+        await carregarTodosDadosAtendimentoESuspensao(false);
+      } else {
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar o atendimento.', 'error');
+      }
+    }
+
+    // =========================================================
+    // ABA 2: ALUNOS NECESSITADOS DE SUSPENSÃO (FILTRADO PELO PDT)
+    // =========================================================
+    function renderizarTabelaSuspensoes() {
+      const serieFiltro = document.getElementById('suspFiltroSerie').value;
+      const textoFiltro = document.getElementById('suspFiltroTexto').value.trim().toUpperCase();
+      const inpPdtDisplay = document.getElementById('suspPdtDisplay');
+
+      if (serieFiltro) {
+        inpPdtDisplay.value = mapaPdtPorSerie[serieFiltro] || "NÃO ATRIBUÍDO";
+      } else if (!isAdminOuGestao && turmasPermitidasUsuario.length > 0) {
+        inpPdtDisplay.value = `${nomeUser} (${turmasPermitidasUsuario.join(', ')})`;
+      } else {
+        inpPdtDisplay.value = "Todas as Turmas (Selecione uma série para filtrar)";
+      }
+
+      listaSuspensoesFiltrada = listaSuspensoesGlobal.filter(item => {
+        const bateSerie = !serieFiltro || item.serie === serieFiltro;
+        const bateTexto = !textoFiltro || item.aluno.includes(textoFiltro) || item.motivo.toUpperCase().includes(textoFiltro);
+        return bateSerie && bateTexto;
+      });
+
+      document.getElementById('badgeCountSuspensao').innerText = listaSuspensoesFiltrada.length;
+
+      const tbody = document.getElementById('tbodySuspensoes');
+      if (listaSuspensoesFiltrada.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+              Nenhum aluno pendente de suspensão na(s) turma(s) selecionada(s).
+            </td>
+          </tr>`;
+        return;
+      }
+
+      const hojeIso = new Date().toISOString().slice(0, 10);
+      let html = '';
+
+      listaSuspensoesFiltrada.forEach((item, idx) => {
+        const badgeOrigem = item.tipoOrigem === "MANUAL"
+          ? `<span class="badge bg-warning text-dark">Manual</span>`
+          : `<span class="badge bg-danger">Automática</span>`;
+
+        html += `
+          <tr>
+            <td class="fw-bold text-dark">${item.aluno}</td>
+            <td>
+              <span class="badge bg-light text-dark border fw-bold">${item.serie}</span>
+              <div class="small text-secondary mt-1" style="font-size: 0.72rem;">
+                <i class="bi bi-person-workspace me-1"></i>PDT: ${item.pdt}
+              </div>
+            </td>
+            <td class="text-center">${badgeOrigem}</td>
+            <td class="text-center">
+              <input type="date" id="dtSuspEmissao_${idx}" class="form-control form-control-sm fw-bold text-danger text-center" value="${hojeIso}">
+              <div class="text-muted mt-1" style="font-size: 0.66rem;">Últ. ocorr.: ${item.dataSuspensao}</div>
+            </td>
+            <td>
+              <div class="fw-bold text-danger small"><i class="bi bi-exclamation-triangle-fill me-1"></i>${item.motivo}</div>
+              <div class="text-muted text-truncate" style="font-size: 0.7rem; max-width: 260px;" title="${item.detalhesOcorrencias}">
+                ${item.detalhesOcorrencias || '-'}
+              </div>
+            </td>
+            <td class="text-center text-nowrap">
+              <button class="btn btn-sm btn-outline-danger fw-bold py-1 px-2 me-1" onclick="gerarTermoSuspensaoPdf(${idx})" title="Baixar Termo de Suspensão em PDF">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Termo PDF
+              </button>
+              <button class="btn btn-sm btn-success fw-bold py-1 px-2" onclick="iniciarAtendimentoDeAlunoSuspenso(${idx})" title="Registrar Atendimento do Responsável">
+                <i class="bi bi-person-check-fill me-1"></i>Atender
+              </button>
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function iniciarAtendimentoDeAlunoSuspenso(idx) {
+      const item = listaSuspensoesFiltrada[idx];
+      if (!item) return;
+
+      const inpDt = document.getElementById(`dtSuspEmissao_${idx}`);
+      let dtSuspBr = item.dataSuspensao;
+      if (inpDt && inpDt.value) {
+        const p = inpDt.value.split('-');
+        dtSuspBr = `${p[2]}/${p[1]}/${p[0]}`;
+      }
+
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-registrar-btn')).show();
+
+      const selSerie = document.getElementById('atendSerie');
+      if (turmasPermitidasUsuario.includes(item.serie)) {
+        selSerie.value = item.serie;
+        aoMudarSerieAtendimento();
+      }
+      document.getElementById('atendAluno').value = item.aluno;
+      document.getElementById('atendDataSuspRef').value = dtSuspBr;
+      document.getElementById('badgeResolvendoSuspensao').classList.remove('d-none');
+      document.getElementById('atendNomeResp').focus();
+    }
+
+    function abrirModalSuspensaoManual() {
+      atualizarAlunosModalSuspManual();
+      document.getElementById('manSuspMotivo').value = "";
+      modalSuspManualInstancia.show();
+    }
+
+    function atualizarAlunosModalSuspManual() {
+      const serie = document.getElementById('manSuspSerie').value;
+      const setPermitidas = new Set(turmasPermitidasUsuario);
+      const filtrados = todosAlunosEscola.filter(a => serie ? a.serie === serie : setPermitidas.has(a.serie));
+
+      let html = '<option value="">Selecione o(a) aluno(a)...</option>';
+      filtrados.forEach(a => {
+        html += `<option value="${a.nome}" data-serie="${a.serie}">${a.nome} (${a.serie})</option>`;
+      });
+      document.getElementById('manSuspAluno').innerHTML = html;
+    }
+
+    async function salvarSuspensaoManualNoServidor() {
+      const selAl = document.getElementById('manSuspAluno');
+      const aluno = selAl.value;
+      const opt = selAl.options[selAl.selectedIndex];
+      const serie = document.getElementById('manSuspSerie').value || (opt ? opt.dataset.serie : "");
+      const dtIso = document.getElementById('manSuspData').value;
+      const motivo = document.getElementById('manSuspMotivo').value.trim();
+
+      if (!aluno || !serie || !motivo) {
+        return Swal.fire('Atenção', 'Selecione a Turma, o Aluno e informe o Motivo da suspensão manual.', 'warning');
+      }
+
+      const p = dtIso.split('-');
+      const dataBr = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : new Date().toLocaleDateString('pt-BR');
+
+      Swal.fire({ title: 'Registrando suspensão manual...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({
+        action: 'salvarSuspensaoManual',
+        dados: {
+          aluno: aluno,
+          serie: serie,
+          dataSuspensao: dataBr,
+          motivo: motivo,
+          atendidoPor: nomeUser
+        }
+      });
+      Swal.close();
+
+      if (res && res.success) {
+        modalSuspManualInstancia.hide();
+        await carregarTodosDadosAtendimentoESuspensao(false);
+        Swal.fire({ title: 'Suspensão Adicionada!', text: res.msg, icon: 'success', timer: 1500, showConfirmButton: false });
+      } else {
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar.', 'error');
+      }
+    }
+
+    // =========================================================
+    // ABA 3: HISTÓRICO DE ATENDIMENTOS (FILTRADO PELO PDT)
+    // =========================================================
+    function renderizarTabelaHistoricoAtendimentos() {
+      const serieFiltro = document.getElementById('histAtendFiltroSerie').value;
+      const textoFiltro = document.getElementById('histAtendFiltroTexto').value.trim().toUpperCase();
+
+      listaHistoricoAtendFiltrada = listaHistoricoAtendGlobal.filter(item => {
+        const bateSerie = !serieFiltro || item.serie === serieFiltro;
+        const bateTexto = !textoFiltro ||
+          item.aluno.includes(textoFiltro) ||
+          item.nomeResponsavel.toUpperCase().includes(textoFiltro) ||
+          item.consolidado.toUpperCase().includes(textoFiltro);
+        return bateSerie && bateTexto;
+      });
+
+      document.getElementById('badgeCountHistorico').innerText = listaHistoricoAtendFiltrada.length;
+
+      const tbody = document.getElementById('tbodyHistoricoAtend');
+      if (listaHistoricoAtendFiltrada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhum atendimento registrado para os filtros selecionados.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaHistoricoAtendFiltrada.forEach((r, idx) => {
+        html += `
+          <tr>
+            <td class="small fw-bold text-secondary">${r.data}</td>
+            <td class="text-center"><span class="badge bg-secondary">${r.serie}</span></td>
+            <td class="fw-bold text-dark">${r.aluno}</td>
+            <td>
+              <div class="fw-bold text-dark small">${r.nomeResponsavel}</div>
+              <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">${r.parentesco}</span>
+            </td>
+            <td class="small text-muted">${r.consolidado}</td>
+            <td class="small fw-semibold">${r.atendidoPor}</td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-outline-primary py-1 px-2" title="Imprimir Ata de Atendimento em PDF" onclick="gerarAtaAtendimentoPdf(${idx})">
+                <i class="bi bi-file-earmark-pdf-fill"></i>
+              </button>
+            </td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // =========================================================
+    // EMISSÃO DO TERMO DE SUSPENSÃO E ATA DE ATENDIMENTO EM PDF
+    // =========================================================
+    function gerarTermoSuspensaoPdf(idx) {
+      const item = listaSuspensoesFiltrada[idx];
+      if (!item) return;
+
+      const inpDt = document.getElementById(`dtSuspEmissao_${idx}`);
+      let dataInicioBr = new Date().toLocaleDateString('pt-BR');
+      if (inpDt && inpDt.value) {
+        const p = inpDt.value.split('-');
+        dataInicioBr = `${p[2]}/${p[1]}/${p[0]}`;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(21, 67, 140);
+      doc.text("EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 105, 18, { align: "center" });
+
+      doc.setFontSize(11);
+      doc.setTextColor(185, 28, 28);
+      doc.text("TERMO DE SUSPENSÃO DISCIPLINAR E CONVOCAÇÃO DE RESPONSÁVEL", 105, 26, { align: "center" });
+
+      doc.setDrawColor(21, 67, 140);
+      doc.line(15, 30, 195, 30);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`ALUNO(A): ${item.aluno}`, 15, 40);
+      doc.text(`SÉRIE / TURMA: ${item.serie}`, 15, 47);
+      doc.text(`PROFESSOR DIRETOR DE TURMA (PDT): ${item.pdt}`, 15, 54);
+      doc.text(`DATA DE EMISSÃO / INÍCIO: ${dataInicioBr}`, 15, 61);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("MOTIVO / CRITÉRIO DO REGIMENTO ESCOLAR (RAC):", 15, 73);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      const linhasMotivo = doc.splitTextToSize(`${item.motivo}\n\nHistórico recente: ${item.detalhesOcorrencias || '-'}`, 175);
+      doc.text(linhasMotivo, 15, 80);
+
+      const yTextoConv = 115;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const textoComunicado = doc.splitTextToSize(
+        `Comunicamos ao(à) responsável legal pelo(a) estudante ${item.aluno}, da turma ${item.serie}, que em virtude do descumprimento reiterado das normas de convivência do Regimento de Avaliação Contínua (RAC), faz-se necessário o comparecimento presencial do(a) responsável à escola para assinatura de Termo de Compromisso e alinhamento pedagógico junto ao PDT (${item.pdt}) e à Gestão Escolar.`,
+        180
+      );
+      doc.text(textoComunicado, 15, yTextoConv);
+
+      doc.line(20, 185, 95, 185);
+      doc.line(115, 185, 190, 185);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(`PDT / Gestão Escolar (${item.pdt})`, 57.5, 190, { align: "center" });
+      doc.text("Ciente do Responsável Legal", 152.5, 190, { align: "center" });
+
+      doc.save(`Termo_Suspensao_${item.aluno.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    function gerarAtaAtendimentoPdf(idx) {
+      const r = listaHistoricoAtendFiltrada[idx];
+      if (!r) return;
+
+      const pdtDaTurma = mapaPdtPorSerie[r.serie] || r.atendidoPor;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(21, 67, 140);
+      doc.text("EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 105, 18, { align: "center" });
+
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text("ATA DE ATENDIMENTO AO RESPONSÁVEL E TERMO DE COMPROMISSO (RAC)", 105, 25, { align: "center" });
+
+      doc.setDrawColor(21, 67, 140);
+      doc.line(15, 30, 195, 30);
+
+      doc.setFontSize(10);
+      doc.text(`DATA E HORA DO ATENDIMENTO: ${r.data}`, 15, 40);
+      doc.text(`ALUNO(A): ${r.aluno}   |   SÉRIE / TURMA: ${r.serie}`, 15, 47);
+      doc.text(`RESPONSÁVEL PRESENTE: ${r.nomeResponsavel} (${r.parentesco})`, 15, 54);
+      doc.text(`ATENDIDO POR: ${r.atendidoPor}   |   PDT DA TURMA: ${pdtDaTurma}`, 15, 61);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("CONSOLIDADO DO ATENDIMENTO / ACORDOS FIRMADOS:", 15, 74);
+
+      doc.setFont("helvetica", "normal");
+      const linhasAcordo = doc.splitTextToSize(r.consolidado || "-", 180);
+      doc.text(linhasAcordo, 15, 82);
+
+      doc.line(20, 185, 95, 185);
+      doc.line(115, 185, 190, 185);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(`Servidor / PDT (${r.atendidoPor})`, 57.5, 190, { align: "center" });
+      doc.text(`Responsável (${r.nomeResponsavel})`, 152.5, 190, { align: "center" });
+
+      doc.save(`Ata_Atendimento_${r.aluno.replace(/\s+/g, '_')}.pdf`);
+    }
+  </script>
+</body>
+</html>

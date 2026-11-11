@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Portal Escolar Integrado | EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+      --azul-vibrante: #2563eb;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 650px;
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-bar-info {
+      padding: 12px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #475569;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(21, 67, 140, 0.08);
+      position: relative;
+      z-index: 5;
+    }
+
+    .main-login-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 15px;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Brasão Mais Evidente e Destacado no Topo */
+    .brand-destaque-login {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .brand-destaque-login img {
+      height: 130px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 6px 16px rgba(21, 67, 140, 0.2));
+      transition: transform 0.3s ease;
+    }
+
+    .brand-destaque-login img:hover {
+      transform: scale(1.03);
+    }
+
+    .brand-titulo-login {
+      font-weight: 900;
+      font-size: 1.7rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-top: 12px;
+      margin-bottom: 2px;
+    }
+
+    .brand-sub-login {
+      font-weight: 800;
+      font-size: 0.74rem;
+      color: #1e3a8a;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .card-login {
+      width: 100%;
+      max-width: 440px;
+      border: 1px solid rgba(21, 67, 140, 0.15);
+      border-radius: 20px;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(10px);
+      padding: 36px;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 5px;
+    }
+
+    .input-group {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      background-color: #f8fafc;
+      transition: all 0.2s ease;
+    }
+
+    .input-group:focus-within {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+      background-color: white;
+    }
+
+    .input-group-text {
+      background-color: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 1.1rem;
+      padding-left: 14px;
+      padding-right: 8px;
+    }
+
+    .form-control {
+      background-color: transparent;
+      border: none;
+      font-size: 0.92rem;
+      padding: 12px 12px 12px 4px;
+    }
+
+    .form-control:focus {
+      background-color: transparent;
+      box-shadow: none;
+      border: none;
+    }
+
+    .btn-toggle-pass {
+      background-color: transparent;
+      border: none;
+      color: #64748b;
+      padding-right: 14px;
+      cursor: pointer;
+    }
+
+    .custom-link {
+      color: var(--azul-vibrante);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    .custom-link:hover {
+      text-decoration: underline;
+    }
+
+    .primeiro-acesso {
+      color: var(--azul-primario);
+      font-weight: 700;
+    }
+
+    .btn-login {
+      background-color: var(--azul-primario);
+      border-color: var(--azul-primario);
+      color: white;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px;
+      width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(21, 67, 140, 0.25);
+      transition: all 0.2s ease;
+    }
+
+    .btn-login:hover {
+      background-color: var(--azul-escuro);
+      border-color: var(--azul-escuro);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <!-- Barra Superior -->
+  <div class="top-bar-info">
+    <div id="data-atual" class="fw-medium"></div>
+    <span class="fw-bold text-uppercase" style="color: var(--azul-primario);">EEMTI Dr. José Euclides Ferreira Gomes Júnior</span>
+  </div>
+
+  <!-- Container Principal -->
+  <div class="main-login-container">
+    <!-- Brasão Bem Evidente no Topo -->
+    <div class="brand-destaque-login">
+      <img src="LOGO-removebg-preview.png" alt="Brasão da Escola" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div class="brand-titulo-login">EEMTI DR. JOSÉ EUCLIDES</div>
+      <div class="brand-sub-login">Portal Escolar Integrado</div>
+    </div>
+
+    <!-- Card de Login -->
+    <div class="card-login">
+      <h4 class="fw-bold mb-4 text-center" style="color: var(--azul-primario);">Login</h4>
+      
+      <form id="formLogin">
+        <!-- E-mail -->
+        <div class="mb-3">
+          <label for="emailLogin" class="form-label">E-mail Cadastrado*:</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <input type="email" class="form-control" id="emailLogin" placeholder="seu.email@escola.com" required>
+          </div>
+        </div>
+
+        <!-- Senha -->
+        <div class="mb-3">
+          <label for="senhaLogin" class="form-label">Senha*:</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+            <input type="password" class="form-control" id="senhaLogin" placeholder="........" required>
+            <button type="button" class="btn-toggle-pass" id="togglePassword">
+              <i class="bi bi-eye-slash" id="eyelcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Opções Extras -->
+        <div class="d-flex justify-content-between align-items-center mb-4 mt-3">
+          <a onclick="iniciarPrimeiroAcesso()" class="custom-link primeiro-acesso">Primeiro Acesso/Criar Senha</a>
+          <a onclick="abrirRecuperacao()" class="custom-link">Esqueci minha senha</a>
+        </div>
+
+        <div class="text-center text-muted mb-3" style="font-size: 0.75rem;">
+          *Campos Obrigatórios
+        </div>
+
+        <!-- Botão -->
+        <button type="submit" class="btn btn-login w-100 py-2 fw-bold shadow-sm">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <footer class="footer-custom">
+    <div>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR | Todos os direitos reservados.</div>
+  </footer>
+
+  <!-- SCRIPT COM TODAS AS SUAS LÓGICAS ORIGINAIS FUNCIONANDO -->
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const togglePassword = document.querySelector('#togglePassword');
+    const senhaLogin = document.querySelector('#senhaLogin');
+    const eyelcon = document.querySelector('#eyelcon');
+
+    togglePassword.addEventListener('click', function () {
+      const type = senhaLogin.getAttribute('type') === 'password' ? 'text' : 'password';
+      senhaLogin.setAttribute('type', type);
+      eyelcon.classList.toggle('bi-eye');
+      eyelcon.classList.toggle('bi-eye-slash');
+    });
+
+    function atualizarData() {
+      const opcoes = { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' };
+      const dataFormatada = new Date().toLocaleDateString('pt-BR', opcoes);
+      document.getElementById('data-atual').innerText = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1);
+    }
+    atualizarData();
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    // Submeter Login
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('emailLogin').value.trim();
+      const senha = document.getElementById('senhaLogin').value.trim();
+
+      Swal.fire({ title: 'A aceder...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'fazerLogin', email, senha })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          localStorage.setItem('usuarioLogado', JSON.stringify(data));
+          Swal.fire({
+            title: `Bem-vindo, ${data.nome}!`,
+            text: `Perfil: ${data.permissao}`,
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => {
+            window.location.href = 'index.html';
+          });
+        } else {
+          Swal.fire('Atenção', data.error, 'warning');
+        }
+      } catch (err) {
+        Swal.fire('Erro', 'Falha ao conectar com o servidor.', 'error');
+      }
+    });
+
+    // Fluxo de Primeiro Acesso
+    async function iniciarPrimeiroAcesso() {
+      const { value: email } = await Swal.fire({
+        title: 'Criar Senha (Primeiro Acesso)',
+        text: 'Insira o seu E-mail previamente cadastrado pelo Administrador:',
+        input: 'email',
+        inputPlaceholder: 'seu.email@escola.com',
+        confirmButtonColor: '#15438c',
+        confirmButtonText: 'Verificar E-mail',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        allowOutsideClick: false
+      });
+
+      if (email) {
+        Swal.fire({ title: 'A validar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'validarPrimeiroAcesso', email })
+          });
+          const resp = await res.json();
+
+          if (resp.success) {
+            const { value: novaSenha } = await Swal.fire({
+              title: 'Definir Nova Senha',
+              input: 'password',
+              inputPlaceholder: 'Digite a sua nova senha',
+              confirmButtonColor: '#15438c',
+              confirmButtonText: 'Guardar Senha',
+              showCancelButton: true,
+              cancelButtonText: 'Cancelar'
+            });
+
+            if (novaSenha) {
+              Swal.fire({ title: 'A guardar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+              const resSalvar = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'salvarPrimeiroAcesso', email, novaSenha })
+              });
+              const respSalvar = await resSalvar.json();
+
+              if (respSalvar.success) {
+                Swal.fire('Sucesso!', respSalvar.msg, 'success');
+              } else {
+                Swal.fire('Erro', respSalvar.error, 'error');
+              }
+            }
+          } else {
+            Swal.fire('Acesso Negado', resp.error, 'error');
+          }
+        } catch (e) {
+          Swal.fire('Erro', 'Não foi possível validar os dados.', 'error');
+        }
+      }
+    }
+
+    // Fluxo de Recuperação de Senha
+    async function abrirRecuperacao() {
+      const { value: email } = await Swal.fire({
+        title: 'Recuperar Senha',
+        text: 'Insira o seu e-mail cadastrado no sistema:',
+        input: 'email',
+        inputPlaceholder: 'seu.email@escola.com',
+        confirmButtonColor: '#15438c',
+        confirmButtonText: 'Enviar Código',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (email) {
+        Swal.fire({ title: 'A enviar e-mail...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'recuperarSenha', contato: email })
+          });
+          const resp = await res.json();
+
+          if (resp.success) {
+            const { value: codigo } = await Swal.fire({
+              title: 'Código Enviado!',
+              text: 'Verifique a sua caixa de entrada (ou spam) e digite o código de 6 dígitos:',
+              input: 'text',
+              inputPlaceholder: 'Ex: 123456',
+              confirmButtonColor: '#15438c',
+              confirmButtonText: 'Validar Código',
+              showCancelButton: true,
+              cancelButtonText: 'Cancelar'
+            });
+
+            if (codigo) {
+              Swal.fire({ title: 'A validar código...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+              const resCod = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'validarCodigoRecuperacao', email: email, codigo: codigo })
+              });
+              const respCod = await resCod.json();
+
+              if (respCod.success) {
+                const { value: novaSenha } = await Swal.fire({
+                  title: 'Criar Nova Senha',
+                  text: 'Digite a sua nova senha de acesso:',
+                  input: 'password',
+                  inputPlaceholder: 'Nova senha',
+                  confirmButtonColor: '#15438c',
+                  confirmButtonText: 'Guardar Nova Senha',
+                  showCancelButton: true,
+                  cancelButtonText: 'Cancelar'
+                });
+
+                if (novaSenha) {
+                  Swal.fire({ title: 'A guardar nova senha...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                  const resSalvar = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'salvarNovaSenhaRecuperacao', email: email, codigo: codigo, novaSenha: novaSenha })
+                  });
+                  const respSalvar = await resSalvar.json();
+
+                  if (respSalvar.success) {
+                    Swal.fire('Sucesso!', respSalvar.msg, 'success');
+                  } else {
+                    Swal.fire('Erro', respSalvar.error, 'error');
+                  }
+                }
+              } else {
+                Swal.fire('Código Inválido', respCod.error, 'error');
+              }
+            }
+          } else {
+            Swal.fire('Não encontrado', resp.error, 'error');
+          }
+        } catch (e) {
+          Swal.fire('Erro', 'Falha na comunicação com o servidor.', 'error');
+        }
+      }
+    }
+  </script>
+</body>
+</html>

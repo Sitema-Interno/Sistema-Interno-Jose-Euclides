@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acompanhamento Pedagógico -  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
+    
+    /* MARCA D'ÁGUA PADRONIZADA */
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
+    
+    /* CABEÇALHO PADRONIZADO */
+    .navbar-custom { background-color: rgba(255, 255, 255, 0.96); padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    
+    .main-container { padding: 30px 15px; max-width: 1250px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(5px); margin-bottom: 25px; padding: 28px; }
+    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
+    
+    .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 10px 14px; }
+    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.15); }
+
+    .btn { border-radius: 8px; font-weight: 600; }
+    .btn-tema { background-color: #0f766e; color: white; border: none; }
+    .btn-tema:hover { background-color: #0d645e; color: white; }
+
+    .secao-bloco-header { background: linear-gradient(90deg, #0f766e 0%, #115e59 100%); color: white; padding: 12px 18px; border-radius: 10px; font-weight: 700; margin-top: 25px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
+    
+    .pergunta-card { background: #f8fafc; padding: 16px 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 12px; transition: 0.2s; }
+    .pergunta-card.respondida-sim { border-left: 4px solid #198754; background: #f0fdf4; }
+    .pergunta-card.respondida-nao { border-left: 4px solid #dc3545; background: #fef2f2; }
+    .justificativa-box { display: none; margin-top: 12px; }
+    
+    .box-consideracao-gestao { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 10px; padding: 18px; margin-top: 15px; margin-bottom: 25px; }
+    
+    .aula-check-box { display: flex; flex-wrap: wrap; gap: 8px; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #ced4da; }
+
+    .table th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.82rem; text-transform: uppercase; }
+    .table td { vertical-align: middle; font-size: 0.88rem; }
+    
+    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0,0,0,0.05); background: rgba(255,255,255,0.6); }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</head>
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+
+  <!-- CABEÇALHO PADRONIZADO -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1250 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Acompanhamento Pedagógico
+          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR Portela</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
+          <i class="bi bi-person-circle me-1"></i>A carregar...
+        </span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
+          <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    <!-- Abas -->
+    <ul class="nav nav-tabs mb-4" id="acompanhamentoTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold text-dark" id="tab-novo-btn" data-bs-toggle="tab" data-bs-target="#novo" type="button" role="tab">
+          <i class="bi bi-plus-circle-fill me-2 text-primary"></i>Ficha de Observação de Aula
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold text-dark" id="tab-salvos-btn" data-bs-toggle="tab" data-bs-target="#salvos" type="button" role="tab" onclick="atualizarTabelaSalvos()">
+          <i class="bi bi-folder-fill me-2 text-warning"></i>Acompanhamentos Salvos
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ABA 1: FORMULÁRIO COMPLETO (56 COLUNAS) -->
+      <div class="tab-pane fade show active" id="novo" role="tabpanel">
+        <div class="card">
+          <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <h4 class="fw-bold m-0 text-dark" id="tituloFormulario">
+                <i class="bi bi-clipboard2-check-fill text-success me-2"></i>Ficha Oficial de Acompanhamento Pedagógico
+              </h4>
+              <small class="text-muted">Ao salvar, o professor avaliado recebe por e-mail o PDF apenas com os itens objetivos (sem as considerações reservadas da gestão).</small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span id="badgeModoEdicao" class="badge bg-warning text-dark d-none">Modo Edição Ativo</span>
+              <button type="button" class="btn btn-sm btn-outline-danger d-none" id="btnCancelarTopo" onclick="resetarFormulario()">
+                <i class="bi bi-x-circle me-1"></i>Cancelar Edição
+              </button>
+            </div>
+          </div>
+
+          <input type="hidden" id="editId" value="">
+          <input type="hidden" id="editDataOriginal" value="">
+
+          <!-- DADOS DE IDENTIFICAÇÃO DA AULA -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-5">
+              <label class="form-label small fw-bold">Professor(a) Avaliado(a) <span class="text-muted fw-normal">(Aba Usuários - Coluna B)</span></label>
+              <select id="selectProfessor" class="form-select" required>
+                <option value="">A carregar professores...</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Disciplina</label>
+              <input type="text" id="inputDisciplina" class="form-control" list="listaDisciplinasSugestao" placeholder="Ex: Língua Portuguesa, Matemática...">
+              <datalist id="listaDisciplinasSugestao">
+                <option value="Língua Portuguesa">
+                <option value="Língua Espanhola">
+                <option value="Língua Inglesa">
+                <option value="Arte">
+                <option value="Educação Física">
+                <option value="Matemática">
+                <option value="Física">
+                <option value="Química">
+                <option value="Biologia">
+                <option value="História">
+                <option value="Geografia">
+                <option value="Sociologia">
+                <option value="Filosofia">
+                <option value="Eletiva 1ª Série">
+                <option value="Eletiva 2ª Série">
+                <option value="Eletiva 3ª Série">
+                <option value="Projeto de Vida">
+                <option value="Formação Cidadã (DT)">
+              </datalist>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Série / Turma</label>
+              <select id="selectTurma" class="form-select" required>
+                <option value="">A carregar turmas...</option>
+              </select>
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label small fw-bold">Aula(s) Observada(s) <span class="text-muted fw-normal">(Pode marcar mais de uma)</span></label>
+              <div class="aula-check-box" id="containerAulasCheck">
+                <!-- 1ª a 9ª Aula gerado via JS -->
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Que atividade(s) aconteceu(ram)?</label>
+              <textarea id="inputAtividades" class="form-control" rows="2" placeholder="Ex: Correção de exercício, aula expositiva..."></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Conteúdo da aula?</label>
+              <textarea id="inputConteudo" class="form-control" rows="2" placeholder="Ex: Gêneros Textuais, Funções, Descritores..."></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Objetivo da aula?</label>
+              <textarea id="inputObjetivo" class="form-control" rows="2" placeholder="Ex: Reconhecer o sentido das orações..."></textarea>
+            </div>
+          </div>
+
+          <!-- BLOCO 1: GESTÃO DA SALA DE AULA (Perguntas 1 a 10 + Consideração 1) -->
+          <div class="secao-bloco-header">
+            <span><i class="bi bi-easel2-fill me-2"></i>BLOCO 1: GESTÃO DA SALA DE AULA (Questões 1 a 10)</span>
+            <button type="button" class="btn btn-sm btn-light fw-bold py-0 px-2" onclick="marcarBlocoSim(0, 9)">Marcar Bloco como "Sim"</button>
+          </div>
+          <div id="containerBloco1"></div>
+
+          <div class="box-consideracao-gestao">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-bold text-dark m-0">
+                <i class="bi bi-shield-lock-fill text-warning me-1"></i>Faça suas considerações sobre o aspecto "Gestão da Sala de Aula":
+              </label>
+              <span class="badge bg-warning text-dark">Oculto no PDF do Professor</span>
+            </div>
+            <textarea id="obsGestaoSala" class="form-control" rows="2" placeholder="Consideração interna da gestão sobre a gestão de sala de aula..."></textarea>
+          </div>
+
+          <!-- BLOCO 2: OBSERVAÇÃO DA APRENDIZAGEM (Perguntas 11 a 17 + Consideração 2) -->
+          <div class="secao-bloco-header">
+            <span><i class="bi bi-mortarboard-fill me-2"></i>BLOCO 2: OBSERVAÇÃO DA APRENDIZAGEM (Questões 11 a 17)</span>
+            <button type="button" class="btn btn-sm btn-light fw-bold py-0 px-2" onclick="marcarBlocoSim(10, 16)">Marcar Bloco como "Sim"</button>
+          </div>
+          <div id="containerBloco2"></div>
+
+          <div class="box-consideracao-gestao">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-bold text-dark m-0">
+                <i class="bi bi-shield-lock-fill text-warning me-1"></i>Faça suas considerações sobre o aspecto "Observação da Aprendizagem":
+              </label>
+              <span class="badge bg-warning text-dark">Oculto no PDF do Professor</span>
+            </div>
+            <textarea id="obsAprendizagem" class="form-control" rows="2" placeholder="Consideração interna da gestão sobre a aprendizagem observada..."></textarea>
+          </div>
+
+          <!-- BLOCO 3: COMPORTAMENTO DA TURMA / ALUNO E TEMPO PEDAGÓGICO (Perguntas 18 a 21 + Considerações Finais) -->
+          <div class="secao-bloco-header">
+            <span><i class="bi bi-people-fill me-2"></i>BLOCO 3: TEMPO PEDAGÓGICO E COMPORTAMENTO DA TURMA (Questões 18 a 21)</span>
+            <button type="button" class="btn btn-sm btn-light fw-bold py-0 px-2" onclick="marcarBlocoSim(17, 20)">Marcar Bloco como "Sim"</button>
+          </div>
+          <div id="containerBloco3"></div>
+
+          <div class="box-consideracao-gestao">
+            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-warning pb-2">
+              <h6 class="fw-bold text-dark m-0">
+                <i class="bi bi-shield-lock-fill text-warning me-2"></i>PARECER FINAL E CONSIDERAÇÕES RESERVADAS DA GESTÃO
+              </h6>
+              <span class="badge bg-warning text-dark">Estes campos NÃO vão para o PDF enviado ao Professor</span>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Faça suas considerações sobre o aspecto "Comportamento da Turma/aluno":</label>
+              <textarea id="obsComportamento" class="form-control" rows="2" placeholder="Ex: Alunos participativos, apáticos, dispersos..."></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Críticas:</label>
+              <textarea id="obsCriticas" class="form-control" rows="2" placeholder="Pontos críticos observados durante a aula..."></textarea>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-semibold">Sugestões ou observações:</label>
+              <textarea id="obsSugestoes" class="form-control" rows="2" placeholder="Sugestões para o feedback presencial..."></textarea>
+            </div>
+          </div>
+
+          <!-- Opção de envio de e-mail + Botões de ação -->
+          <div class="form-check form-switch mb-3 p-3 bg-light rounded border d-flex align-items-center gap-2">
+            <input class="form-check-input ms-0" type="checkbox" id="checkEnviarEmailProf" checked style="width: 2.5em; height: 1.25em; cursor: pointer;">
+            <label class="form-check-label fw-bold text-dark ms-2" for="checkEnviarEmailProf" style="cursor: pointer;">
+              <i class="bi bi-envelope-paper-fill text-primary me-1"></i>Enviar automaticamente por E-mail ao Professor o PDF da Avaliação (Sem as Considerações da Gestão)
+            </label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary d-none fw-bold px-4" id="btnCancelarEdicao" onclick="resetarFormulario()">
+              Cancelar Edição
+            </button>
+            <button type="button" class="btn btn-tema flex-grow-1 py-3 fw-bold fs-5 shadow-sm" onclick="finalizarAcompanhamento()" id="btnSalvarFinal">
+              <i class="bi bi-send-check-fill me-2"></i>Salvar no Banco, Enviar E-mail ao Professor e Baixar PDF da Gestão
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 2: SALVOS -->
+      <div class="tab-pane fade" id="salvos" role="tabpanel">
+        <div class="card">
+          <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+              <h5 class="fw-bold m-0"><i class="bi bi-folder-fill text-warning me-2"></i>Acompanhamentos Realizados</h5>
+              <small class="text-muted">Você pode baixar o PDF Completo (Gestão) ou o PDF Limpo (Professor), editar ou excluir.</small>
+            </div>
+            <div class="d-flex gap-2">
+              <div class="input-group" style="width: 300px;">
+                <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                <input type="text" id="buscaRelatorio" class="form-control" placeholder="Buscar professor, disciplina ou turma..." onkeyup="atualizarTabelaSalvos()">
+              </div>
+              <button class="btn btn-outline-secondary btn-sm px-3" onclick="carregarDadosDoBanco()" title="Recarregar lista">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle border">
+              <thead class="table-light">
+                <tr>
+                  <th>Data</th>
+                  <th>Professor(a)</th>
+                  <th>Disciplina</th>
+                  <th>Série / Aula</th>
+                  <th class="text-end" style="width: 240px;">Ações e PDFs</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaRelatoriosSalvos">
+                <tr><td colspan="5" class="text-center text-muted py-4">A carregar dados da nuvem...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>&copy; <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    // AS 21 PERGUNTAS EXATAS DA PLANILHA (DIVIDIDAS NOS 3 BLOCOS)
+    const perguntasArray = [
+      // Bloco 1: Gestão da Sala de Aula (0 a 9)
+      "Começa a aula na hora certa?",
+      "O professor está com a aula planejada?",
+      "Está com os recursos necessários para aula?",
+      "Exige o cumprimento das normas de convivências do RAC?",
+      "Utiliza linguagem de fácil compreensão?",
+      "É flexivel e compreensível?",
+      "Demonstra conhecimento dos conteúdos?",
+      "O Conteúdo está de acordo com o Planejado?",
+      "O professor garantiu o mapeamento?",
+      "O professor matém a atenção da turma?",
+      // Bloco 2: Observação da Aprendizagem (10 a 16)
+      "Respeita os diferentes estilos de interações dos alunos",
+      "Adapta as estratégias de ensino aos conteúdos e às limitações dos alunos?",
+      "Dá ênfase e importância as perguntas pertinentes dos alunos, garantindo que todos ouçam?",
+      "Registra a frequência, atividades/planos semanais e notas no diário online?",
+      "Costuma utilizar recursos didáticos metodológicos além do livro e quadro?",
+      "Corrigi as atividades?",
+      "As atividades estão focadas no ENEM, SPAECE, SAEB (Avaliações Externas) , mercado de trabalho, cidadania ou competêcias socioemocionais?",
+      // Bloco 3: Tempo Pedagógico e Comportamento (17 a 20)
+      "O tempo pedagógico é aproveitado?",
+      "Todos os alunos fizeram as atividades propostas?",
+      "Os excepcionais são dadas a atenção necessária?",
+      "É percebido atitude do professor na resolução dos conflitos mediante PDT e familia e /ou gestão escolar?"
+    ];
+
+    let dbProfessores = [];
+    let dbRelatorios = [];
+    let nomeGestorLogado = "GESTOR";
+
+    window.onload = async () => {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (u) {
+        nomeGestorLogado = (u.nome || (u.usuario && u.usuario.nome) || u.col1 || "Gestor").toUpperCase();
+      }
+      document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeGestorLogado}`;
+
+      renderizarCheckboxesAulas();
+      renderizarPerguntasDOM();
+      await carregarDadosDoBanco();
+    };
+
+    function renderizarCheckboxesAulas() {
+      const container = document.getElementById('containerAulasCheck');
+      let html = '';
+      for (let a = 1; a <= 9; a++) {
+        html += `
+          <div class="form-check form-check-inline m-0 me-3">
+            <input class="form-check-input check-aula-item" type="checkbox" id="chkAula_${a}" value="${a}ª Aula">
+            <label class="form-check-label small fw-semibold" for="chkAula_${a}" style="cursor:pointer;">${a}ª Aula</label>
+          </div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function renderizarPerguntasDOM() {
+      const criarHtmlPergunta = (pergunta, index) => `
+        <div class="pergunta-card" id="blocoPergunta_${index}">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h6 class="fw-bold text-dark m-0" style="flex: 1; min-width: 240px;">
+              <span class="badge bg-secondary me-2">${index + 1}/21</span> ${pergunta}
+            </h6>
+            <div class="d-flex gap-3">
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="resp_${index}" id="sim_${index}" value="Sim" onchange="tratarResposta(${index}, 'Sim')">
+                <label class="form-check-label fw-bold text-success" for="sim_${index}" style="cursor:pointer;">
+                  <i class="bi bi-check-circle-fill me-1"></i>Sim
+                </label>
+              </div>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="resp_${index}" id="nao_${index}" value="Não" onchange="tratarResposta(${index}, 'Não')">
+                <label class="form-check-label fw-bold text-danger" for="nao_${index}" style="cursor:pointer;">
+                  <i class="bi bi-x-circle-fill me-1"></i>Não
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="justificativa-box" id="justBox_${index}">
+            <label class="form-label mt-2 mb-1 text-danger small fw-bold">Justificativa (Obrigatória para "Não" ou observação específica):</label>
+            <textarea class="form-control form-control-sm border-danger" id="justificativa_${index}" rows="2" placeholder="Descreva a justificativa..."></textarea>
+          </div>
+        </div>`;
+
+      let html1 = '', html2 = '', html3 = '';
+      perguntasArray.forEach((p, idx) => {
+        if (idx <= 9) html1 += criarHtmlPergunta(p, idx);
+        else if (idx <= 16) html2 += criarHtmlPergunta(p, idx);
+        else html3 += criarHtmlPergunta(p, idx);
+      });
+
+      document.getElementById('containerBloco1').innerHTML = html1;
+      document.getElementById('containerBloco2').innerHTML = html2;
+      document.getElementById('containerBloco3').innerHTML = html3;
+    }
+
+    function tratarResposta(index, valor) {
+      const card = document.getElementById(`blocoPergunta_${index}`);
+      const justBox = document.getElementById(`justBox_${index}`);
+      card.classList.remove('respondida-sim', 'respondida-nao');
+
+      if (valor === 'Não') {
+        card.classList.add('respondida-nao');
+        justBox.style.display = 'block';
+      } else {
+        card.classList.add('respondida-sim');
+        justBox.style.display = 'none';
+        document.getElementById(`justificativa_${index}`).value = '';
+      }
+    }
+
+    function marcarBlocoSim(inicio, fim) {
+      for (let i = inicio; i <= fim; i++) {
+        const rSim = document.getElementById(`sim_${i}`);
+        if (rSim && !document.querySelector(`input[name="resp_${i}"]:checked`)) {
+          rSim.checked = true;
+          tratarResposta(i, 'Sim');
+        }
+      }
+    }
+
+    async function fetchAPI(payload) {
+      try {
+        const response = await fetch(WEB_APP_URL + "?v=" + new Date().getTime(), {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        return await response.json();
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }
+
+    async function carregarDadosDoBanco() {
+      Swal.fire({
+        title: 'Sincronizando dados...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const [resAcc, resProfsDireto, resSeries] = await Promise.all([
+        fetchAPI({ action: 'buscarDadosAcompanhamento' }),
+        fetchAPI({ action: 'getProfessores' }),
+        fetchAPI({ action: 'listarConfig', tipo: 'SERIE' })
+      ]);
+
+      Swal.close();
+
+      // 1. Professores da Coluna B da aba Usuários
+      if (Array.isArray(resProfsDireto) && resProfsDireto.length > 0) {
+        dbProfessores = resProfsDireto;
+      } else if (resAcc && resAcc.success && resAcc.dados && Array.isArray(resAcc.dados.professores)) {
+        dbProfessores = resAcc.dados.professores;
+      }
+
+      const selProf = document.getElementById('selectProfessor');
+      const valorProfAntigo = selProf.value;
+      let htmlProf = '<option value="">Selecione o(a) professor(a)...</option>';
+      dbProfessores.forEach(p => {
+        if (p && String(p).trim() !== "") {
+          htmlProf += `<option value="${String(p).trim()}">${String(p).trim()}</option>`;
+        }
+      });
+      selProf.innerHTML = htmlProf;
+      if (valorProfAntigo) selProf.value = valorProfAntigo;
+
+      // 2. Séries / Turmas da aba SÉRIE
+      const selTurma = document.getElementById('selectTurma');
+      const valorTurmaAntigo = selTurma.value;
+      let turmasSet = new Set();
+      if (resSeries && (resSeries.success || resSeries.sucesso) && Array.isArray(resSeries.lista)) {
+        resSeries.lista.forEach(item => {
+          let nomeSerie = String(item.col2 || item.col1 || "").trim();
+          if (nomeSerie && !nomeSerie.toUpperCase().includes("SÉRIE") && !nomeSerie.toUpperCase().includes("SERIE")) {
+            turmasSet.add(nomeSerie);
+          }
+        });
+      }
+      if (turmasSet.size === 0) {
+        ["1º ANO A", "1º ANO B", "1º ANO C", "2º ANO A", "2º ANO B", "3º ANO A", "3º ANO B"].forEach(t => turmasSet.add(t));
+      }
+      let htmlTurma = '<option value="">Selecione a turma...</option>';
+      Array.from(turmasSet).sort().forEach(t => {
+        htmlTurma += `<option value="${t}">${t}</option>`;
+      });
+      selTurma.innerHTML = htmlTurma;
+      if (valorTurmaAntigo) selTurma.value = valorTurmaAntigo;
+
+      // 3. Relatórios Salvos
+      if (resAcc && resAcc.success && resAcc.dados) {
+        dbRelatorios = (resAcc.dados.relatorios || []).map(r => {
+          let respObj = r.respostasObjetivas;
+          if (!Array.isArray(respObj)) {
+            try { respObj = JSON.parse(respObj); } catch (e) { respObj = []; }
+            if (!Array.isArray(respObj)) respObj = [];
+          }
+          return {
+            ...r,
+            respostasObjetivas: respObj
+          };
+        });
+        atualizarTabelaSalvos();
+      }
+    }
+
+    async function finalizarAcompanhamento() {
+      const prof = document.getElementById('selectProfessor').value;
+      const disciplina = document.getElementById('inputDisciplina').value.trim();
+      const turma = document.getElementById('selectTurma').value;
+      const aulasMarcadas = Array.from(document.querySelectorAll('.check-aula-item:checked')).map(c => c.value).join(' , ');
+
+      if (!prof || !turma || !disciplina || !aulasMarcadas) {
+        return Swal.fire('Atenção', 'Preencha o Professor, Disciplina, Série/Turma e selecione pelo menos uma Aula.', 'warning');
+      }
+
+      let respostasGerais = [];
+      for (let i = 0; i < perguntasArray.length; i++) {
+        let radio = document.querySelector(`input[name="resp_${i}"]:checked`);
+        if (!radio) {
+          document.getElementById(`blocoPergunta_${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return Swal.fire('Atenção', `Você não respondeu a pergunta ${i + 1}: "${perguntasArray[i]}"`, 'warning');
+        }
+        let valor = radio.value;
+        let justificativa = document.getElementById(`justificativa_${i}`).value.trim();
+        if (valor === 'Não' && !justificativa) {
+          document.getElementById(`blocoPergunta_${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return Swal.fire('Atenção', `Por favor, justifique a resposta "Não" na pergunta ${i + 1}.`, 'warning');
+        }
+        respostasGerais.push({
+          pergunta: perguntasArray[i],
+          resposta: valor,
+          justificativa: justificativa
+        });
+      }
+
+      const idEdit = document.getElementById('editId').value;
+      const dataOrig = document.getElementById('editDataOriginal').value;
+      const agoraStr = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR');
+
+      const dadosFinais = {
+        id: idEdit || new Date().toString(),
+        data: idEdit && dataOrig ? dataOrig : agoraStr,
+        professor: prof,
+        disciplina: disciplina,
+        turma: turma,
+        aula: aulasMarcadas,
+        atividades: document.getElementById('inputAtividades').value.trim() || '-',
+        conteudo: document.getElementById('inputConteudo').value.trim() || '-',
+        objetivo: document.getElementById('inputObjetivo').value.trim() || '-',
+        respostasObjetivas: respostasGerais,
+        obsGestaoSala: document.getElementById('obsGestaoSala').value.trim() || '-',
+        obsAprendizagem: document.getElementById('obsAprendizagem').value.trim() || '-',
+        obsComportamento: document.getElementById('obsComportamento').value.trim() || '-',
+        criticas: document.getElementById('obsCriticas').value.trim() || '-',
+        sugestoes: document.getElementById('obsSugestoes').value.trim() || '-',
+        gestor: nomeGestorLogado,
+        enviarEmail: document.getElementById('checkEnviarEmailProf').checked
+      };
+
+      Swal.fire({
+        title: 'Processando Acompanhamento...',
+        text: 'Gerando PDFs, salvando na planilha e enviando e-mail ao professor...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      // 1. Gera o PDF do Professor (SEM as considerações da gestão) em Base64 para envio por e-mail
+      const docProf = await construirDocumentoPDF(dadosFinais, false);
+      dadosFinais.pdfProfessorBase64 = docProf.output('datauristring');
+
+      // 2. Envia para o Google Apps Script salvar nas 56 colunas e disparar o e-mail
+      const payload = {
+        action: idEdit ? 'atualizarAcompanhamento' : 'salvarAcompanhamento',
+        dados: dadosFinais
+      };
+
+      const res = await fetchAPI(payload);
+
+      if (res && res.success) {
+        // 3. Baixa no computador/celular do Gestor o PDF Completo (COM as considerações da gestão)
+        const docGestor = await construirDocumentoPDF(dadosFinais, true);
+        docGestor.save(`Acompanhamento_GESTAO_${String(dadosFinais.professor).replace(/\s+/g, '_')}.pdf`);
+
+        await Swal.fire({
+          title: 'Concluído!',
+          text: res.msg || 'Acompanhamento salvo com sucesso!',
+          icon: 'success',
+          confirmButtonColor: '#0f766e'
+        });
+
+        resetarFormulario();
+        await carregarDadosDoBanco();
+        bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-salvos-btn')).show();
+      } else {
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível guardar no banco de dados.', 'error');
+      }
+    }
+
+    function atualizarTabelaSalvos() {
+      const termo = (document.getElementById('buscaRelatorio').value || "").toLowerCase().trim();
+      const tbody = document.getElementById('tabelaRelatoriosSalvos');
+
+      let filtrados = dbRelatorios.filter(r => {
+        const txt = `${r.professor} ${r.disciplina} ${r.turma} ${r.data}`.toLowerCase();
+        return txt.includes(termo);
+      });
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Nenhum acompanhamento encontrado.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      filtrados.forEach((r) => {
+        let originalIdx = dbRelatorios.indexOf(r);
+        let idSeguro = String(r.id).replace(/'/g, "\\'");
+        html += `
+          <tr>
+            <td><span class="badge bg-light text-dark border">${r.data}</span></td>
+            <td class="fw-bold text-dark">${r.professor}</td>
+            <td>${r.disciplina || '-'}</td>
+            <td>
+              <span class="badge bg-secondary">${r.turma}</span>
+              <small class="text-muted d-block">${r.aula || ''}</small>
+            </td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-success me-1" onclick="baixarPDFGestor(${originalIdx})" title="Baixar PDF Completo (Com Considerações da Gestão)">
+                <i class="bi bi-file-earmark-lock2-fill me-1"></i>PDF Gestão
+              </button>
+              <button class="btn btn-sm btn-outline-teal btn-outline-secondary me-1" onclick="baixarPDFProfessor(${originalIdx})" title="Baixar PDF do Professor (Sem Considerações)">
+                <i class="bi bi-file-earmark-person-fill"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editarRelatorio(${originalIdx})" title="Editar">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="excluirRelatorio('${idSeguro}')" title="Excluir">
+                <i class="bi bi-trash-fill"></i>
+              </button>
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function editarRelatorio(idx) {
+      const r = dbRelatorios[idx];
+      if (!r) return;
+
+      resetarFormulario();
+
+      document.getElementById('editId').value = r.id;
+      document.getElementById('editDataOriginal').value = r.data || '';
+      document.getElementById('tituloFormulario').innerHTML = '<i class="bi bi-pencil-square text-warning me-2"></i>Editando Ficha de Acompanhamento Pedagógico';
+      document.getElementById('badgeModoEdicao').classList.remove('d-none');
+      document.getElementById('btnCancelarTopo').classList.remove('d-none');
+      document.getElementById('btnCancelarEdicao').classList.remove('d-none');
+      document.getElementById('btnSalvarFinal').innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Atualizar no Banco, Enviar E-mail e Baixar PDF';
+
+      const selProf = document.getElementById('selectProfessor');
+      if (r.professor && ![...selProf.options].some(o => o.value === r.professor)) {
+        selProf.innerHTML += `<option value="${r.professor}">${r.professor}</option>`;
+      }
+      selProf.value = r.professor || '';
+
+      document.getElementById('inputDisciplina').value = r.disciplina !== '-' ? (r.disciplina || '') : '';
+
+      const selTurma = document.getElementById('selectTurma');
+      if (r.turma && ![...selTurma.options].some(o => o.value === r.turma)) {
+        selTurma.innerHTML += `<option value="${r.turma}">${r.turma}</option>`;
+      }
+      selTurma.value = r.turma || '';
+
+      // Marca as checkboxes de aulas
+      const aulasStr = String(r.aula || "");
+      document.querySelectorAll('.check-aula-item').forEach(chk => {
+        chk.checked = aulasStr.includes(chk.value);
+      });
+
+      document.getElementById('inputAtividades').value = r.atividades !== '-' ? (r.atividades || '') : '';
+      document.getElementById('inputConteudo').value = r.conteudo !== '-' ? (r.conteudo || '') : '';
+      document.getElementById('inputObjetivo').value = r.objetivo !== '-' ? (r.objetivo || '') : '';
+
+      document.getElementById('obsGestaoSala').value = r.obsGestaoSala !== '-' ? (r.obsGestaoSala || '') : '';
+      document.getElementById('obsAprendizagem').value = r.obsAprendizagem !== '-' ? (r.obsAprendizagem || '') : '';
+      document.getElementById('obsComportamento').value = r.obsComportamento !== '-' ? (r.obsComportamento || '') : '';
+      document.getElementById('obsCriticas').value = r.criticas !== '-' ? (r.criticas || '') : '';
+      document.getElementById('obsSugestoes').value = r.sugestoes !== '-' ? (r.sugestoes || '') : '';
+
+      // Preenche as 21 perguntas
+      const resps = Array.isArray(r.respostasObjetivas) ? r.respostasObjetivas : [];
+      for (let i = 0; i < perguntasArray.length; i++) {
+        let item = resps[i];
+        if (item) {
+          let isSim = (item.resposta === 'Sim' || item.resposta === true || String(item.resposta).toUpperCase() === 'TRUE');
+          if (isSim) {
+            document.getElementById(`sim_${i}`).checked = true;
+            tratarResposta(i, 'Sim');
+          } else {
+            document.getElementById(`nao_${i}`).checked = true;
+            tratarResposta(i, 'Não');
+            document.getElementById(`justificativa_${i}`).value = item.justificativa || '';
+          }
+        }
+      }
+
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-novo-btn')).show();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function excluirRelatorio(id) {
+      const conf = await Swal.fire({
+        title: 'Tem a certeza?',
+        text: 'Deseja excluir este acompanhamento pedagógico? (Você poderá restaurá-lo na aba Auditoria se precisar).',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (conf.isConfirmed) {
+        Swal.fire({ title: 'A excluir...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const res = await fetchAPI({ action: 'excluirAcompanhamento', id: id });
+        if (res && res.success) {
+          await Swal.fire({ title: 'Excluído!', text: res.msg || 'Registo removido com sucesso.', icon: 'success', confirmButtonColor: '#0f766e' });
+          await carregarDadosDoBanco();
+        } else {
+          Swal.fire('Erro', (res && res.error) || 'Não foi possível excluir.', 'error');
+        }
+      }
+    }
+
+    function resetarFormulario() {
+      document.getElementById('editId').value = "";
+      document.getElementById('editDataOriginal').value = "";
+      document.getElementById('tituloFormulario').innerHTML = '<i class="bi bi-clipboard2-check-fill text-success me-2"></i>Ficha Oficial de Acompanhamento Pedagógico';
+      document.getElementById('badgeModoEdicao').classList.add('d-none');
+      document.getElementById('btnCancelarTopo').classList.add('d-none');
+      document.getElementById('btnCancelarEdicao').classList.add('d-none');
+      document.getElementById('btnSalvarFinal').innerHTML = '<i class="bi bi-send-check-fill me-2"></i>Salvar no Banco, Enviar E-mail ao Professor e Baixar PDF da Gestão';
+
+      document.getElementById('selectProfessor').value = "";
+      document.getElementById('inputDisciplina').value = "";
+      document.getElementById('selectTurma').value = "";
+      document.querySelectorAll('.check-aula-item').forEach(c => c.checked = false);
+
+      document.getElementById('inputAtividades').value = "";
+      document.getElementById('inputConteudo').value = "";
+      document.getElementById('inputObjetivo').value = "";
+
+      document.getElementById('obsGestaoSala').value = "";
+      document.getElementById('obsAprendizagem').value = "";
+      document.getElementById('obsComportamento').value = "";
+      document.getElementById('obsCriticas').value = "";
+      document.getElementById('obsSugestoes').value = "";
+
+      for (let i = 0; i < perguntasArray.length; i++) {
+        const card = document.getElementById(`blocoPergunta_${i}`);
+        if (card) card.classList.remove('respondida-sim', 'respondida-nao');
+        document.getElementsByName(`resp_${i}`).forEach(r => r.checked = false);
+        document.getElementById(`justBox_${i}`).style.display = 'none';
+        document.getElementById(`justificativa_${i}`).value = "";
+      }
+    }
+
+    async function obterBase64LogoAsync() {
+      return new Promise((resolve) => {
+        const img = document.querySelector('.logo-escola');
+        const desenhar = (el) => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = el.naturalWidth || el.width || 120;
+            canvas.height = el.naturalHeight || el.height || 120;
+            canvas.getContext('2d').drawImage(el, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/png');
+          } catch (e) { return null; }
+        };
+        if (img && img.complete && img.naturalWidth > 0) {
+          let b64 = desenhar(img);
+          if (b64) return resolve(b64);
+        }
+        if (img && img.src) {
+          fetch(img.src)
+            .then(r => r.blob())
+            .then(blob => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = () => resolve(null);
+              reader.readAsDataURL(blob);
+            })
+            .catch(() => resolve(null));
+        } else {
+          resolve(null);
+        }
+      });
+    }
+
+    // Constrói o PDF: se incluirConsideracoesGestao = false, gera a versão limpa para o Professor!
+    async function construirDocumentoPDF(dados, incluirConsideracoesGestao) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      const logo = await obterBase64LogoAsync();
+      if (logo) {
+        doc.addImage(logo, 'PNG', 14, 10, 22, 22);
+      }
+
+      doc.setFontSize(10.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text("ESCOLA DE ENSINO MÉDIO EM TEMPO INTEGRAL", 40, 15);
+
+      doc.setFontSize(14);
+      doc.setTextColor(15, 118, 110);
+      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 21.5);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        incluirConsideracoesGestao
+          ? "Ficha Completa de Acompanhamento Pedagógico (Versão da Gestão)"
+          : "Ficha de Observação e Acompanhamento Pedagógico (Via do Professor)",
+        40, 27
+      );
+
+      doc.setDrawColor(15, 118, 110);
+      doc.setLineWidth(0.5);
+      doc.line(14, 33, 196, 33);
+
+      // Quadro de Identificação da Aula
+      doc.autoTable({
+        startY: 37,
+        head: [['IDENTIFICAÇÃO DA AULA OBSERVADA', '', '', '']],
+        body: [
+          ['Professor(a):', dados.professor || '-', 'Data / Hora:', dados.data || '-'],
+          ['Disciplina:', dados.disciplina || '-', 'Série / Turma:', dados.turma || '-'],
+          ['Aula(s):', { content: dados.aula || '-', colSpan: 3 }],
+          ['Atividade(s) Realizada(s):', { content: dados.atividades || '-', colSpan: 3 }],
+          ['Conteúdo da Aula:', { content: dados.conteudo || '-', colSpan: 3 }],
+          ['Objetivo da Aula:', { content: dados.objetivo || '-', colSpan: 3 }]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 8.5, halign: 'center' },
+        styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },
+        columnStyles: {
+          0: { cellWidth: 38, fontStyle: 'bold', fillColor: [248, 250, 252] },
+          1: { cellWidth: 62 },
+          2: { cellWidth: 28, fontStyle: 'bold', fillColor: [248, 250, 252] },
+          3: { cellWidth: 54 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      // Tabela com as 21 Perguntas Objetivas
+      let listaRespostas = Array.isArray(dados.respostasObjetivas) ? dados.respostasObjetivas : [];
+      let bodyPerguntas = perguntasArray.map((perguntaTexto, i) => {
+        let r = listaRespostas[i] || {};
+        let isSim = (r.resposta === 'Sim' || r.resposta === true || String(r.resposta).toUpperCase() === 'TRUE');
+        return [
+          i + 1,
+          perguntaTexto,
+          isSim ? 'SIM' : 'NÃO',
+          r.justificativa || '-'
+        ];
+      });
+
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 5,
+        head: [['#', 'Critério Pedagógico Observado', 'Resposta', 'Justificativa / Observação do Item']],
+        body: bodyPerguntas,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 8 },
+        styles: { fontSize: 7.5, cellPadding: 2, valign: 'middle' },
+        columnStyles: {
+          0: { cellWidth: 9, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 92 },
+          2: { cellWidth: 19, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 62 }
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body' && data.column.index === 2) {
+            if (data.cell.raw === 'SIM') {
+              data.cell.styles.textColor = [22, 101, 52];
+            } else {
+              data.cell.styles.textColor = [185, 28, 28];
+            }
+          }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      // Se for a versão da Gestão, adiciona o bloco de Considerações Internas
+      if (incluirConsideracoesGestao) {
+        const blocosQualitativos = [
+          ['1. Considerações — Gestão da Sala de Aula', dados.obsGestaoSala || '-'],
+          ['2. Considerações — Observação da Aprendizagem', dados.obsAprendizagem || '-'],
+          ['3. Considerações — Comportamento da Turma/Aluno', dados.obsComportamento || '-'],
+          ['4. Críticas', dados.criticas || '-'],
+          ['5. Sugestões ou Observações Gerais', dados.sugestoes || '-']
+        ];
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 6,
+          head: [['CONSIDERAÇÕES INTERNAS DA GESTÃO (USO EXCLUSIVO)', 'PARECER DESCRITIVO']],
+          body: blocosQualitativos,
+          theme: 'grid',
+          headStyles: { fillColor: [51, 65, 85], fontSize: 8 },
+          styles: { fontSize: 7.8, cellPadding: 2.5, valign: 'top' },
+          columnStyles: {
+            0: { cellWidth: 65, fontStyle: 'bold', fillColor: [254, 252, 232] },
+            1: { cellWidth: 117 }
+          },
+          margin: { left: 14, right: 14 }
+        });
+      }
+
+      return doc;
+    }
+
+    async function baixarPDFGestor(idx) {
+      const dados = dbRelatorios[idx];
+      if (!dados) return;
+      const doc = await construirDocumentoPDF(dados, true);
+      doc.save(`Acompanhamento_GESTAO_${String(dados.professor).replace(/\s+/g, '_')}.pdf`);
+    }
+
+    async function baixarPDFProfessor(idx) {
+      const dados = dbRelatorios[idx];
+      if (!dados) return;
+      const doc = await construirDocumentoPDF(dados, false);
+      doc.save(`Acompanhamento_PROFESSOR_${String(dados.professor).replace(/\s+/g, '_')}.pdf`);
+    }
+  </script>
+</body>
+</html>

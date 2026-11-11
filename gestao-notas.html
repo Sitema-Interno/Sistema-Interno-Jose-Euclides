@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lançamento de Notas das Eletivas - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1340px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .select-professor-travado:disabled {
+      background-color: #eff6ff !important;
+      border-color: #93c5fd !important;
+      color: var(--azul-primario) !important;
+      opacity: 1;
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .input-nota-aluno {
+      width: 96px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.95rem;
+      border-radius: 8px;
+      margin: 0 auto;
+    }
+
+    .nota-aprovado {
+      background-color: #dcfce7 !important;
+      border-color: #16a34a !important;
+      color: #15803d !important;
+    }
+
+    .nota-abaixo {
+      background-color: #fee2e2 !important;
+      border-color: #dc2626 !important;
+      color: #b91c1c !important;
+    }
+
+    .table th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    .table td {
+      vertical-align: middle;
+      font-size: 0.86rem;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Professor</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- ABAS DO MÓDULO DE NOTAS -->
+    <ul class="nav nav-tabs mb-4" id="notasTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="tab-lancar-btn" data-bs-toggle="tab" data-bs-target="#abaLancarNotas" type="button" role="tab">
+          <i class="bi bi-journal-check text-primary me-2"></i>Lançar Notas por Eletiva do Professor (Ordem Alfabética)
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="tab-pesquisa-btn" data-bs-toggle="tab" data-bs-target="#abaPesquisarAluno" type="button" role="tab">
+          <i class="bi bi-search text-success me-2"></i>Pesquisar Nota Individual de Aluno
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ========================================================= -->
+      <!-- ABA 1: FILTROS VINCULADOS AO PROFESSOR LOGADO             -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade show active" id="abaLancarNotas" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-sliders me-2"></i>Filtros da Eletiva do(a) Professor(a) (Aba ELETIVA 2025)
+              </h5>
+              <small class="text-muted">O sistema trava automaticamente no seu nome e puxa as Séries Base, Tempos Eletivos e Eletivas em que você está cadastrado(a).</small>
+            </div>
+            <button class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarFiltrosNotas(true)">
+              <i class="bi bi-arrow-clockwise me-1"></i>Sincronizar Dados
+            </button>
+          </div>
+
+          <div class="row g-3 align-items-end">
+            <!-- 1. Professor Logado (Travado) -->
+            <div class="col-12 col-md-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label"><i class="bi bi-lock-fill text-primary me-1"></i>1. Professor(a) Cadastrado(a) *</label>
+                <button type="button" id="btnDestravarProfNotas" class="btn btn-link btn-sm p-0 text-decoration-none fw-bold d-none" style="font-size: 0.72rem;" onclick="alternarTravaProfessorNotas()">
+                  <i class="bi bi-unlock me-1"></i>Trocar Professor
+                </button>
+              </div>
+              <select id="filtroProfessor" class="form-select fw-bold select-professor-travado" disabled onchange="aoMudarProfessorOuSemestreNotas()"></select>
+            </div>
+
+            <!-- 2. Semestre -->
+            <div class="col-6 col-md-2">
+              <label class="form-label">2. Semestre *</label>
+              <select id="filtroSemestre" class="form-select fw-bold" onchange="aoMudarProfessorOuSemestreNotas()">
+                <option value="">Carregando...</option>
+              </select>
+            </div>
+
+            <!-- 3. Série Base -->
+            <div class="col-6 col-md-2">
+              <label class="form-label">3. Série Base *</label>
+              <select id="filtroSerieBase" class="form-select fw-bold" onchange="aoMudarSerieBaseNotas()"></select>
+            </div>
+
+            <!-- 4. Tempo Eletivo -->
+            <div class="col-6 col-md-2">
+              <label class="form-label">4. Tempo Eletivo *</label>
+              <select id="filtroTempoEletivo" class="form-select fw-bold" onchange="aoMudarTempoOuDiaNotas()"></select>
+            </div>
+
+            <!-- 5. Dia da Semana (Opcional) -->
+            <div class="col-6 col-md-2">
+              <label class="form-label">Dia da Semana (Opc.)</label>
+              <select id="filtroDiaSemana" class="form-select fw-bold" onchange="aoMudarTempoOuDiaNotas()">
+                <option value="">Qualquer Dia</option>
+                <option value="SEGUNDA-FEIRA">SEGUNDA-FEIRA</option>
+                <option value="TERÇA-FEIRA">TERÇA-FEIRA</option>
+                <option value="QUARTA-FEIRA">QUARTA-FEIRA</option>
+                <option value="QUINTA-FEIRA">QUINTA-FEIRA</option>
+                <option value="SEXTA-FEIRA">SEXTA-FEIRA</option>
+              </select>
+            </div>
+
+            <!-- 6. Eletiva do Professor -->
+            <div class="col-12 col-md-9">
+              <label class="form-label">5. Eletiva Vinculada ao Professor(a) *</label>
+              <select id="filtroEletiva" class="form-select fw-bold" onchange="aoSelecionarEletivaNotas()">
+                <option value="">Selecione a Eletiva...</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3 d-grid">
+              <button class="btn btn-principal py-2" onclick="buscarAlunosParaLancamento()">
+                <i class="bi bi-people-fill me-1"></i>Puxar Alunos (A-Z)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABELA DE ALUNOS EM ORDEM ALFABÉTICA PARA LANÇAMENTO DE NOTAS -->
+        <div class="card p-4 d-none" id="cardTabelaAlunosNotas">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="lblTituloEletivaAberta">
+                Diário de Notas da Eletiva
+              </h5>
+              <small class="text-muted" id="lblSubtituloEletivaAberta">Alunos ordenados alfabeticamente (A-Z)</small>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <input type="text" id="buscaRapidaAlunoNaLista" class="form-control form-control-sm" style="width: 210px;" placeholder="Filtrar aluno ou turma..." oninput="filtrarAlunosNaTabelaLocal()">
+              <button class="btn btn-danger btn-sm fw-bold" onclick="gerarPdfNotasEletiva()">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar PDF
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover border align-middle mb-0">
+              <thead>
+                <tr>
+                  <th class="text-center" style="width: 55px;">Nº</th>
+                  <th>Nome do(a) Aluno(a) (A - Z)</th>
+                  <th class="text-center" style="width: 140px;">Série / Turma</th>
+                  <th class="text-center" style="width: 145px;">Tempo Eletivo</th>
+                  <th class="text-center" style="width: 85px;">C.H</th>
+                  <th class="text-center" style="width: 150px;">Nota (0 a 10)</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAlunosNotas"></tbody>
+            </table>
+          </div>
+
+          <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <small class="text-muted">
+              <i class="bi bi-info-circle me-1"></i>Dica: Digite as notas de <b>0 a 10</b> e clique no botão ao lado para enviar todas ao banco de dados.
+            </small>
+            <button class="btn btn-principal px-5 py-2 fw-bold shadow-sm" id="btnSalvarNotasLote" onclick="salvarNotasDaEletivaNoServidor()">
+              <i class="bi bi-cloud-arrow-up-fill me-2"></i>Salvar Todas as Notas no Banco de Dados
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 2: PESQUISAR NOTA INDIVIDUAL DE UM ALUNO              -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="abaPesquisarAluno" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-person-lines-fill me-2"></i>Pesquisar Eletivas e Notas por Nome do Aluno
+              </h5>
+              <small class="text-muted">Consulte ou edite rapidamente a nota de um aluno específico em qualquer semestre.</small>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-12 col-md-9">
+              <input type="text" id="inputBuscaGlobalAluno" class="form-control text-uppercase fw-bold" placeholder="Digite o nome do(a) aluno(a)..." onkeydown="if(event.key==='Enter') executarBuscaGlobalAluno()">
+            </div>
+            <div class="col-12 col-md-3 d-grid">
+              <button class="btn btn-principal" onclick="executarBuscaGlobalAluno()">
+                <i class="bi bi-search me-1"></i>Pesquisar Aluno
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive d-none" id="areaResultadoBuscaGlobal">
+            <table class="table table-hover border align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Semestre</th>
+                  <th>Dia / Tempo Eletivo</th>
+                  <th>Turma</th>
+                  <th>Aluno(a)</th>
+                  <th>Eletiva</th>
+                  <th class="text-center" style="width: 130px;">Nota</th>
+                  <th class="text-center" style="width: 110px;">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyBuscaGlobal"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Lançamento de Notas das Eletivas.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const perfilUser = String((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role)) || "Professor").trim().toUpperCase();
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "ADMINISTRADOR").trim().toUpperCase();
+    const isAdminOuGestao = perfilUser.includes("ADMIN") || perfilUser.includes("DIRE");
+
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Professor";
+
+    if (isAdminOuGestao) {
+      document.getElementById('btnDestravarProfNotas').classList.remove('d-none');
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let catalogoEletivasNotas = [];
+    let listaAlunosEletivaAtual = [];
+    let professorDestravadoManual = false;
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    window.onload = async function() {
+      await carregarFiltrosNotas(false);
+    };
+
+    function extrairSerieBaseLocal(serieStr) {
+      const s = String(serieStr || "").replace(/["']/g, "").trim().toUpperCase();
+      if (s.startsWith("1")) return "1ª SÉRIE";
+      if (s.startsWith("2")) return "2ª SÉRIE";
+      if (s.startsWith("3")) return "3ª SÉRIE";
+      return s;
+    }
+
+    function extrairCodigoEletivaLocal(nome) {
+      const str = String(nome || "").trim().toUpperCase();
+      const m = str.match(/^([A-Z]{2,4}\d{2,4})\s*[-|]/);
+      return m ? m[1] : str;
+    }
+
+    function normalizarCatalogoNotas(catBruto) {
+      if (!Array.isArray(catBruto)) return [];
+      return catBruto.map(c => ({
+        semestre: String(c.semestre || c.ano || "").trim(),
+        serieBase: extrairSerieBaseLocal(c.serieBase || c.turma || ""),
+        tempoEletivo: String(c.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase(),
+        dia: String(c.dia || "").trim().toUpperCase(),
+        eletiva: String(c.eletiva || c.nome || "").trim(),
+        professor: String(c.professor || "").trim().toUpperCase()
+      })).filter(x => x.semestre && x.eletiva);
+    }
+
+    function professorCombinaComEletiva(profSelecionado, profDaEletiva) {
+      const pSel = String(profSelecionado || "").trim().toUpperCase();
+      const pElet = String(profDaEletiva || "").trim().toUpperCase();
+      if (!pSel || pSel === "TODOS") return true;
+      if (!pElet) return false;
+      return pElet === pSel || pElet.includes(pSel) || pSel.includes(pElet);
+    }
+
+    async function carregarFiltrosNotas(exibirAlerta) {
+      if (exibirAlerta) Swal.fire({ title: 'Sincronizando eletivas do professor...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      // Busca tanto de getFiltrosFrequencia (que traz o vínculo da aba ELETIVA 2025) quanto de getFiltrosIniciais (aba eletiva teste)
+      const [resFreq, resIni] = await Promise.all([
+        chamarAPI({ action: 'getFiltrosFrequencia' }),
+        chamarAPI({ action: 'getFiltrosIniciais' })
+      ]);
+
+      if (exibirAlerta) Swal.close();
+
+      const catFreq = normalizarCatalogoNotas(resFreq && resFreq.catalogo);
+      const catIni = normalizarCatalogoNotas(resIni && resIni.catalogo);
+
+      // Mescla os dois catálogos garantindo que o Professor da aba ELETIVA 2025 seja preservado em todas as eletivas
+      const mapaProfsPorCod = {};
+      catFreq.forEach(c => {
+        const cod = extrairCodigoEletivaLocal(c.eletiva);
+        if (c.professor) {
+          mapaProfsPorCod[`${c.semestre}|${c.eletiva.toUpperCase()}`] = c.professor;
+          if (cod) mapaProfsPorCod[`${c.semestre}|${cod}`] = c.professor;
+        }
+      });
+
+      const mapaUnificado = {};
+      [].concat(catFreq, catIni).forEach(c => {
+        const cod = extrairCodigoEletivaLocal(c.eletiva);
+        const profFinal = c.professor || mapaProfsPorCod[`${c.semestre}|${c.eletiva.toUpperCase()}`] || (cod ? mapaProfsPorCod[`${c.semestre}|${cod}`] : "") || "";
+        const chave = `${c.semestre}|${c.serieBase}|${c.tempoEletivo}|${cod || c.eletiva.toUpperCase()}`;
+        if (!mapaUnificado[chave] || (!mapaUnificado[chave].professor && profFinal)) {
+          mapaUnificado[chave] = {
+            semestre: c.semestre,
+            serieBase: c.serieBase,
+            tempoEletivo: c.tempoEletivo,
+            dia: c.dia || (mapaUnificado[chave] ? mapaUnificado[chave].dia : ""),
+            eletiva: c.eletiva,
+            professor: profFinal
+          };
+        }
+      });
+
+      catalogoEletivasNotas = Object.values(mapaUnificado);
+
+      // 1. Preenche o Select de Professor (Travado no Professor Logado)
+      const profsSet = new Set();
+      if (nomeUser) profsSet.add(nomeUser);
+      catalogoEletivasNotas.forEach(c => { if (c.professor) profsSet.add(c.professor); });
+      if (resFreq && Array.isArray(resFreq.professores)) resFreq.professores.forEach(p => { if (p) profsSet.add(String(p).trim().toUpperCase()); });
+      if (resIni && Array.isArray(resIni.professores)) resIni.professores.forEach(p => { if (p) profsSet.add(String(p).trim().toUpperCase()); });
+
+      const listaProfs = Array.from(profsSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      let htmlProfs = '';
+      if (isAdminOuGestao) {
+        htmlProfs += `<option value="TODOS">-- TODAS AS ELETIVAS DA ESCOLA --</option>`;
+      }
+      listaProfs.forEach(p => {
+        htmlProfs += `<option value="${p}" ${p === nomeUser ? 'selected' : ''}>${p}</option>`;
+      });
+
+      const selProf = document.getElementById('filtroProfessor');
+      selProf.innerHTML = htmlProfs;
+      selProf.value = nomeUser;
+      selProf.disabled = !professorDestravadoManual;
+
+      // 2. Preenche os Semestres disponíveis
+      const semSet = new Set();
+      catalogoEletivasNotas.forEach(c => { if (c.semestre) semSet.add(c.semestre); });
+      if (resIni && Array.isArray(resIni.anos)) resIni.anos.forEach(a => { if (a) semSet.add(String(a).trim()); });
+      if (semSet.size === 0) ["2026.2", "2026.1", "2025.2"].forEach(s => semSet.add(s));
+
+      const listaSemestres = Array.from(semSet).sort().reverse();
+      let semPadrao = listaSemestres[0];
+      const temNoPadrao = catalogoEletivasNotas.some(c => c.semestre === semPadrao && professorCombinaComEletiva(nomeUser, c.professor));
+      if (!temNoPadrao) {
+        const outroSem = listaSemestres.find(s => catalogoEletivasNotas.some(c => c.semestre === s && professorCombinaComEletiva(nomeUser, c.professor)));
+        if (outroSem) semPadrao = outroSem;
+      }
+
+      let htmlSem = '';
+      listaSemestres.forEach(s => {
+        htmlSem += `<option value="${s}" ${s === semPadrao ? 'selected' : ''}>${s}</option>`;
+      });
+      const selSem = document.getElementById('filtroSemestre');
+      selSem.innerHTML = htmlSem;
+      selSem.value = semPadrao;
+
+      aoMudarProfessorOuSemestreNotas();
+    }
+
+    function alternarTravaProfessorNotas() {
+      if (!isAdminOuGestao) return;
+      professorDestravadoManual = !professorDestravadoManual;
+      const selProf = document.getElementById('filtroProfessor');
+      selProf.disabled = !professorDestravadoManual;
+
+      const btn = document.getElementById('btnDestravarProfNotas');
+      btn.innerHTML = professorDestravadoManual
+        ? '<i class="bi bi-lock-fill me-1"></i>Travar no Meu Nome'
+        : '<i class="bi bi-unlock me-1"></i>Trocar Professor';
+
+      if (!professorDestravadoManual) {
+        selProf.value = nomeUser;
+        aoMudarProfessorOuSemestreNotas();
+      }
+    }
+
+    function obterEletivasDoProfessorNotas(prof, semestre) {
+      let filtradas = catalogoEletivasNotas.filter(c =>
+        c.semestre === semestre && professorCombinaComEletiva(prof, c.professor)
+      );
+      if (filtradas.length === 0 && isAdminOuGestao) {
+        filtradas = catalogoEletivasNotas.filter(c => c.semestre === semestre);
+      }
+      return filtradas;
+    }
+
+    function aoMudarProfessorOuSemestreNotas() {
+      const prof = document.getElementById('filtroProfessor').value;
+      const sem = document.getElementById('filtroSemestre').value;
+      const eletivasProf = obterEletivasDoProfessorNotas(prof, sem);
+
+      const seriesSet = new Set();
+      eletivasProf.forEach(c => { if (c.serieBase) seriesSet.add(c.serieBase); });
+      const seriesArr = Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+      const selSerie = document.getElementById('filtroSerieBase');
+      const antSerie = selSerie.value;
+      let htmlSerie = `<option value="">Todas as Séries (${seriesArr.length})</option>`;
+      seriesArr.forEach(s => { htmlSerie += `<option value="${s}">${s}</option>`; });
+      selSerie.innerHTML = htmlSerie;
+
+      if (antSerie && seriesArr.includes(antSerie)) {
+        selSerie.value = antSerie;
+      } else if (seriesArr.length === 1) {
+        selSerie.value = seriesArr[0];
+      }
+
+      aoMudarSerieBaseNotas();
+    }
+
+    function aoMudarSerieBaseNotas() {
+      const prof = document.getElementById('filtroProfessor').value;
+      const sem = document.getElementById('filtroSemestre').value;
+      const serieSel = document.getElementById('filtroSerieBase').value;
+
+      const eletivasProf = obterEletivasDoProfessorNotas(prof, sem).filter(c =>
+        !serieSel || c.serieBase === serieSel
+      );
+
+      const temposSet = new Set();
+      eletivasProf.forEach(c => { if (c.tempoEletivo) temposSet.add(c.tempoEletivo); });
+      const temposArr = Array.from(temposSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+      const selTempo = document.getElementById('filtroTempoEletivo');
+      const antTempo = selTempo.value;
+      let htmlTempo = `<option value="">Todos os Tempos (${temposArr.length})</option>`;
+      temposArr.forEach(t => { htmlTempo += `<option value="${t}">${t}</option>`; });
+      selTempo.innerHTML = htmlTempo;
+
+      if (antTempo && temposArr.includes(antTempo)) {
+        selTempo.value = antTempo;
+      } else if (temposArr.length === 1) {
+        selTempo.value = temposArr[0];
+      }
+
+      aoMudarTempoOuDiaNotas();
+    }
+
+    function aoMudarTempoOuDiaNotas() {
+      const prof = document.getElementById('filtroProfessor').value;
+      const sem = document.getElementById('filtroSemestre').value;
+      const serieSel = document.getElementById('filtroSerieBase').value;
+      const tempoSel = document.getElementById('filtroTempoEletivo').value;
+      const diaSel = document.getElementById('filtroDiaSemana').value.trim().toUpperCase();
+
+      const eletivasProf = obterEletivasDoProfessorNotas(prof, sem).filter(c =>
+        (!serieSel || c.serieBase === serieSel) &&
+        (!tempoSel || c.tempoEletivo === tempoSel) &&
+        (!diaSel || !c.dia || c.dia === diaSel)
+      );
+
+      const selElet = document.getElementById('filtroEletiva');
+      let htmlElet = `<option value="">Selecione a Eletiva (${eletivasProf.length})...</option>`;
+      eletivasProf.forEach(c => {
+        const infoExtra = (!serieSel || !tempoSel) ? ` [${c.serieBase} • ${c.tempoEletivo}]` : '';
+        htmlElet += `<option value="${c.eletiva}" data-serie="${c.serieBase}" data-tempo="${c.tempoEletivo}">${c.eletiva}${infoExtra}</option>`;
+      });
+      selElet.innerHTML = htmlElet;
+      document.getElementById('cardTabelaAlunosNotas').classList.add('d-none');
+
+      if (eletivasProf.length === 1) {
+        selElet.selectedIndex = 1;
+        aoSelecionarEletivaNotas();
+      }
+    }
+
+    function aoSelecionarEletivaNotas() {
+      const selElet = document.getElementById('filtroEletiva');
+      const opt = selElet.options[selElet.selectedIndex];
+      if (opt && opt.value) {
+        if (opt.dataset.serie) document.getElementById('filtroSerieBase').value = opt.dataset.serie;
+        if (opt.dataset.tempo) document.getElementById('filtroTempoEletivo').value = opt.dataset.tempo;
+        buscarAlunosParaLancamento();
+      }
+    }
+
+    function aplicarCorInputNota(inputEl) {
+      inputEl.classList.remove('nota-aprovado', 'nota-abaixo');
+      const v = String(inputEl.value || "").replace(',', '.').trim();
+      if (v === "") return;
+      const num = parseFloat(v);
+      if (!isNaN(num)) {
+        if (num >= 6) inputEl.classList.add('nota-aprovado');
+        else inputEl.classList.add('nota-abaixo');
+      }
+    }
+
+    async function buscarAlunosParaLancamento() {
+      const prof = document.getElementById('filtroProfessor').value;
+      const sem = document.getElementById('filtroSemestre').value;
+      const serieBase = document.getElementById('filtroSerieBase').value;
+      const tempo = document.getElementById('filtroTempoEletivo').value;
+      const dia = document.getElementById('filtroDiaSemana').value;
+      const eletiva = document.getElementById('filtroEletiva').value;
+
+      if (!sem || !eletiva) {
+        return Swal.fire('Atenção', 'Selecione a Eletiva para carregar a lista de alunos.', 'warning');
+      }
+
+      Swal.fire({ title: 'Buscando alunos em ordem alfabética...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const res = await chamarAPI({
+        action: 'buscarAlunos',
+        ano: sem,
+        eletiva: eletiva
+      });
+      Swal.close();
+
+      let listaBruta = Array.isArray(res) ? res : [];
+
+      // Caso o nome da eletiva em ELETIVA 2025 use "-" e em eletiva teste use "|", filtra pelo código se necessário
+      let filtrados = listaBruta.filter(a => {
+        const baseAl = extrairSerieBaseLocal(a.serieBase || a.serieTurma);
+        const bateSerie = !serieBase || !baseAl || baseAl === serieBase.toUpperCase();
+        const bateTempo = !tempo || !a.tempoEletivo || String(a.tempoEletivo).toUpperCase() === tempo.toUpperCase();
+        const bateDia = !dia || !a.dia || String(a.dia).toUpperCase() === dia.toUpperCase();
+        return bateSerie && bateTempo && bateDia;
+      });
+
+      if (filtrados.length === 0 && listaBruta.length > 0) {
+        filtrados = listaBruta;
+      }
+
+      // Garante ordenação em Ordem Alfabética (A-Z)
+      listaAlunosEletivaAtual = filtrados.sort((a, b) => String(a.aluno || "").localeCompare(String(b.aluno || ""), 'pt-BR'));
+
+      document.getElementById('lblTituloEletivaAberta').innerHTML = `<i class="bi bi-journal-bookmark-fill me-2"></i>${eletiva}`;
+      document.getElementById('lblSubtituloEletivaAberta').innerText =
+        `Professor(a): ${prof} • Semestre: ${sem} ${serieBase ? ' • ' + serieBase : ''} ${tempo ? ' • ' + tempo : ''} • Total: ${listaAlunosEletivaAtual.length} aluno(s) em Ordem Alfabética`;
+
+      document.getElementById('buscaRapidaAlunoNaLista').value = '';
+      renderizarLinhasAlunosNotas(listaAlunosEletivaAtual);
+      document.getElementById('cardTabelaAlunosNotas').classList.remove('d-none');
+    }
+
+    function filtrarAlunosNaTabelaLocal() {
+      const termo = document.getElementById('buscaRapidaAlunoNaLista').value.trim().toUpperCase();
+      document.querySelectorAll('#tbodyAlunosNotas tr').forEach(tr => {
+        const txt = tr.innerText.toUpperCase();
+        tr.style.display = (!termo || txt.includes(termo)) ? '' : 'none';
+      });
+    }
+
+    function renderizarLinhasAlunosNotas(lista) {
+      const tbody = document.getElementById('tbodyAlunosNotas');
+      if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhum aluno encontrado matriculado nesta eletiva para o semestre selecionado.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      lista.forEach((item, idx) => {
+        const notaVal = (item.notaAtual !== undefined && item.notaAtual !== null && item.notaAtual !== "?") ? item.notaAtual : "";
+        const numNota = parseFloat(String(notaVal).replace(',', '.'));
+        let classeCor = '';
+        if (!isNaN(numNota)) {
+          classeCor = numNota >= 6 ? 'nota-aprovado' : 'nota-abaixo';
+        }
+
+        html += `
+          <tr>
+            <td class="text-center fw-bold text-muted">${idx + 1}</td>
+            <td class="fw-bold text-dark">${item.aluno}</td>
+            <td class="text-center"><span class="badge bg-secondary">${item.serieTurma || item.serieBase || '-'}</span></td>
+            <td class="text-center"><span class="badge bg-primary-subtle text-primary border">${item.tempoEletivo || item.dia || '-'}</span></td>
+            <td class="text-center small fw-semibold text-muted">${item.ch || '40'}h</td>
+            <td class="text-center">
+              <input type="number" step="0.1" min="0" max="10"
+                     class="form-control form-control-sm input-nota-aluno ${classeCor}"
+                     data-linha="${item.linha}"
+                     data-aluno="${item.aluno}"
+                     value="${notaVal}"
+                     placeholder="-"
+                     oninput="aplicarCorInputNota(this)">
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    async function salvarNotasDaEletivaNoServidor() {
+      const inputs = document.querySelectorAll('#tbodyAlunosNotas .input-nota-aluno');
+      if (inputs.length === 0) return;
+
+      const dadosNotas = [];
+      for (const inp of inputs) {
+        const valStr = String(inp.value || "").trim();
+        if (valStr !== "") {
+          const n = parseFloat(valStr.replace(',', '.'));
+          if (isNaN(n) || n < 0 || n > 10) {
+            inp.focus();
+            return Swal.fire('Nota Inválida', `A nota do(a) aluno(a) ${inp.dataset.aluno} deve estar entre 0 e 10.`, 'error');
+          }
+        }
+        dadosNotas.push({
+          linha: Number(inp.dataset.linha),
+          nota: valStr
+        });
+      }
+
+      const btn = document.getElementById('btnSalvarNotasLote');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando Notas para o Banco...';
+
+      const res = await chamarAPI({
+        action: 'salvarNotas',
+        dadosNotas: dadosNotas
+      });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-2"></i>Salvar Todas as Notas no Banco de Dados';
+
+      if (res && res.msg) {
+        Swal.fire({ title: 'Notas Salvas!', text: res.msg, icon: 'success', confirmButtonColor: '#15438c' });
+      } else {
+        Swal.fire('Erro', 'Não foi possível salvar as notas.', 'error');
+      }
+    }
+
+    // =========================================================
+    // ABA 2: PESQUISA GLOBAL DE ALUNO
+    // =========================================================
+    async function executarBuscaGlobalAluno() {
+      const nome = document.getElementById('inputBuscaGlobalAluno').value.trim();
+      if (!nome) return Swal.fire('Atenção', 'Digite pelo menos parte do nome do aluno.', 'warning');
+
+      Swal.fire({ title: 'Pesquisando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({ action: 'pesquisarAlunoGlobal', nome: nome });
+      Swal.close();
+
+      const divArea = document.getElementById('areaResultadoBuscaGlobal');
+      const tbody = document.getElementById('tbodyBuscaGlobal');
+      divArea.classList.remove('d-none');
+
+      if (!Array.isArray(res) || res.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhum registro encontrado para este aluno.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      res.forEach(r => {
+        html += `
+          <tr>
+            <td><span class="badge bg-light text-dark border">${r.ano || '-'}</span></td>
+            <td class="small fw-semibold">${r.tempoEletivo || r.dia || '-'}</td>
+            <td><span class="badge bg-secondary">${r.serie || '-'}</span></td>
+            <td class="fw-bold text-dark">${r.aluno}</td>
+            <td class="small fw-semibold text-primary">${r.eletiva}</td>
+            <td class="text-center">
+              <input type="number" step="0.1" min="0" max="10" id="notaInd_${r.linha}" class="form-control form-control-sm input-nota-aluno" value="${r.nota !== '?' ? r.nota : ''}">
+            </td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-principal py-1 px-2" onclick="salvarNotaUnicaAluno(${r.linha})">
+                <i class="bi bi-check2 me-1"></i>Salvar
+              </button>
+            </td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    async function salvarNotaUnicaAluno(linha) {
+      const inp = document.getElementById(`notaInd_${linha}`);
+      if (!inp) return;
+      Swal.fire({ title: 'Salvando nota...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({
+        action: 'salvarNotas',
+        dadosNotas: [{ linha: Number(linha), nota: inp.value }]
+      });
+      Swal.close();
+      if (res && res.msg) {
+        Swal.fire({ title: 'Salvo!', text: res.msg, icon: 'success', timer: 1400, showConfirmButton: false });
+      }
+    }
+
+    async function gerarPdfNotasEletiva() {
+  if (listaAlunosEletivaAtual.length === 0) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const prof = document.getElementById('filtroProfessor').value;
+  const sem = document.getElementById('filtroSemestre').value;
+  const serieB = document.getElementById('filtroSerieBase').value;
+  const eletiva = document.getElementById('filtroEletiva').value;
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "DIÁRIO DE NOTAS DE UNIDADE CURRICULAR ELETIVA",
+    subtitulo1: `Eletiva: ${eletiva}   |   Semestre: ${sem}   |   Série: ${serieB || 'Todas'}`,
+    subtitulo2: `Professor(a): ${prof}`
+  });
+
+  const rows = [];
+  document.querySelectorAll('#tbodyAlunosNotas tr').forEach((tr, idx) => {
+    const tds = tr.querySelectorAll('td');
+    const inp = tr.querySelector('.input-nota-aluno');
+    if (tds.length >= 5) {
+      rows.push([
+        idx + 1,
+        tds[1].innerText.trim(),
+        tds[2].innerText.trim(),
+        tds[3].innerText.trim(),
+        inp ? (inp.value || '-') : '-'
+      ]);
+    }
+  });
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Nº', 'Nome do(a) Aluno(a) (Ordem Alfabética)', 'Turma', 'Tempo Eletivo', 'Nota']],
+    body: rows,
+    styles: { fontSize: 8.5, cellPadding: 2.2 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] }
+  });
+
+  doc.save(`Notas_${eletiva.replace(/[^a-zA-Z0-9]/g, '_')}_${sem}.pdf`);
+}
+  </script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notas e Registros da Turma -  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Bibliotecas para gerar o PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 50vw; max-width: 550px; opacity: 0.05; z-index: -1; pointer-events: none; }
+    
+    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    
+    .main-container { padding: 30px 15px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); background: rgba(255, 255, 255, 0.95); margin-bottom: 25px; }
+    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
+    
+    .btn-tema { background-color: #0f766e; color: white; border: none; transition: 0.2s; }
+    .btn-tema:hover { background-color: #0d645e; color: white; }
+    
+    .form-label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .form-control, .form-select { border-color: #e2e8f0; border-radius: 6px; padding: 10px 15px; font-size: 0.95rem; }
+    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15); }
+
+    .nota-baixa { color: #dc3545; font-weight: bold; }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
+
+  <!-- Cabeçalho -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://placehold.co/100?text=Logo'">
+        <div>
+          Notas e Registros da Turma
+          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3"><i class="bi bi-house-door-fill me-1"></i> Início</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    
+    <!-- Filtros -->
+    <div class="card p-4">
+      <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <h4 class="m-0 text-dark fs-5 fw-bold"><i class="bi bi-filter-circle text-primary me-2"></i>Filtros de Pesquisa da Turma</h4>
+        <button class="btn btn-danger btn-sm" id="btnPdfTurma" onclick="gerarPdfTurma()" style="display:none;"><i class="bi bi-file-pdf-fill me-2"></i> Baixar PDF da Turma</button>
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Ano Letivo</label>
+          <select id="filtroAno" class="form-select">
+            <option value="2026" selected>2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Série / Turma</label>
+          <select id="filtroSerie" class="form-select">
+            <option value="">A carregar turmas...</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-tema w-100 fw-bold py-2" onclick="carregarNotasTurma()"><i class="bi bi-search me-1"></i> Gerar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela de Resultados -->
+    <div class="card p-4" id="cardTabelaTurma" style="display:none;">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-dark m-0" id="lblTituloTurma">Relatório de Notas da Turma</h5>
+        <span class="badge bg-secondary" id="lblTotalAlunos">0 alunos</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle text-center">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-start" style="width: 45%;">Nome do Aluno</th>
+              <th style="width: 13%;">1º Bimestre</th>
+              <th style="width: 13%;">2º Bimestre</th>
+              <th style="width: 13%;">3º Bimestre</th>
+              <th style="width: 13%;">4º Bimestre</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaTurmaBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
+const _fetchOriginal = window.fetch;
+window.fetch = function(url, options) {
+  if (options && options.method === 'POST' && typeof options.body === 'string') {
+    try {
+      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+      let bodyObj = JSON.parse(options.body);
+      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+      options.body = JSON.stringify(bodyObj);
+    } catch (e) {}
+  }
+  return _fetchOriginal(url, options);
+};
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    let dadosTurmaAtual = [];
+    let nomeTurmaSelecionada = "";
+
+    // Funções de tempo auxiliares
+    function extrairTimestamp(dataString) {
+      if (!dataString) return 0;
+      if (typeof dataString === 'string' && dataString.includes('/')) {
+        let p = dataString.split(' ')[0].split('/');
+        if (p.length === 3) return new Date(p[2], p[1] - 1, p[0], 12, 0, 0).getTime();
+      }
+      let d = new Date(dataString);
+      if (!isNaN(d.getTime())) return d.getTime();
+      return 0;
+    }
+
+    function parseDataBimestre(dataString, isFinal) {
+      if (!dataString) return 0;
+      if (typeof dataString === 'string' && dataString.includes('-')) {
+        let p = dataString.split('T')[0].split('-'); 
+        if (p.length === 3) {
+          if (isFinal) return new Date(p[0], p[1] - 1, p[2], 23, 59, 59).getTime();
+          return new Date(p[0], p[1] - 1, p[2], 0, 0, 0).getTime();
+        }
+      }
+      return new Date(dataString).getTime();
+    }
+
+    // Carregar Séries no Select ao abrir
+    window.onload = async function() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+  if (u) {
+    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
+    const elUser = document.getElementById('nomeUsuarioUi');
+    if (elUser) {
+      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+    }
+  }
+      try {
+        const res = await fetch(API_URL, { 
+          method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) 
+        });
+        const dados = await res.json();
+        let html = '<option value="">Selecione a Série...</option>';
+        if(dados.lista) {
+          dados.lista.sort((a, b) => a.col2.localeCompare(b.col2));
+          dados.lista.forEach(item => {
+            html += `<option value="${item.col2}">${item.col2}</option>`;
+          });
+        }
+        document.getElementById('filtroSerie').innerHTML = html;
+      } catch (e) {
+        document.getElementById('filtroSerie').innerHTML = '<option value="">Erro ao carregar turmas</option>';
+      }
+    };
+    
+    // Função Principal para Calcular Notas da Turma
+    async function carregarNotasTurma() {
+      const anoLetivo = document.getElementById('filtroAno').value;
+      const serie = document.getElementById('filtroSerie').value;
+
+      if (!serie) return Swal.fire('Atenção', 'Selecione uma série/turma.', 'warning');
+
+      nomeTurmaSelecionada = serie;
+      Swal.fire({ title: 'A processar notas da turma...', text: 'A calcular ocorrências e bimestres...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        // Chamadas simultâneas para otimizar velocidade
+        const reqAlunos = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json());
+        const reqOco = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json());
+        const reqBim = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json());
+        const reqPon = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'PONTUACAO' }) }).then(r => r.json());
+
+        const [resAlunos, resOco, resBim, resPon] = await Promise.all([reqAlunos, reqOco, reqBim, reqPon]);
+
+        // Filtrar alunos da turma selecionada
+        let todosAlunos = resAlunos.alunos || [];
+        let alunosTurma = todosAlunos.filter(a => (a.serie || "").trim().toUpperCase() === serie.toUpperCase());
+
+        // Ordenar alfabeticamente
+        alunosTurma.sort((a, b) => a.nome.localeCompare(b.nome));
+
+        if (alunosTurma.length === 0) {
+          Swal.close();
+          document.getElementById('cardTabelaTurma').style.display = 'none';
+          document.getElementById('btnPdfTurma').style.display = 'none';
+          return Swal.fire('Aviso', 'Nenhum aluno encontrado para esta turma.', 'info');
+        }
+
+        // Mapear pontuações da Coluna B
+        let mapPontuacoes = {};
+        if(resPon.lista) {
+          resPon.lista.forEach(p => {
+            let valorRaw = String(p.col2 || "0").replace(',', '.');
+            mapPontuacoes[p.col1.toUpperCase().trim()] = parseFloat(valorRaw);
+          });
+        }
+
+        // Configurar bimestres com timestamps
+        let arrayBimestres = resBim.lista || [];
+        arrayBimestres.forEach(b => {
+          b.tsIni = parseDataBimestre(b.col2, false);
+          b.tsFim = parseDataBimestre(b.col3, true);
+        });
+
+        let ocorrencias = resOco || [];
+
+        // Processar notas por aluno
+        dadosTurmaAtual = alunosTurma.map(aluno => {
+          let notasBim = {};
+          arrayBimestres.forEach(b => { notasBim[b.col1] = 10.00; });
+
+          // Filtrar ocorrências deste aluno
+          let ocoAluno = ocorrencias.filter(o => (o.aluno || "").trim().toUpperCase() === aluno.nome.toUpperCase());
+
+          ocoAluno.forEach(o => {
+            let grav = (o.gravidade || "").trim().toUpperCase();
+            let tsOco = extrairTimestamp(o.data);
+            let desconto = mapPontuacoes[grav] || 0;
+
+            let bimAlvo = arrayBimestres.find(b => tsOco >= b.tsIni && tsOco <= b.tsFim);
+            if (bimAlvo && notasBim[bimAlvo.col1] !== undefined) {
+              notasBim[bimAlvo.col1] += desconto;
+              if (notasBim[bimAlvo.col1] < 0) notasBim[bimAlvo.col1] = 0;
+            }
+          });
+
+          return {
+            nome: aluno.nome,
+            notas: notasBim
+          };
+        });
+
+        // Montar HTML da Tabela
+        let tbodyHtml = '';
+        dadosTurmaAtual.forEach((item, index) => {
+          let colunasNotas = '';
+          // Identificar bimestres dinamicamente
+          let chavesBim = Object.keys(item.notas);
+          
+          chavesBim.forEach(bName => {
+            let val = item.notas[bName];
+            let classe = val < 6.0 ? 'nota-baixa' : 'fw-bold text-success';
+            colunasNotas += `<td class="${classe}">${val.toFixed(2).replace('.', ',')}</td>`;
+          });
+
+          tbodyHtml += `
+            <tr>
+              <td class="text-start fw-semibold">${index + 1}. ${item.nome}</td>
+              ${colunasNotas}
+            </tr>
+          `;
+        });
+
+        document.getElementById('tabelaTurmaBody').innerHTML = tbodyHtml;
+        document.getElementById('lblTituloTurma').innerText = `Turma: ${serie} (${anoLetivo})`;
+        document.getElementById('lblTotalAlunos').innerText = `${alunosTurma.length} alunos registados`;
+        
+        document.getElementById('cardTabelaTurma').style.display = 'block';
+        document.getElementById('btnPdfTurma').style.display = 'inline-block';
+
+        Swal.close();
+
+      } catch (erro) {
+        console.error(erro);
+        Swal.fire('Erro', 'Ocorreu um erro ao calcular as notas da turma.', 'error');
+      }
+    }
+
+    // Função para Gerar PDF Paisagem da Turma Inteira
+    async function gerarPdfTurma() {
+      if (dadosTurmaAtual.length === 0) return;
+
+      Swal.fire({ title: 'A gerar PDF da turma...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        const { jsPDF } = window.jspdf;
+        // Criar documento em orientação paisagem ('landscape') para caber as colunas
+        const doc = new jsPDF('landscape');
+
+        // 1. Logo
+        try {
+          let logoBase64 = await getBase64Image('LOGO-removebg-preview.png');
+          doc.addImage(logoBase64, 'PNG', 14, 10, 25, 25);
+        } catch (e) {
+          try {
+            const imgElement = document.querySelector('.logo-escola');
+            const canvas = document.createElement('canvas');
+            canvas.width = imgElement.naturalWidth || 100; 
+            canvas.height = imgElement.naturalHeight || 100;
+            canvas.getContext('2d').drawImage(imgElement, 0, 0);
+            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 25, 25);
+          } catch(err) {}
+        }
+
+        // 2. Cabeçalho Institucional
+        doc.setFontSize(12); doc.setFont("helvetica", "bold");
+        doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
+        doc.setFontSize(15); doc.text(" EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 45, 24);
+        doc.setFontSize(10); doc.setFont("helvetica", "normal");
+        doc.text("Educação Pública de Qualidade", 45, 30);
+        doc.setLineWidth(0.5); doc.line(14, 37, 283, 37);
+
+        doc.setFontSize(13); doc.setFont("helvetica", "bold");
+        doc.text(`RELATÓRIO GERAL DE NOTAS DISCIPLINARES - TURMA: ${nomeTurmaSelecionada}`, 148, 45, {align: 'center'});
+
+        // 3. Montar dados para a tabela do PDF
+        let linhasPdf = dadosTurmaAtual.map((aluno, index) => {
+          let notasArray = Object.values(aluno.notas).map(n => n.toFixed(2).replace('.', ','));
+          return [
+            index + 1,
+            aluno.nome,
+            notasArray[0] || '10,00',
+            notasArray[1] || '10,00',
+            notasArray[2] || '10,00',
+            notasArray[3] || '10,00'
+          ];
+        });
+
+        doc.autoTable({
+          startY: 52,
+          head: [['Nº', 'Nome do Aluno', '1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']],
+          body: linhasPdf,
+          headStyles: { fillColor: [15, 118, 110] },
+          styles: { fontSize: 9 },
+          columnStyles: { 
+            0: { cellWidth: 15, halign: 'center' }, 
+            1: { cellWidth: 140 },
+            2: { cellWidth: 30, halign: 'center' },
+            3: { cellWidth: 30, halign: 'center' },
+            4: { cellWidth: 30, halign: 'center' },
+            5: { cellWidth: 30, halign: 'center' }
+          }
+        });
+
+        doc.save(`Notas_Turma_${nomeTurmaSelecionada.replace(/\s+/g, '_')}.pdf`);
+        Swal.close();
+
+      } catch (err) {
+        console.error(err);
+        Swal.close();
+        Swal.fire('Erro', 'Falha ao gerar o PDF da turma.', 'error');
+      }
+    }
+
+    function getBase64Image(url) {
+      return new Promise((resolve, reject) => {
+        let xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+          let reader = new FileReader();
+          reader.onloadend = function() { resolve(reader.result); }
+          reader.readAsDataURL(xhr.response);
+        };
+        xhr.onerror = function() { reject(); };
+        xhr.open('GET', url);
+        xhr.responseType = 'blob';
+        xhr.send();
+      });
+    }
+  </script>
+</body>
+</html>

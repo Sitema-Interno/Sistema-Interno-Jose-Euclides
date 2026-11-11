@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservas de Ambientes e Materiais - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1260px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .select-professor-travado:disabled {
+      background-color: #eff6ff !important;
+      border-color: #93c5fd !important;
+      color: var(--azul-primario) !important;
+      opacity: 1;
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 11px 20px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    /* Botões das 9 Aulas */
+    .grid-aulas-reserva {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+      gap: 10px;
+    }
+
+    .card-aula-check {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      background: #ffffff;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .card-aula-check:hover:not(.ocupada) {
+      border-color: var(--azul-primario);
+      background: #f8fafc;
+    }
+
+    .card-aula-check.selecionada {
+      background-color: #dbeafe;
+      border: 2px solid var(--azul-primario);
+      color: var(--azul-primario);
+    }
+
+    .card-aula-check.ocupada {
+      background-color: #fff1f2;
+      border-color: #fecdd3;
+      color: #be123c;
+      cursor: not-allowed;
+      opacity: 0.85;
+    }
+
+    .tabela-enquadrada {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-enquadrada th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      padding: 10px 10px;
+    }
+
+    .tabela-enquadrada td {
+      vertical-align: middle;
+      font-size: 0.84rem;
+      padding: 11px 10px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Professor</span>
+      <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold" onclick="gerarRelatorioPdfReservas()">
+        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Relatório PDF
+      </button>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- CARD 1: NOVA RESERVA / EDITAR RESERVA -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="lblTituloFormReserva">
+            <i class="bi bi-plus-circle-fill me-2"></i>Nova Reserva de Ambiente / Equipamento
+          </h5>
+          <small class="text-muted">Selecione a data e o ambiente para verificar em tempo real as aulas disponíveis.</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="badge bg-warning text-dark d-none" id="badgeEdicaoReserva">Modo Edição Ativo</span>
+          <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="btnCancelarEdicaoRes" onclick="cancelarEdicaoReserva()">
+            Cancelar Edição
+          </button>
+        </div>
+      </div>
+
+      <form id="formReserva" onsubmit="event.preventDefault(); salvarReservaNoServidor();">
+        <input type="hidden" id="resLinhaEdit" value="">
+        <input type="hidden" id="resIdEdit" value="">
+
+        <div class="row g-3 align-items-end mb-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label">1. Data da Reserva *</label>
+            <input type="date" id="resData" class="form-control fw-bold" required onchange="atualizarGradeAulasDisponiveis()">
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">2. Ambiente / Material *</label>
+            <select id="resAmbiente" class="form-select fw-bold" required onchange="atualizarGradeAulasDisponiveis()">
+              <option value="">Carregando ambientes...</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-5">
+            <div class="d-flex justify-content-between align-items-center">
+              <label class="form-label"><i class="bi bi-lock-fill text-primary me-1"></i>3. Professor(a) Solicitante *</label>
+              <button type="button" id="btnTrocarProfAdmin" class="btn btn-link btn-sm p-0 text-decoration-none fw-bold d-none" style="font-size: 0.72rem;" onclick="alternarTravaProfessorReserva()">
+                <i class="bi bi-unlock me-1"></i>Trocar Professor
+              </button>
+            </div>
+            <select id="resProfessor" class="form-select fw-bold select-professor-travado" disabled required onchange="renderizarMinhasReservasFuturas()"></select>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label m-0">4. Selecione as Aulas Disponíveis para a Data e Ambiente escolhidos:</label>
+            <span class="small text-muted">Aulas em vermelho já estão reservadas neste dia.</span>
+          </div>
+          <div class="grid-aulas-reserva" id="gridAulasContainer"></div>
+        </div>
+
+        <button type="submit" class="btn btn-principal w-100 py-2 shadow-sm mt-2" id="btnConfirmarReserva">
+          <i class="bi bi-check2-circle me-2"></i>Confirmar Reserva
+        </button>
+      </form>
+    </div>
+
+    <!-- CARD 2: MINHAS RESERVAS ATIVAS (APENAS DO PROFESSOR E DE HOJE EM DIANTE) -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-calendar2-check-fill text-success me-2"></i>Minhas Reservas Futuras (<span id="lblNomeProfMinhasReservas">PROFESSOR</span>)
+          </h5>
+          <small class="text-muted">Exibe apenas as suas reservas agendadas <b>de hoje em diante</b> (reservas de dias anteriores são ocultadas automaticamente).</small>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <div class="form-check form-switch me-2 d-none" id="boxSwitchVerTodosAdmin">
+            <input class="form-check-input" type="checkbox" id="chkVerTodosProfsAdmin" onchange="renderizarMinhasReservasFuturas()">
+            <label class="form-check-label small fw-bold text-secondary" for="chkVerTodosProfsAdmin">Ver de todos os professores (Admin)</label>
+          </div>
+          <span class="small fw-bold text-secondary">Filtrar Data:</span>
+          <input type="date" id="filtroDataMinhasRes" class="form-control form-control-sm fw-bold" style="width: 155px;" onchange="renderizarMinhasReservasFuturas()">
+          <button class="btn btn-outline-secondary btn-sm" type="button" onclick="limparFiltroDataMinhasRes()" title="Limpar filtro de data">
+            <i class="bi bi-x-lg"></i>
+          </button>
+          <button class="btn btn-outline-primary btn-sm fw-bold" type="button" onclick="carregarDadosReservas(true)">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="w-100">
+        <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
+          <thead>
+            <tr>
+              <th style="width: 14%;">Data Agendada</th>
+              <th style="width: 24%;">Ambiente / Material</th>
+              <th style="width: 32%;">Aulas Reservadas</th>
+              <th style="width: 20%;">Professor(a)</th>
+              <th style="width: 10%;" class="text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyMinhasReservas">
+            <tr><td colspan="5" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Carregando reservas futuras...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Controle de Reservas de Ambientes.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const hojeObj = new Date();
+    const hojeIso = hojeObj.toISOString().slice(0, 10);
+    const inputDataRes = document.getElementById('resData');
+    inputDataRes.value = hojeIso;
+    inputDataRes.min = hojeIso; // Impede reservar para datas já passadas
+
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "PROFESSOR").trim().toUpperCase();
+    const perfilUser = String((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role)) || "Professor").trim().toUpperCase();
+    const isAdminOuGestao = perfilUser.includes("ADMIN") || perfilUser.includes("DIRE") || perfilUser.includes("COORD");
+
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Professor";
+    document.getElementById('lblNomeProfMinhasReservas').innerText = nomeUser;
+
+    if (isAdminOuGestao) {
+      document.getElementById('btnTrocarProfAdmin').classList.remove('d-none');
+      document.getElementById('boxSwitchVerTodosAdmin').classList.remove('d-none');
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let todasReservasBanco = [];
+    let reservasFuturasExibidas = [];
+    let aulasSelecionadasSet = new Set();
+    let professorDestravadoAdmin = false;
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    window.onload = async function() {
+      await carregarDadosReservas(false);
+    };
+
+    // Normaliza um registro de reserva (corrige mesmo se vier do backend antigo deslocado)
+    function normalizarItemReserva(item) {
+      let id = String(item.id || "").trim();
+      let prof = String(item.professor || "").trim().toUpperCase();
+      let data = String(item.data || "").trim();
+      let amb = String(item.ambiente || "").trim().toUpperCase();
+      let aulasBrutas = Array.isArray(item.aulas) ? item.aulas : [];
+
+      // Se 'id' for na verdade o nome do professor e a data estiver dentro de aulas[0] (bug do layout antigo na planilha)
+      const dataDentroDeAulas = aulasBrutas.find(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x || "").trim()));
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(data) && dataDentroDeAulas) {
+        const antigoProf = id;
+        const antigoAmb = prof;
+        prof = antigoProf.toUpperCase();
+        amb = antigoAmb.toUpperCase();
+        data = String(dataDentroDeAulas).trim();
+      }
+
+      // Converte YYYY-MM-DD para DD/MM/YYYY se necessário
+      if (/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+        const p = data.split('-');
+        data = `${p[2]}/${p[1]}/${p[0]}`;
+      }
+
+      // Extrai apenas os rótulos válidos de aulas ("1ª Aula" a "9ª Aula")
+      const aulasLimpas = [];
+      aulasBrutas.forEach(x => {
+        const s = String(x || "").trim();
+        if (/^[1-9]ª\s*Aula$/i.test(s)) {
+          aulasLimpas.push(s);
+        }
+      });
+
+      return {
+        linha: item.linha,
+        id: id,
+        professor: prof,
+        data: data,
+        tsData: converterDataBrParaTimestamp(data),
+        ambiente: amb,
+        aulasLista: aulasLimpas
+      };
+    }
+
+    function converterDataBrParaTimestamp(dataBr) {
+      const s = String(dataBr || "").trim();
+      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m) {
+        return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10), 0, 0, 0, 0).getTime();
+      }
+      return 0;
+    }
+
+    async function carregarDadosReservas(exibirLoading) {
+      if (exibirLoading) Swal.fire({ title: 'Sincronizando reservas...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const [resAmb, resProfs, resLista] = await Promise.all([
+        chamarAPI({ action: 'listarConfig', tipo: 'AMBIENTE' }),
+        chamarAPI({ action: 'getProfessores' }),
+        chamarAPI({ action: 'listarReservas' })
+      ]);
+
+      if (exibirLoading) Swal.close();
+
+      // 1. Preenche Ambientes / Materiais
+      let ambientes = [];
+      if (resAmb && Array.isArray(resAmb.lista) && resAmb.lista.length > 0) {
+        resAmb.lista.forEach(a => {
+          let n = String(a.col1 || "").trim().toUpperCase();
+          if (n && !ambientes.includes(n)) ambientes.push(n);
+        });
+      }
+      if (ambientes.length === 0) {
+        ambientes = ["DATA SHOW 01", "DATA SHOW 02", "LABORATÓRIO DE INFORMÁTICA", "LABORATÓRIO DE CIÊNCIAS", "SALA DE VÍDEO", "AUDITÓRIO", "QUADRA POLIESPORTIVA"];
+      }
+      const selAmb = document.getElementById('resAmbiente');
+      const ambAnt = selAmb.value;
+      let htmlAmb = '';
+      ambientes.forEach(a => { htmlAmb += `<option value="${a}">${a}</option>`; });
+      selAmb.innerHTML = htmlAmb;
+      if (ambAnt && ambientes.includes(ambAnt)) selAmb.value = ambAnt;
+
+      // 2. Preenche Professores e trava no Professor Logado
+      const profsSet = new Set();
+      if (nomeUser) profsSet.add(nomeUser);
+      if (Array.isArray(resProfs)) {
+        resProfs.forEach(p => { if (p) profsSet.add(String(p).trim().toUpperCase()); });
+      }
+      const listaProfs = Array.from(profsSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      const selProf = document.getElementById('resProfessor');
+      const profAnt = selProf.value;
+      let htmlProfs = '';
+      listaProfs.forEach(p => {
+        htmlProfs += `<option value="${p}" ${p === nomeUser ? 'selected' : ''}>${p}</option>`;
+      });
+      selProf.innerHTML = htmlProfs;
+      selProf.value = (profAnt && listaProfs.includes(profAnt)) ? profAnt : nomeUser;
+      selProf.disabled = !professorDestravadoAdmin;
+
+      // 3. Normaliza a lista de reservas do banco
+      const bruta = (resLista && Array.isArray(resLista.lista)) ? resLista.lista : [];
+      todasReservasBanco = bruta.map(normalizarItemReserva).filter(r => r.data && r.ambiente);
+
+      atualizarGradeAulasDisponiveis();
+      renderizarMinhasReservasFuturas();
+    }
+
+    function alternarTravaProfessorReserva() {
+      if (!isAdminOuGestao) return;
+      professorDestravadoAdmin = !professorDestravadoAdmin;
+      const selProf = document.getElementById('resProfessor');
+      selProf.disabled = !professorDestravadoAdmin;
+
+      const btn = document.getElementById('btnTrocarProfAdmin');
+      btn.innerHTML = professorDestravadoAdmin
+        ? '<i class="bi bi-lock-fill me-1"></i>Travar no Meu Nome'
+        : '<i class="bi bi-unlock me-1"></i>Trocar Professor';
+
+      if (!professorDestravadoAdmin) {
+        selProf.value = nomeUser;
+        renderizarMinhasReservasFuturas();
+      }
+    }
+
+    function atualizarGradeAulasDisponiveis() {
+      const dataIso = document.getElementById('resData').value;
+      const ambiente = document.getElementById('resAmbiente').value.trim().toUpperCase();
+      const linhaEditando = Number(document.getElementById('resLinhaEdit').value) || 0;
+
+      let dataBr = "";
+      if (dataIso) {
+        const p = dataIso.split('-');
+        dataBr = `${p[2]}/${p[1]}/${p[0]}`;
+      }
+
+      // Verifica quais aulas (1ª a 9ª) já estão reservadas neste dia e ambiente
+      const mapaOcupacaoPorAula = {};
+      todasReservasBanco.forEach(r => {
+        if (linhaEditando && Number(r.linha) === linhaEditando) return;
+        if (r.data === dataBr && r.ambiente === ambiente) {
+          r.aulasLista.forEach(aulaNome => {
+            mapaOcupacaoPorAula[aulaNome.toUpperCase()] = r.professor;
+          });
+        }
+      });
+
+      const container = document.getElementById('gridAulasContainer');
+      let html = '';
+      for (let i = 1; i <= 9; i++) {
+        const labelAula = `${i}ª Aula`;
+        const profOcupante = mapaOcupacaoPorAula[labelAula.toUpperCase()];
+        const isOcupada = Boolean(profOcupante);
+        if (isOcupada) aulasSelecionadasSet.delete(labelAula);
+
+        const isSel = aulasSelecionadasSet.has(labelAula);
+
+        html += `
+          <div class="card-aula-check ${isOcupada ? 'ocupada' : (isSel ? 'selecionada' : '')}"
+               onclick="${isOcupada ? '' : `alternarSelecaoAula('${labelAula}')`}"
+               title="${isOcupada ? `Reservada por: ${profOcupante}` : `Clique para selecionar a ${labelAula}`}">
+            <div class="fw-bold" style="font-size: 0.9rem;">
+              <i class="bi ${isOcupada ? 'bi-lock-fill' : (isSel ? 'bi-check-square-fill' : 'bi-square')} me-1"></i>${labelAula}
+            </div>
+            <div style="font-size: 0.65rem;" class="mt-1 text-truncate">
+              ${isOcupada ? `Ocupada (${profOcupante.split(' ')[0]})` : (isSel ? 'Selecionada' : 'Disponível')}
+            </div>
+          </div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function alternarSelecaoAula(labelAula) {
+      if (aulasSelecionadasSet.has(labelAula)) {
+        aulasSelecionadasSet.delete(labelAula);
+      } else {
+        aulasSelecionadasSet.add(labelAula);
+      }
+      atualizarGradeAulasDisponiveis();
+    }
+
+    // =========================================================
+    // MINHAS RESERVAS FUTURAS (APENAS DE HOJE EM DIANTE + DO PROFESSOR)
+    // =========================================================
+    function renderizarMinhasReservasFuturas() {
+      const profAtivo = String(document.getElementById('resProfessor').value || nomeUser).trim().toUpperCase();
+      document.getElementById('lblNomeProfMinhasReservas').innerText = profAtivo;
+
+      const verTodosAdmin = isAdminOuGestao && document.getElementById('chkVerTodosProfsAdmin').checked;
+      const filtroDataIso = document.getElementById('filtroDataMinhasRes').value;
+      let filtroDataBr = "";
+      if (filtroDataIso) {
+        const p = filtroDataIso.split('-');
+        filtroDataBr = `${p[2]}/${p[1]}/${p[0]}`;
+      }
+
+      // Timestamp de Hoje às 00:00:00 (tudo o que for anterior a hoje é ocultado automaticamente!)
+      const agora = new Date();
+      const tsHojeMeiaNoite = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0, 0).getTime();
+
+      reservasFuturasExibidas = todasReservasBanco.filter(r => {
+        // 1. Regra de Data: Oculta dias anteriores a hoje!
+        const ehHojeOuFuturo = r.tsData >= tsHojeMeiaNoite;
+        if (!ehHojeOuFuturo) return false;
+
+        // 2. Regra de Professor: Mostra apenas as reservas daquele professor (exceto se o Admin marcou para ver todos)
+        const bateProfessor = verTodosAdmin || r.professor === profAtivo || r.professor.includes(profAtivo);
+        if (!bateProfessor) return false;
+
+        // 3. Filtro opcional de data específica
+        const bateDataEspecifica = !filtroDataBr || r.data === filtroDataBr;
+        return bateDataEspecifica;
+      });
+
+      // Ordena da reserva mais próxima (ex: Hoje / Amanhã) para a mais distante
+      reservasFuturasExibidas.sort((a, b) => a.tsData - b.tsData || a.ambiente.localeCompare(b.ambiente, 'pt-BR'));
+
+      const tbody = document.getElementById('tbodyMinhasReservas');
+      if (reservasFuturasExibidas.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center py-4 text-muted">
+              <i class="bi bi-calendar-check fs-4 d-block mb-1 text-secondary"></i>
+              Nenhuma reserva agendada de hoje em diante para <b>${verTodosAdmin ? 'os filtros selecionados' : profAtivo}</b>.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      let html = '';
+      reservasFuturasExibidas.forEach((r, idx) => {
+        const ehHoje = (r.tsData === tsHojeMeiaNoite);
+        const badgesAulas = r.aulasLista.length > 0
+          ? r.aulasLista.map(a => `<span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1 mb-1">${a}</span>`).join('')
+          : '<span class="text-muted small">Turno Completo</span>';
+
+        html += `
+          <tr>
+            <td class="fw-bold text-dark">
+              <i class="bi bi-calendar-event text-primary me-1"></i>${r.data}
+              ${ehHoje ? '<span class="badge bg-success ms-1">Hoje</span>' : ''}
+            </td>
+            <td class="fw-bold text-secondary">${r.ambiente}</td>
+            <td>${badgesAulas}</td>
+            <td class="small fw-semibold text-dark">${r.professor}</td>
+            <td class="text-center text-nowrap">
+              <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" title="Editar Reserva" onclick="iniciarEdicaoReserva(${idx})">
+                <i class="bi bi-pencil-square"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger py-1 px-2" title="Cancelar/Excluir Reserva" onclick="excluirReserva(${r.linha}, '${r.ambiente}', '${r.data}')">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function limparFiltroDataMinhasRes() {
+      document.getElementById('filtroDataMinhasRes').value = '';
+      renderizarMinhasReservasFuturas();
+    }
+
+    async function salvarReservaNoServidor() {
+      const linhaEdit = document.getElementById('resLinhaEdit').value;
+      const idEdit = document.getElementById('resIdEdit').value;
+      const dataIso = document.getElementById('resData').value;
+      const ambiente = document.getElementById('resAmbiente').value;
+      const professor = document.getElementById('resProfessor').value;
+
+      if (!dataIso || !ambiente || !professor) {
+        return Swal.fire('Atenção', 'Preencha a Data, o Ambiente e o Professor.', 'warning');
+      }
+
+      if (aulasSelecionadasSet.size === 0) {
+        return Swal.fire('Selecione as Aulas', 'Clique em pelo menos uma aula disponível (1ª a 9ª Aula) antes de confirmar a reserva.', 'warning');
+      }
+
+      const p = dataIso.split('-');
+      const dataBr = `${p[2]}/${p[1]}/${p[0]}`;
+
+      // Monta o array fixo de 9 posições (1ª Aula a 9ª Aula)
+      const array9Aulas = [];
+      for (let i = 1; i <= 9; i++) {
+        const lb = `${i}ª Aula`;
+        array9Aulas.push(aulasSelecionadasSet.has(lb) ? lb : "");
+      }
+
+      const btn = document.getElementById('btnConfirmarReserva');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Confirmando Reserva...';
+
+      const res = await chamarAPI({
+        action: 'salvarReserva',
+        linha: linhaEdit ? Number(linhaEdit) : null,
+        id: idEdit || null,
+        professor: professor,
+        data: dataBr,
+        ambiente: ambiente,
+        aulas: array9Aulas
+      });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle me-2"></i>Confirmar Reserva';
+
+      if (res && res.success) {
+        Swal.fire({
+          title: 'Reserva Confirmada!',
+          text: res.msg || `Ambiente ${ambiente} reservado para o dia ${dataBr}!`,
+          icon: 'success',
+          confirmButtonColor: '#15438c',
+          timer: 1600,
+          showConfirmButton: false
+        });
+        cancelarEdicaoReserva();
+        await carregarDadosReservas(false);
+      } else {
+        Swal.fire('Conflito de Horário', (res && res.error) || 'Não foi possível realizar a reserva.', 'warning');
+      }
+    }
+
+    function iniciarEdicaoReserva(idx) {
+      const r = reservasFuturasExibidas[idx];
+      if (!r) return;
+
+      document.getElementById('resLinhaEdit').value = r.linha;
+      document.getElementById('resIdEdit').value = r.id;
+      document.getElementById('badgeEdicaoReserva').classList.remove('d-none');
+      document.getElementById('btnCancelarEdicaoRes').classList.remove('d-none');
+      document.getElementById('lblTituloFormReserva').innerHTML = `<i class="bi bi-pencil-square me-2"></i>Editando Reserva (${r.data})`;
+      document.getElementById('btnConfirmarReserva').innerHTML = '<i class="bi bi-check2-circle me-2"></i>Salvar Alterações da Reserva';
+
+      if (r.data && r.data.includes('/')) {
+        const p = r.data.split('/');
+        document.getElementById('resData').value = `${p[2]}-${p[1]}-${p[0]}`;
+      }
+      document.getElementById('resAmbiente').value = r.ambiente;
+      document.getElementById('resProfessor').value = r.professor;
+
+      aulasSelecionadasSet = new Set(r.aulasLista);
+      atualizarGradeAulasDisponiveis();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoReserva() {
+      document.getElementById('resLinhaEdit').value = "";
+      document.getElementById('resIdEdit').value = "";
+      document.getElementById('badgeEdicaoReserva').classList.add('d-none');
+      document.getElementById('btnCancelarEdicaoRes').classList.add('d-none');
+      document.getElementById('lblTituloFormReserva').innerHTML = '<i class="bi bi-plus-circle-fill me-2"></i>Nova Reserva de Ambiente / Equipamento';
+      document.getElementById('btnConfirmarReserva').innerHTML = '<i class="bi bi-check2-circle me-2"></i>Confirmar Reserva';
+      aulasSelecionadasSet.clear();
+      atualizarGradeAulasDisponiveis();
+    }
+
+    async function excluirReserva(linha, ambiente, dataBr) {
+      const conf = await Swal.fire({
+        title: 'Cancelar Reserva?',
+        text: `Deseja cancelar a reserva de "${ambiente}" agendada para o dia ${dataBr}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, Cancelar Reserva',
+        cancelButtonText: 'Voltar'
+      });
+      if (!conf.isConfirmed) return;
+
+      Swal.fire({ title: 'Cancelando reserva...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({ action: 'excluirReserva', linha: linha });
+      Swal.close();
+
+      if (res && res.success) {
+        Swal.fire({ title: 'Reserva Cancelada!', icon: 'success', timer: 1300, showConfirmButton: false });
+        await carregarDadosReservas(false);
+      }
+    }
+
+    async function gerarRelatorioPdfReservas() {
+  if (reservasFuturasExibidas.length === 0) {
+    return Swal.fire('Sem Reservas', 'Não há reservas futuras listadas para gerar o PDF.', 'info');
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const prof = document.getElementById('lblNomeProfMinhasReservas').innerText;
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "CRONOGRAMA DE RESERVAS DE AMBIENTES E MATERIAIS",
+    subtitulo1: `Professor(a): ${prof}`,
+    subtitulo2: `Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+  });
+
+  const rows = reservasFuturasExibidas.map(r => [
+    r.data,
+    r.ambiente,
+    r.aulasLista.join(', ') || '-',
+    r.professor
+  ]);
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Data Agendada', 'Ambiente / Material', 'Aulas Reservadas', 'Professor(a)']],
+    body: rows,
+    styles: { fontSize: 8.8, cellPadding: 2.5 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] }
+  });
+
+  doc.save(`Reservas_Ambientes_${prof.replace(/\s+/g, '_')}.pdf`);
+}
+  </script>
+</body>
+</html>

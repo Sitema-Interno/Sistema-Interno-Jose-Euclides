@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empréstimos, Reservas e Relatórios - Biblioteca José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+      --azul-vibrante: #2563eb;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+    }
+
+    .watermark-bg {
+      position: fixed;
+      top: 52%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50vw;
+      max-width: 550px;
+      opacity: 0.07;
+      z-index: -1;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+
+    .navbar-custom {
+      background-color: rgba(255, 255, 255, 0.96);
+      padding: 14px 24px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .navbar-brand {
+      font-weight: 800;
+      font-size: 1.35rem;
+      color: var(--azul-primario) !important;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .sub-text {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #64748b;
+      margin-top: -2px;
+    }
+
+    .logo-escola {
+      height: 54px;
+      object-fit: contain;
+    }
+
+    .main-container {
+      padding: 25px 15px 40px 15px;
+      max-width: 1360px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+      transition: all 0.2s;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .kpi-card {
+      border-left: 5px solid var(--azul-primario);
+      padding: 15px 18px;
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.04);
+    }
+    .kpi-card.teal { border-left-color: #2563eb; }
+    .kpi-card.danger { border-left-color: #dc2626; }
+    .kpi-card.amber { border-left-color: #d97706; }
+
+    .preview-box-card {
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      background: #f8fafc;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: 152px;
+      transition: all 0.25s ease;
+    }
+
+    .preview-box-card.preenchido {
+      border-style: solid;
+      border-color: rgba(21, 67, 140, 0.35);
+      background: #eff6ff;
+    }
+
+    .moldura-foto-preview {
+      width: 90px;
+      height: 122px;
+      border-radius: 8px;
+      border: 2px solid #cbd5e1;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .moldura-foto-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .table th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+    }
+
+    .table td {
+      vertical-align: middle;
+      font-size: 0.87rem;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
+
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1360 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Empréstimos, Reservas e Relatórios — Biblioteca
+          <div class="sub-text">EEMTI Dr. José Euclides Ferreira Gomes Júnior</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
+          <i class="bi bi-person-circle text-primary me-1"></i>Carregando...
+        </span>
+        <a href="cadastro-livros.html" class="btn btn-outline-primary btn-sm fw-bold rounded-pill px-3">
+          <i class="bi bi-journal-bookmark-fill me-1"></i>Acervo de Livros
+        </a>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
+          <i class="bi bi-house-door-fill me-1"></i>Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    <!-- KPIS -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="kpi-card teal">
+          <div class="text-muted small fw-bold text-uppercase">Empréstimos Ativos</div>
+          <div class="fs-3 fw-bold text-primary mt-1" id="kpiAtivos">0</div>
+          <small class="text-secondary">Livros com alunos no momento</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card danger">
+          <div class="text-muted small fw-bold text-uppercase">Devoluções Atrasadas</div>
+          <div class="fs-3 fw-bold text-danger mt-1" id="kpiAtrasados">0</div>
+          <small class="text-secondary">Prazo de entrega vencido</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card amber">
+          <div class="text-muted small fw-bold text-uppercase">Total Emprestados no Ano</div>
+          <div class="fs-3 fw-bold text-dark mt-1" id="kpiHistoricoTotal">0</div>
+          <small class="text-secondary">Movimentações registradas</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card">
+          <div class="text-muted small fw-bold text-uppercase">Alunos com Pendência</div>
+          <div class="fs-3 fw-bold text-dark mt-1" id="kpiAlunosDevendo">0</div>
+          <small class="text-secondary">Possuem livros não devolvidos</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABAS -->
+    <ul class="nav nav-tabs mb-4" id="reservaTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="tab-novo-emp" data-bs-toggle="tab" data-bs-target="#abaNovoEmprestimo" type="button" role="tab">
+          <i class="bi bi-journal-plus text-primary me-2"></i>Novo Empréstimo / Reserva
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="tab-ativos" data-bs-toggle="tab" data-bs-target="#abaAtivos" type="button" role="tab">
+          <i class="bi bi-book-half text-primary me-2"></i>Empréstimos Ativos e Histórico (<span id="badgeAtivos">0</span>)
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold text-danger" id="tab-relatorios" data-bs-toggle="tab" data-bs-target="#abaRelatorios" type="button" role="tab">
+          <i class="bi bi-bar-chart-fill text-danger me-2"></i>Relatórios & Ranking (Com Filtro e PDF)
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ABA 1: NOVO EMPRÉSTIMO -->
+      <div class="tab-pane fade show active" id="abaNovoEmprestimo" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-journal-plus me-2"></i>Realizar Empréstimo de Livro para Aluno
+              </h5>
+              <small class="text-muted">Ao selecionar o aluno e a obra, confira a foto 3x4 do estudante e a capa do livro abaixo.</small>
+            </div>
+          </div>
+
+          <form id="formEmprestimo" onsubmit="event.preventDefault(); iniciarFluxoEmprestimoLivro();">
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                <label class="form-label">1. Filtrar por Turma</label>
+                <select id="selectFiltroTurma" class="form-select fw-bold" onchange="atualizarDatalistAlunos()">
+                  <option value="">Todas as Turmas...</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-5">
+                <label class="form-label">2. Nome do(a) Aluno(a) *</label>
+                <input type="text" id="inputNomeAluno" class="form-control text-uppercase fw-bold" list="datalistAlunos" required placeholder="Digite ou selecione o aluno..." oninput="aoSelecionarAlunoInput()" onchange="aoSelecionarAlunoInput()">
+                <datalist id="datalistAlunos"></datalist>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label">3. Prazo de Devolução</label>
+                <select id="selectPrazoDias" class="form-select fw-bold">
+                  <option value="7">7 dias (1 semana)</option>
+                  <option value="14" selected>14 dias (2 semanas - Padrão)</option>
+                  <option value="21">21 dias (3 semanas)</option>
+                  <option value="30">30 dias (1 mês)</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-8">
+                <label class="form-label">4. Selecionar Obra Literária do Acervo *</label>
+                <select id="selectLivroAcervo" class="form-select fw-bold" required onchange="aoSelecionarLivroAcervo()">
+                  <option value="">Carregando acervo de livros...</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label">Exemplares no Acervo</label>
+                <input type="text" id="inputQtdDisponivel" class="form-control bg-light fw-bold text-primary" readonly value="-">
+              </div>
+
+              <!-- PAINÉIS VISUAIS: FOTO DO ALUNO + CAPA DO LIVRO -->
+              <div class="col-12 col-md-6 mt-3">
+                <div class="preview-box-card" id="cardPreviewAluno">
+                  <div class="moldura-foto-preview" id="molduraFotoAluno">
+                    <i class="bi bi-person-bounding-box fs-2 text-secondary"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="text-uppercase small fw-bold text-muted" style="font-size: 0.7rem;">Identificação do Estudante</div>
+                    <div class="fw-bold text-dark fs-6" id="lblPreviewNomeAluno">Nenhum aluno selecionado</div>
+                    <div class="small text-secondary mt-1" id="lblPreviewSerieAluno">Selecione a turma e o nome acima</div>
+                    <div id="badgeSituacaoEmprestimoAluno" class="mt-2"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6 mt-3">
+                <div class="preview-box-card" id="cardPreviewLivro">
+                  <div class="moldura-foto-preview" id="molduraCapaLivro">
+                    <i class="bi bi-book fs-2 text-secondary"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="text-uppercase small fw-bold text-muted" style="font-size: 0.7rem;">Obra Selecionada</div>
+                    <div class="fw-bold text-dark fs-6" id="lblPreviewTituloLivro">Nenhum livro selecionado</div>
+                    <div class="small text-secondary mt-1" id="lblPreviewDetalhesLivro">Autor / Editora / Estante</div>
+                    <div id="badgePreviewEstoqueLivro" class="mt-2"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 mt-4">
+                <button type="submit" id="btnSalvarEmprestimo" class="btn btn-principal w-100 py-3 shadow-sm">
+                  <i class="bi bi-check-circle-fill me-2"></i>Confirmar Empréstimo e Registrar Retirada
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ABA 2: EMPRÉSTIMOS ATIVOS COM FILTROS E PDF -->
+      <div class="tab-pane fade" id="abaAtivos" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-book-half me-2"></i>Controle de Empréstimos Ativos e Histórico
+              </h5>
+              <small class="text-muted">Filtre por período de retirada, nome do aluno ou status e gere o relatório em PDF.</small>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-danger btn-sm fw-bold" onclick="gerarPdfEmprestimosAtivos()">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar PDF da Lista
+              </button>
+              <button class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarDadosEmprestimos(true)">
+                <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3 p-3 bg-light rounded border">
+            <div class="col-12 col-md-4">
+              <label class="form-label">Filtrar por Aluno, Turma ou Livro</label>
+              <input type="text" id="filtroAtivosAluno" class="form-control form-control-sm" placeholder="Digite o nome do aluno ou título..." oninput="filtrarTabelaAtivos()">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Status</label>
+              <select id="filtroAtivosStatus" class="form-select form-select-sm fw-bold" onchange="filtrarTabelaAtivos()">
+                <option value="TODOS_ATIVOS" selected>Todos Pendentes (Ativos + Atrasados)</option>
+                <option value="EM_ANDAMENTO">Somente Em Andamento (No Prazo)</option>
+                <option value="ATRASADO">Somente Atrasados (Vencidos)</option>
+                <option value="DEVOLVIDO">Somente Devolvidos</option>
+                <option value="TODOS">Todos (Incluir Histórico Completo)</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Retirada (De)</label>
+              <input type="date" id="filtroAtivosDataIni" class="form-control form-control-sm" onchange="filtrarTabelaAtivos()">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Retirada (Até)</label>
+              <input type="date" id="filtroAtivosDataFim" class="form-control form-control-sm" onchange="filtrarTabelaAtivos()">
+            </div>
+            <div class="col-6 col-md-2 d-flex align-items-end">
+              <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="limparFiltrosAtivos()">
+                <i class="bi bi-eraser me-1"></i>Limpar Filtros
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover border align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Aluno(a)</th>
+                  <th>Turma</th>
+                  <th>Título do Livro</th>
+                  <th class="text-center">Data Retirada</th>
+                  <th class="text-center">Devolução Prevista</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-end" style="width: 150px;">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyEmprestimosAtivos">
+                <tr><td colspan="7" class="text-center py-4 text-muted">Carregando empréstimos...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 3: RELATÓRIOS E RANKING COM FILTRO POR MÊS/PERÍODO E PDF -->
+      <div class="tab-pane fade" id="abaRelatorios" role="tabpanel">
+        <div class="card p-3 mb-4">
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+              <label class="form-label"><i class="bi bi-calendar3 text-primary me-1"></i>Filtrar por Mês de Retirada</label>
+              <select id="relFiltroMes" class="form-select form-select-sm fw-bold" onchange="aplicarFiltroRelatorios()">
+                <option value="">Todos os Meses do Ano</option>
+                <option value="01">Janeiro</option>
+                <option value="02">Fevereiro</option>
+                <option value="03">Março</option>
+                <option value="04">Abril</option>
+                <option value="05">Maio</option>
+                <option value="06">Junho</option>
+                <option value="07">Julho</option>
+                <option value="08">Agosto</option>
+                <option value="09">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Período Inicial</label>
+              <input type="date" id="relDataIni" class="form-control form-control-sm" onchange="aplicarFiltroRelatorios()">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Período Final</label>
+              <input type="date" id="relDataFim" class="form-control form-control-sm" onchange="aplicarFiltroRelatorios()">
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Pesquisar Aluno / Turma</label>
+              <input type="text" id="relFiltroTexto" class="form-control form-control-sm" placeholder="Filtrar nome ou série..." oninput="aplicarFiltroRelatorios()">
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+              <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltrosRelatorios()">
+                <i class="bi bi-eraser me-1"></i>Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-12 col-lg-7">
+            <div class="card p-4 h-100">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h5 class="fw-bold text-danger m-0">
+                  <i class="bi bi-exclamation-triangle-fill me-2"></i>Livros Pendentes / Alunos Devendo (<span id="badgeQtdPendentesRel">0</span>)
+                </h5>
+                <button class="btn btn-danger btn-sm fw-bold" onclick="gerarPdfLivrosPendentes()">
+                  <i class="bi bi-file-earmark-pdf-fill me-1"></i>PDF Pendentes
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Aluno(a) / Turma</th>
+                      <th>Livro Retirado</th>
+                      <th class="text-center">Retirada / Prazo</th>
+                      <th class="text-center">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyDevendo">
+                    <tr><td colspan="4" class="text-center py-3 text-muted">Nenhum aluno com pendência.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-5">
+            <div class="card p-4 h-100">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                  <i class="bi bi-trophy-fill text-warning me-2"></i>Ranking de Leitores
+                </h5>
+                <button class="btn btn-principal btn-sm py-1 px-3" onclick="gerarPdfRankingLeitores()">
+                  <i class="bi bi-file-earmark-pdf-fill me-1"></i>PDF Ranking
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-center" style="width: 50px;">#</th>
+                      <th>Nome do(a) Aluno(a)</th>
+                      <th>Turma</th>
+                      <th class="text-center">Qtd. Livros</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyRanking">
+                    <tr><td colspan="4" class="text-center py-3 text-muted">Calculando ranking...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Sistema Interno de Biblioteca.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let listaLivrosAcervo = [];
+    let listaAlunosCache = [];
+    let listaEmprestimosGlobal = [];
+    let listaAtivosFiltrada = [];
+    let listaPendentesRelatorioFiltrada = [];
+    let listaRankingRelatorioFiltrada = [];
+
+    let cacheCapasDrive = {};
+    let cacheFotosAlunos = {};
+
+    window.onload = async function() {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (u) {
+        let nome = u.nome || u.usuario?.nome || u.col1 || "Servidor(a)";
+        document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle text-primary me-1"></i>${nome}`;
+      }
+
+      if (window.location.hash === '#relatorios') {
+        bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-relatorios')).show();
+      }
+
+      await carregarDadosIniciaisBiblioteca();
+    };
+
+    function converterDataBrParaTimestamp(dataStr) {
+      if (!dataStr) return 0;
+      const limpo = String(dataStr).trim().split(' ')[0];
+      const p = limpo.split('/');
+      if (p.length === 3) {
+        return new Date(parseInt(p[2], 10), parseInt(p[1], 10) - 1, parseInt(p[0], 10), 12, 0, 0).getTime();
+      }
+      return 0;
+    }
+
+    function converterInputDateParaTimestamp(isoStr, fimDoDia) {
+      if (!isoStr) return 0;
+      const p = isoStr.split('-');
+      if (p.length === 3) {
+        return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), fimDoDia ? 23 : 0, fimDoDia ? 59 : 0, 0).getTime();
+      }
+      return 0;
+    }
+
+    async function carregarDadosIniciaisBiblioteca() {
+      try {
+        const [resLivros, resAlunos, resEmp] = await Promise.all([
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarLivrosBiblioteca' }) }).then(r => r.json()).catch(() => null),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => null),
+          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDadosEmprestimosBiblioteca' }) }).then(r => r.json()).catch(() => null)
+        ]);
+
+        if (resLivros && resLivros.success) {
+          listaLivrosAcervo = resLivros.lista || [];
+          popularSelectAcervoLivros();
+        }
+
+        if (resAlunos && Array.isArray(resAlunos.alunos)) {
+          listaAlunosCache = resAlunos.alunos;
+          popularFiltroTurmasAlunos();
+        }
+
+        if (resEmp && resEmp.success) {
+          listaEmprestimosGlobal = resEmp.emprestimos || [];
+          atualizarKpisGerais();
+          filtrarTabelaAtivos();
+          aplicarFiltroRelatorios();
+        }
+      } catch (e) {}
+    }
+
+    function popularSelectAcervoLivros() {
+      const sel = document.getElementById('selectLivroAcervo');
+      let html = '<option value="">Selecione um livro do acervo...</option>';
+      listaLivrosAcervo.forEach((l, idx) => {
+        html += `<option value="${l.id}" data-idx="${idx}">${l.titulo} — Autor: ${l.autor || 'Desconhecido'} (Estante ${l.estante || '-'} | Qtd: ${l.quantidade})</option>`;
+      });
+      sel.innerHTML = html;
+    }
+
+    // Carrega e exibe a capa oficial do livro selecionado
+    async function aoSelecionarLivroAcervo() {
+      const sel = document.getElementById('selectLivroAcervo');
+      const opt = sel.options[sel.selectedIndex];
+      const cardLivro = document.getElementById('cardPreviewLivro');
+      const moldura = document.getElementById('molduraCapaLivro');
+
+      if (!opt || !opt.value) {
+        cardLivro.classList.remove('preenchido');
+        moldura.innerHTML = '<i class="bi bi-book fs-2 text-secondary"></i>';
+        document.getElementById('lblPreviewTituloLivro').innerText = 'Nenhum livro selecionado';
+        document.getElementById('lblPreviewDetalhesLivro').innerText = 'Autor / Editora / Estante';
+        document.getElementById('badgePreviewEstoqueLivro').innerHTML = '';
+        document.getElementById('inputQtdDisponivel').value = '-';
+        return;
+      }
+
+      const idx = Number(opt.getAttribute('data-idx'));
+      const livro = listaLivrosAcervo[idx];
+      if (!livro) return;
+
+      cardLivro.classList.add('preenchido');
+      document.getElementById('inputQtdDisponivel').value = `${livro.quantidade} exemplar(es) no acervo`;
+      document.getElementById('lblPreviewTituloLivro').innerText = livro.titulo;
+      document.getElementById('lblPreviewDetalhesLivro').innerText =
+        `Autor: ${livro.autor || '-'} | Editora: ${livro.editora || '-'} | Estante: ${livro.estante || '-'}`;
+      document.getElementById('badgePreviewEstoqueLivro').innerHTML =
+        `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${livro.categoria || 'Acervo Geral'}</span>`;
+
+      const imgRaw = String(livro.imagem || "").trim();
+      if (!imgRaw) {
+        moldura.innerHTML = '<i class="bi bi-journal-richtext fs-2 text-primary"></i>';
+        return;
+      }
+
+      if (imgRaw.startsWith("data:image")) {
+        moldura.innerHTML = `<img src="${imgRaw}" alt="Capa" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-journal-bookmark-fill fs-2 text-primary\\'></i>'">`;
+        return;
+      }
+
+      if (cacheCapasDrive[imgRaw]) {
+        moldura.innerHTML = `<img src="${cacheCapasDrive[imgRaw]}" alt="Capa">`;
+        return;
+      }
+
+      moldura.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div>';
+      try {
+        const resCapa = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'obterCapaLivroDrive', caminho: imgRaw })
+        }).then(r => r.json());
+
+        if (resCapa && resCapa.success && resCapa.base64) {
+          cacheCapasDrive[imgRaw] = resCapa.base64;
+          moldura.innerHTML = `<img src="${resCapa.base64}" alt="Capa" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-journal-bookmark-fill fs-2 text-primary\\'></i>'">`;
+        } else {
+          moldura.innerHTML = '<i class="bi bi-journal-bookmark-fill fs-2 text-primary"></i>';
+        }
+      } catch (e) {
+        moldura.innerHTML = '<i class="bi bi-journal-bookmark-fill fs-2 text-primary"></i>';
+      }
+    }
+
+    function popularFiltroTurmasAlunos() {
+      const turmasSet = new Set();
+      listaAlunosCache.forEach(a => {
+        if (a.serie && a.serie !== 'TRANSFERIDO') turmasSet.add(a.serie.toUpperCase());
+      });
+      const turmasOrd = Array.from(turmasSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+      let html = '<option value="">Todas as Turmas...</option>';
+      turmasOrd.forEach(t => { html += `<option value="${t}">${t}</option>`; });
+      document.getElementById('selectFiltroTurma').innerHTML = html;
+      atualizarDatalistAlunos();
+    }
+
+    function atualizarDatalistAlunos() {
+      const turmaSel = document.getElementById('selectFiltroTurma').value.trim().toUpperCase();
+      const filtrados = turmaSel
+        ? listaAlunosCache.filter(a => String(a.serie || "").trim().toUpperCase() === turmaSel)
+        : listaAlunosCache;
+
+      let html = '';
+      filtrados.forEach(a => {
+        html += `<option value="${a.nome}">${a.serie || ''}</option>`;
+      });
+      document.getElementById('datalistAlunos').innerHTML = html;
+    }
+
+    // Carrega e exibe a Foto 3x4 do Aluno sem quebrar quando for link do Drive/AppSheet
+    async function aoSelecionarAlunoInput() {
+      const nomeDigitado = document.getElementById('inputNomeAluno').value.trim().toUpperCase();
+      const cardAluno = document.getElementById('cardPreviewAluno');
+      const molduraFoto = document.getElementById('molduraFotoAluno');
+      const lblNome = document.getElementById('lblPreviewNomeAluno');
+      const lblSerie = document.getElementById('lblPreviewSerieAluno');
+      const badgeSit = document.getElementById('badgeSituacaoEmprestimoAluno');
+
+      const alunoObj = listaAlunosCache.find(a => String(a.nome || "").trim().toUpperCase() === nomeDigitado);
+
+      if (!alunoObj) {
+        cardAluno.classList.remove('preenchido');
+        molduraFoto.innerHTML = '<i class="bi bi-person-bounding-box fs-2 text-secondary"></i>';
+        lblNome.innerText = nomeDigitado || 'Nenhum aluno selecionado';
+        lblSerie.innerText = 'Selecione um aluno válido da lista';
+        badgeSit.innerHTML = '';
+        return;
+      }
+
+      cardAluno.classList.add('preenchido');
+      lblNome.innerText = alunoObj.nome;
+      lblSerie.innerText = `Série / Turma: ${alunoObj.serie || '-'}`;
+
+      const pendentesDoAluno = listaEmprestimosGlobal.filter(e =>
+        String(e.aluno || "").trim().toUpperCase() === nomeDigitado && e.status !== 'DEVOLVIDO'
+      );
+
+      if (pendentesDoAluno.length > 0) {
+        const ult = pendentesDoAluno[0];
+        badgeSit.innerHTML = `
+          <span class="badge bg-danger text-white">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>Possui ${pendentesDoAluno.length} livro(s) pendente(s): "${ult.titulo}" (${ult.diasComLivro || 0}d)
+          </span>`;
+      } else {
+        badgeSit.innerHTML = `
+          <span class="badge bg-success-subtle text-success border border-success-subtle">
+            <i class="bi bi-check-circle-fill me-1"></i>Sem pendências na Biblioteca
+          </span>`;
+      }
+
+      // Só usa direto se já estiver em Base64; caso contrário, pede ao servidor para converter do Drive
+      const fotoBase64Pronta = cacheFotosAlunos[nomeDigitado] || (alunoObj.foto && String(alunoObj.foto).startsWith("data:image") ? alunoObj.foto : "");
+      if (fotoBase64Pronta) {
+        molduraFoto.innerHTML = `<img src="${fotoBase64Pronta}" alt="Foto 3x4" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-person-circle fs-1 text-primary\\'></i>'">`;
+        return;
+      }
+
+      molduraFoto.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div>';
+      try {
+        const resFoto = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'obterFotoAlunoIndividual', aluno: nomeDigitado })
+        }).then(r => r.json());
+
+        if (resFoto && resFoto.success && resFoto.foto) {
+          cacheFotosAlunos[nomeDigitado] = resFoto.foto;
+          molduraFoto.innerHTML = `<img src="${resFoto.foto}" alt="Foto 3x4" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-person-circle fs-1 text-primary\\'></i>'">`;
+        } else {
+          molduraFoto.innerHTML = '<i class="bi bi-person-circle fs-1 text-primary"></i>';
+        }
+      } catch (e) {
+        molduraFoto.innerHTML = '<i class="bi bi-person-circle fs-1 text-primary"></i>';
+      }
+    }
+
+    async function iniciarFluxoEmprestimoLivro() {
+      const nomeAluno = document.getElementById('inputNomeAluno').value.trim().toUpperCase();
+      const selLivro = document.getElementById('selectLivroAcervo');
+      const idLivro = selLivro.value;
+      const opt = selLivro.options[selLivro.selectedIndex];
+      const idxLivro = opt ? Number(opt.getAttribute('data-idx')) : -1;
+      const livroObj = listaLivrosAcervo[idxLivro];
+      const tituloLivro = livroObj ? livroObj.titulo : '';
+      const diasPrazo = document.getElementById('selectPrazoDias').value;
+
+      if (!nomeAluno || !idLivro) return;
+
+      const alunoInfo = listaAlunosCache.find(a => String(a.nome || "").trim().toUpperCase() === nomeAluno);
+      const serieAluno = alunoInfo ? alunoInfo.serie : document.getElementById('selectFiltroTurma').value;
+
+      await enviarRequisicaoEmprestimo(nomeAluno, serieAluno, idLivro, tituloLivro, diasPrazo, false);
+    }
+
+    async function enviarRequisicaoEmprestimo(nomeAluno, serieAluno, idLivro, tituloLivro, diasPrazo, forcarEmprestimo) {
+      const btn = document.getElementById('btnSalvarEmprestimo');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processando Reserva...';
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'salvarEmprestimoLivroBiblioteca',
+            dados: {
+              aluno: nomeAluno,
+              serie: serieAluno,
+              idLivro: idLivro,
+              tituloLivro: tituloLivro,
+              diasPrazo: diasPrazo,
+              forcarEmprestimo: forcarEmprestimo
+            }
+          })
+        }).then(r => r.json());
+
+        if (res && res.success) {
+          Swal.fire({ title: 'Empréstimo Registrado!', text: res.msg, icon: 'success', confirmButtonColor: '#15438c' });
+          document.getElementById('formEmprestimo').reset();
+          aoSelecionarAlunoInput();
+          aoSelecionarLivroAcervo();
+          await carregarDadosIniciaisBiblioteca();
+          bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-ativos')).show();
+        } else if (res && res.bloqueado) {
+          const confirmacao = await Swal.fire({
+            title: 'Aluno com Livro Pendente!',
+            html: `
+              <div class="text-start small">
+                <p class="mb-2">${res.error}</p>
+                <div class="alert alert-warning py-2 px-3 mb-0">
+                  <i class="bi bi-question-circle-fill me-1"></i><b>Deseja realmente realizar este novo empréstimo mesmo com livro pendente?</b>
+                </div>
+              </div>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#15438c',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="bi bi-check2-circle me-1"></i>Sim, emprestar mesmo assim',
+            cancelButtonText: 'Não, cancelar'
+          });
+
+          if (confirmacao.isConfirmed) {
+            await enviarRequisicaoEmprestimo(nomeAluno, serieAluno, idLivro, tituloLivro, diasPrazo, true);
+          }
+        } else {
+          Swal.fire('Erro', (res && res.error) || 'Não foi possível realizar o empréstimo.', 'error');
+        }
+      } catch (e) {
+        Swal.fire('Erro', 'Falha de comunicação com o servidor.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Confirmar Empréstimo e Registrar Retirada';
+      }
+    }
+
+    function atualizarKpisGerais() {
+      const ativos = listaEmprestimosGlobal.filter(e => e.status === 'EM_ANDAMENTO' || e.status === 'ATRASADO');
+      const atrasados = listaEmprestimosGlobal.filter(e => e.status === 'ATRASADO');
+
+      document.getElementById('kpiAtivos').innerText = ativos.length;
+      document.getElementById('badgeAtivos').innerText = ativos.length;
+      document.getElementById('kpiAtrasados').innerText = atrasados.length;
+      document.getElementById('kpiHistoricoTotal').innerText = listaEmprestimosGlobal.length;
+
+      const alunosComPendenciaSet = new Set(ativos.map(e => e.aluno));
+      document.getElementById('kpiAlunosDevendo').innerText = alunosComPendenciaSet.size;
+    }
+
+    function limparFiltrosAtivos() {
+      document.getElementById('filtroAtivosAluno').value = '';
+      document.getElementById('filtroAtivosStatus').value = 'TODOS_ATIVOS';
+      document.getElementById('filtroAtivosDataIni').value = '';
+      document.getElementById('filtroAtivosDataFim').value = '';
+      filtrarTabelaAtivos();
+    }
+
+    function filtrarTabelaAtivos() {
+      const termo = (document.getElementById('filtroAtivosAluno').value || '').trim().toUpperCase();
+      const statusSel = document.getElementById('filtroAtivosStatus').value;
+      const tsIni = converterInputDateParaTimestamp(document.getElementById('filtroAtivosDataIni').value, false);
+      const tsFim = converterInputDateParaTimestamp(document.getElementById('filtroAtivosDataFim').value, true);
+
+      listaAtivosFiltrada = listaEmprestimosGlobal.filter(e => {
+        const bateTexto = !termo ||
+          String(e.aluno || '').toUpperCase().includes(termo) ||
+          String(e.serie || '').toUpperCase().includes(termo) ||
+          String(e.titulo || '').toUpperCase().includes(termo);
+
+        let bateStatus = true;
+        if (statusSel === 'TODOS_ATIVOS') bateStatus = (e.status === 'EM_ANDAMENTO' || e.status === 'ATRASADO');
+        else if (statusSel !== 'TODOS') bateStatus = (e.status === statusSel);
+
+        const tsRetirada = converterDataBrParaTimestamp(e.dataEmprestimo);
+        const bateIni = !tsIni || (tsRetirada >= tsIni);
+        const bateFim = !tsFim || (tsRetirada <= tsFim);
+
+        return bateTexto && bateStatus && bateIni && bateFim;
+      });
+
+      const tbody = document.getElementById('tbodyEmprestimosAtivos');
+      if (listaAtivosFiltrada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhum empréstimo encontrado para os filtros selecionados.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaAtivosFiltrada.forEach(e => {
+        let badgeStatus = '';
+        if (e.status === 'ATRASADO') badgeStatus = `<span class="badge bg-danger">ATRASADO (${e.diasComLivro || 0}d)</span>`;
+        else if (e.status === 'DEVOLVIDO') badgeStatus = `<span class="badge bg-secondary">DEVOLVIDO (${e.dataDevolucaoReal || ''})</span>`;
+        else badgeStatus = `<span class="badge bg-success">EM ANDAMENTO (${e.diasComLivro || 0}d)</span>`;
+
+        const botaoAcao = e.status !== 'DEVOLVIDO'
+          ? `<button class="btn btn-sm btn-success fw-bold" onclick="devolverLivro('${e.id}')"><i class="bi bi-check2-circle me-1"></i>Devolver</button>`
+          : `<span class="text-muted small fw-semibold"><i class="bi bi-check-all me-1"></i>Concluído</span>`;
+
+        html += `
+          <tr>
+            <td class="fw-bold text-dark">${e.aluno}</td>
+            <td><span class="badge bg-light text-dark border">${e.serie || '-'}</span></td>
+            <td class="fw-semibold">${e.titulo}</td>
+            <td class="text-center">${e.dataEmprestimo}</td>
+            <td class="text-center fw-bold ${e.status === 'ATRASADO' ? 'text-danger' : 'text-primary'}">${e.dataPrevista}</td>
+            <td class="text-center">${badgeStatus}</td>
+            <td class="text-end">${botaoAcao}</td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    async function gerarPdfEmprestimosAtivos() {
+  if (listaAtivosFiltrada.length === 0) {
+    return Swal.fire('Atenção', 'Não há registros na tabela atual para gerar o PDF.', 'warning');
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "RELATÓRIO DE EMPRÉSTIMOS E RESERVAS DE LIVROS — BIBLIOTECA",
+    subtitulo1: `Total de Registros Listados: ${listaAtivosFiltrada.length}`,
+    subtitulo2: `Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+  });
+
+  const rows = listaAtivosFiltrada.map(e => [
+    e.aluno,
+    e.serie || '-',
+    e.titulo,
+    e.dataEmprestimo,
+    e.dataPrevista,
+    e.status === 'DEVOLVIDO' ? `DEVOLVIDO (${e.dataDevolucaoReal})` : `${e.status} (${e.diasComLivro || 0}d)`
+  ]);
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Aluno(a)', 'Turma', 'Título do Livro', 'Data Retirada', 'Devolução Prevista', 'Status']],
+    body: rows,
+    styles: { fontSize: 8.5, cellPadding: 2.4 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] }
+  });
+
+  doc.save(`Relatorio_Emprestimos_Biblioteca_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+    function limparFiltrosRelatorios() {
+      document.getElementById('relFiltroMes').value = '';
+      document.getElementById('relDataIni').value = '';
+      document.getElementById('relDataFim').value = '';
+      document.getElementById('relFiltroTexto').value = '';
+      aplicarFiltroRelatorios();
+    }
+
+    function aplicarFiltroRelatorios() {
+      const mesSel = document.getElementById('relFiltroMes').value;
+      const tsIni = converterInputDateParaTimestamp(document.getElementById('relDataIni').value, false);
+      const tsFim = converterInputDateParaTimestamp(document.getElementById('relDataFim').value, true);
+      const termo = (document.getElementById('relFiltroTexto').value || '').trim().toUpperCase();
+
+      const emprestimosNoPeriodo = listaEmprestimosGlobal.filter(e => {
+        const partesData = String(e.dataEmprestimo || '').split('/');
+        const mesEmp = partesData.length === 3 ? partesData[1].padStart(2, '0') : '';
+        const bateMes = !mesSel || mesEmp === mesSel;
+
+        const tsEmp = converterDataBrParaTimestamp(e.dataEmprestimo);
+        const bateIni = !tsIni || (tsEmp >= tsIni);
+        const bateFim = !tsFim || (tsEmp <= tsFim);
+
+        const bateTexto = !termo ||
+          String(e.aluno || '').toUpperCase().includes(termo) ||
+          String(e.serie || '').toUpperCase().includes(termo) ||
+          String(e.titulo || '').toUpperCase().includes(termo);
+
+        return bateMes && bateIni && bateFim && bateTexto;
+      });
+
+      listaPendentesRelatorioFiltrada = emprestimosNoPeriodo.filter(e => e.status !== 'DEVOLVIDO');
+      document.getElementById('badgeQtdPendentesRel').innerText = listaPendentesRelatorioFiltrada.length;
+
+      const tbodyDevendo = document.getElementById('tbodyDevendo');
+      if (listaPendentesRelatorioFiltrada.length === 0) {
+        tbodyDevendo.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Nenhum livro pendente para o período selecionado!</td></tr>';
+      } else {
+        let htmlDev = '';
+        listaPendentesRelatorioFiltrada.forEach(e => {
+          const badgeSit = e.status === 'ATRASADO'
+            ? `<span class="badge bg-danger">Vencido (${e.diasComLivro || 0}d)</span>`
+            : `<span class="badge bg-warning text-dark">Pendente (${e.diasComLivro || 0}d)</span>`;
+          htmlDev += `
+            <tr>
+              <td><b>${e.aluno}</b><br><small class="text-muted">${e.serie || '-'}</small></td>
+              <td class="fw-semibold">${e.titulo}</td>
+              <td class="text-center small">
+                <div>Ret.: ${e.dataEmprestimo}</div>
+                <b class="text-danger">Prev.: ${e.dataPrevista}</b>
+              </td>
+              <td class="text-center">${badgeSit}</td>
+            </tr>`;
+        });
+        tbodyDevendo.innerHTML = htmlDev;
+      }
+
+      const contagemAlunos = {};
+      emprestimosNoPeriodo.forEach(e => {
+        if (!contagemAlunos[e.aluno]) contagemAlunos[e.aluno] = { nome: e.aluno, serie: e.serie || '-', total: 0 };
+        contagemAlunos[e.aluno].total++;
+      });
+      listaRankingRelatorioFiltrada = Object.values(contagemAlunos).sort((a, b) => b.total - a.total);
+
+      const tbodyRanking = document.getElementById('tbodyRanking');
+      if (listaRankingRelatorioFiltrada.length === 0) {
+        tbodyRanking.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Sem leituras registradas no período.</td></tr>';
+      } else {
+        let htmlRank = '';
+        listaRankingRelatorioFiltrada.slice(0, 20).forEach((r, idx) => {
+          let iconePos = idx === 0 ? '🥇 1º' : (idx === 1 ? '🥈 2º' : (idx === 2 ? '🥉 3º' : `${idx + 1}º`));
+          htmlRank += `
+            <tr>
+              <td class="text-center fw-bold">${iconePos}</td>
+              <td><b>${r.nome}</b></td>
+              <td><span class="badge bg-light text-dark border">${r.serie}</span></td>
+              <td class="text-center fw-bold text-primary">${r.total} livro(s)</td>
+            </tr>`;
+        });
+        tbodyRanking.innerHTML = htmlRank;
+      }
+    }
+
+    async function gerarPdfLivrosPendentes() {
+  if (listaPendentesRelatorioFiltrada.length === 0) {
+    return Swal.fire('Atenção', 'Não há livros pendentes no filtro atual para gerar PDF.', 'warning');
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "RELATÓRIO DE ALUNOS COM LIVROS PENDENTES — BIBLIOTECA",
+    subtitulo1: `Total de Empréstimos Pendentes / Vencidos: ${listaPendentesRelatorioFiltrada.length}`,
+    subtitulo2: `Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+  });
+
+  const rows = listaPendentesRelatorioFiltrada.map(e => [
+    e.aluno,
+    e.serie || '-',
+    e.titulo,
+    e.dataEmprestimo,
+    e.dataPrevista,
+    `${e.status} (${e.diasComLivro || 0} dias)`
+  ]);
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Aluno(a)', 'Turma', 'Livro Retirado', 'Retirada', 'Prazo', 'Situação']],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 2.2 },
+    headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' }
+  });
+
+  doc.save(`Livros_Pendentes_Biblioteca_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+async function gerarPdfRankingLeitores() {
+  if (listaRankingRelatorioFiltrada.length === 0) {
+    return Swal.fire('Atenção', 'Não há dados de ranking no período selecionado.', 'warning');
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "RANKING OFICIAL DE LEITORES DA BIBLIOTECA",
+    subtitulo1: `Estudantes que mais realizaram empréstimos literários no período`,
+    subtitulo2: `Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+  });
+
+  const rows = listaRankingRelatorioFiltrada.map((r, idx) => [
+    `${idx + 1}º Lugar`,
+    r.nome,
+    r.serie || '-',
+    `${r.total} livro(s)`
+  ]);
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Posição', 'Nome do(a) Aluno(a)', 'Série / Turma', 'Total de Empréstimos']],
+    body: rows,
+    styles: { fontSize: 8.5, cellPadding: 2.4 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
+  });
+
+  doc.save(`Ranking_Leitores_Biblioteca_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+    async function devolverLivro(idEmp) {
+      const conf = await Swal.fire({
+        title: 'Confirmar Devolução do Livro?',
+        text: 'O exemplar retornará como disponível para empréstimo no acervo.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#15438c',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, Registrar Devolução',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (!conf.isConfirmed) return;
+
+      Swal.fire({ title: 'Registrando devolução...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'registrarDevolucaoLivroBiblioteca', idEmprestimo: idEmp })
+      }).then(r => r.json());
+
+      if (res && res.success) {
+        await carregarDadosEmprestimos(false);
+        Swal.fire({ title: 'Devolvido!', text: res.msg, icon: 'success', confirmButtonColor: '#15438c' });
+      } else {
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível registrar a devolução.', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

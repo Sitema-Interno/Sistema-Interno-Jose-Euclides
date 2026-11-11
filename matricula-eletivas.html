@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matrícula em Eletivas - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1380px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .moldura-3x4-mat {
+      width: 96px;
+      height: 128px;
+      border-radius: 10px;
+      border: 2px dashed #94a3b8;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .moldura-3x4-mat img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Card de Dia da Semana + Sub-blocos de Tempos Eletivos */
+    .card-dia-semana {
+      border: 1px solid #cbd5e1;
+      border-top: 4px solid var(--azul-primario);
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .header-dia-semana {
+      background: #f1f5f9;
+      padding: 10px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .subbloco-tempo-do-dia {
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #2563eb;
+      border-radius: 10px;
+      padding: 12px;
+      background: #f8fafc;
+      margin-bottom: 12px;
+    }
+
+    .subbloco-tempo-do-dia:last-child {
+      margin-bottom: 0;
+    }
+
+    .subbloco-tempo-do-dia.ja-matriculado {
+      border-left-color: #198754;
+      background: #f0fdf4;
+    }
+
+    .opcao-eletiva-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      padding: 10px 12px;
+      background: #ffffff;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .opcao-eletiva-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .opcao-eletiva-card:hover:not(.bloqueada) {
+      border-color: var(--azul-primario);
+      background: #eff6ff;
+    }
+
+    .opcao-eletiva-card.selecionada {
+      border: 2px solid var(--azul-primario);
+      background: #dbeafe;
+    }
+
+    .opcao-eletiva-card.bloqueada {
+      background: #f1f5f9;
+      opacity: 0.72;
+      cursor: not-allowed;
+    }
+
+    /* Tabela Matriz Semanal (Segunda a Sexta) Enquadrada na Tela */
+    .tabela-semanal-turma {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-semanal-turma th {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.73rem;
+      text-transform: uppercase;
+      padding: 10px 6px;
+      border: 1px solid #cbd5e1;
+      text-align: center;
+    }
+
+    .tabela-semanal-turma td {
+      vertical-align: top;
+      font-size: 0.76rem;
+      padding: 8px 6px;
+      border: 1px solid #e2e8f0;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .item-eletiva-dia {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-left: 3px solid var(--azul-primario);
+      border-radius: 6px;
+      padding: 4px 6px;
+      margin-bottom: 4px;
+      line-height: 1.25;
+      text-align: left;
+    }
+
+    .item-eletiva-dia:last-child {
+      margin-bottom: 0;
+    }
+
+    .tag-tempo-mini {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--azul-primario);
+      background: #dbeafe;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Servidor</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- CARD 1: MATRÍCULA DO ALUNO NAS ELETIVAS (AGRUPADO POR DIA DA SEMANA -> TEMPOS ELETIVOS DO DIA) -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-person-check-fill me-2"></i>1. Matrícula do Aluno nas Eletivas (Por Dia da Semana e Tempo Eletivo)
+          </h5>
+          <small class="text-muted">Exibe os Dias da Semana cadastrados para a série e os Tempos Eletivos disponíveis em cada dia, bloqueando repetições ou duplicidades.</small>
+        </div>
+        <button class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarDadosIniciaisMatricula(true)">
+          <i class="bi bi-arrow-clockwise me-1"></i>Sincronizar Vagas
+        </button>
+      </div>
+
+      <div class="row g-3 align-items-center mb-3">
+        <div class="col-12 col-md-2 d-flex flex-column align-items-center">
+          <div class="moldura-3x4-mat" id="boxFotoMat">
+            <i class="bi bi-person-bounding-box fs-2 text-secondary"></i>
+            <span class="small text-muted" style="font-size: 0.7rem;">Foto 3x4</span>
+          </div>
+          <span class="badge bg-secondary mt-1" id="badgeTurmaFotoMat">Turma</span>
+        </div>
+
+        <div class="col-12 col-md-10">
+          <div class="row g-3">
+            <div class="col-6 col-md-3">
+              <label class="form-label">1. Semestre / Bimestre *</label>
+              <select id="matSemestre" class="form-select fw-bold" onchange="montarPainelDiasETemposEletivos()"></select>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label">2. Série Base *</label>
+              <select id="matSerieBase" class="form-select fw-bold" onchange="aoMudarSerieBase()">
+                <option value="">Selecione...</option>
+                <option value="1ª SÉRIE">1ª SÉRIE</option>
+                <option value="2ª SÉRIE">2ª SÉRIE</option>
+                <option value="3ª SÉRIE">3ª SÉRIE</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">3. Turma do Aluno (Aba SÉRIE) *</label>
+              <select id="matSerieTurma" class="form-select fw-bold" onchange="aoMudarTurmaEspecifica()">
+                <option value="">Selecione a Série Base...</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">4. Nome do(a) Aluno(a) *</label>
+              <select id="matAlunoSelect" class="form-select fw-bold" onchange="aoSelecionarAlunoMatricula()">
+                <option value="">Selecione a Turma...</option>
+              </select>
+            </div>
+
+            <div class="col-12" id="boxHistoricoAlunoResumo" style="display: none;">
+              <div class="alert alert-info py-2 px-3 mb-0 small d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div id="textoHistoricoAlunoResumo"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grade de Dias da Semana e seus respectivos Tempos Eletivos -->
+      <div id="areaMatrizTemposEletivos" class="mt-3">
+        <div class="text-center p-4 bg-light border rounded text-muted">
+          Selecione o <b>Semestre</b>, a <b>Série Base</b>, a <b>Turma</b> e o <b>Nome do Aluno</b> acima para visualizar os Dias da Semana, os Tempos Eletivos de cada dia e as Vagas Disponíveis.
+        </div>
+      </div>
+
+      <div class="mt-4 d-none" id="areaBotaoConfirmarMatricula">
+        <button type="button" id="btnConfirmarMatricula" class="btn btn-principal w-100 py-3 fs-6 shadow-sm" onclick="confirmarMatriculaAluno()">
+          <i class="bi bi-check2-circle me-2"></i>Confirmar Matrícula nas Eletivas Selecionadas
+        </button>
+      </div>
+    </div>
+
+    <!-- CARD 2: RELATÓRIO DE MATRÍCULAS POR TURMA (MATRIZ DE SEGUNDA A SEXTA) -->
+    <div class="card p-3 p-md-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-table me-2"></i>2. Relatório de Matrículas por Turma — Grade Semanal (Segunda a Sexta)
+          </h5>
+          <small class="text-muted">Exibe os alunos da turma na primeira coluna e as eletivas matriculadas de Segunda a Sexta-Feira (incluindo múltiplos Tempos Eletivos no mesmo dia).</small>
+        </div>
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Semestre</label>
+          <select id="relSemestre" class="form-select fw-bold" onchange="consultarRelatorioTurmaNaTela()"></select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Série / Turma (Aba SÉRIE)</label>
+          <select id="relSerie" class="form-select fw-bold" onchange="consultarRelatorioTurmaNaTela()">
+            <option value="">Selecione a turma...</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2 d-grid">
+          <button class="btn btn-outline-primary fw-bold" onclick="consultarRelatorioTurmaNaTela()">
+            <i class="bi bi-search me-1"></i>Ver na Tela
+          </button>
+        </div>
+        <div class="col-6 col-md-3 d-grid">
+          <button class="btn btn-danger fw-bold" onclick="gerarPdfRelatorioTurma()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF da Turma
+          </button>
+        </div>
+      </div>
+
+      <div class="w-100 mt-3 d-none" id="areaTabelaRelatorioTurma">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small fw-bold text-primary" id="lblResumoMatrizTurma"></span>
+          <span class="small text-muted">Legenda: <b>[T1]</b> a <b>[T4]</b> indica o Tempo Eletivo da disciplina no dia.</span>
+        </div>
+        <table class="table table-hover border align-middle mb-0 tabela-semanal-turma" id="tabelaMatrizSemanalTurma">
+          <thead>
+            <tr id="theadRowMatrizTurma">
+              <th style="width: 4%;">Nº</th>
+              <th style="width: 21%; text-align: left; padding-left: 10px;">Nome do(a) Aluno(a)</th>
+              <th style="width: 15%;">Segunda-Feira</th>
+              <th style="width: 15%;">Terça-Feira</th>
+              <th style="width: 15%;">Quarta-Feira</th>
+              <th style="width: 15%;">Quinta-Feira</th>
+              <th style="width: 15%;">Sexta-Feira</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyRelatorioTurma"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    if (usuarioLogado) {
+      document.getElementById('lblNomeUsuario').innerText = (usuarioLogado.nome || usuarioLogado.usuario?.nome || "USUÁRIO").toUpperCase();
+      document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Servidor";
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let seriesOficiaisBanco = [];
+    let listaAlunosBanco = [];
+    let catalogoEletivasBanco = [];
+    let historicoMatriculasBanco = [];
+    let escolhasAtuaisPorSlot = {};
+    let cacheLinhasMatrizTurma = [];
+    let cacheTemColunaOutros = false;
+
+    const ORDEM_DIAS_SEMANA = {
+      "SEGUNDA-FEIRA": 1,
+      "TERÇA-FEIRA": 2,
+      "QUARTA-FEIRA": 3,
+      "QUINTA-FEIRA": 4,
+      "SEXTA-FEIRA": 5,
+      "SÁBADO": 6,
+      "SEM DIA DEFINIDO": 7
+    };
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    window.onload = async function() {
+      preencherSelectsSemestres();
+      await carregarDadosIniciaisMatricula(false);
+    };
+
+    function preencherSelectsSemestres() {
+      const anoAtual = new Date().getFullYear();
+      const mesAtual = new Date().getMonth() + 1;
+      const semPadrao = `${anoAtual}.${mesAtual <= 6 ? '1' : '2'}`;
+
+      let html = '';
+      for (let a = 2025; a <= 2030; a++) {
+        html += `<option value="${a}.1" ${(`${a}.1` === semPadrao) ? 'selected' : ''}>${a}.1 (1º Semestre)</option>`;
+        html += `<option value="${a}.2" ${(`${a}.2` === semPadrao) ? 'selected' : ''}>${a}.2 (2º Semestre)</option>`;
+      }
+      document.getElementById('matSemestre').innerHTML = html;
+      document.getElementById('relSemestre').innerHTML = html;
+    }
+
+    function extrairCodigoEletivaLocal(nome) {
+      const str = String(nome || "").trim().toUpperCase();
+      const m = str.match(/^([A-Z]{2,4}\d{2,4})\s*[-|]/);
+      return m ? m[1] : str;
+    }
+
+    function extrairSerieBaseLocal(serieStr) {
+      const s = String(serieStr || "").replace(/["']/g, "").trim().toUpperCase();
+      if (s.startsWith("1")) return "1ª SÉRIE";
+      if (s.startsWith("2")) return "2ª SÉRIE";
+      if (s.startsWith("3")) return "3ª SÉRIE";
+      return s;
+    }
+
+    function padronizarNomeDiaCompleto(str) {
+      const d = String(str || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toUpperCase();
+      if (d.includes("SEGUNDA") || d === "SEG") return "SEGUNDA-FEIRA";
+      if (d.includes("TERCA") || d === "TER") return "TERÇA-FEIRA";
+      if (d.includes("QUARTA") || d === "QUA") return "QUARTA-FEIRA";
+      if (d.includes("QUINTA") || d === "QUI") return "QUINTA-FEIRA";
+      if (d.includes("SEXTA") || d === "SEX") return "SEXTA-FEIRA";
+      return "";
+    }
+
+    function normalizarDiaSemanaLocal(str) {
+      const d = padronizarNomeDiaCompleto(str);
+      if (d === "SEGUNDA-FEIRA") return "SEGUNDA";
+      if (d === "TERÇA-FEIRA") return "TERÇA";
+      if (d === "QUARTA-FEIRA") return "QUARTA";
+      if (d === "QUINTA-FEIRA") return "QUINTA";
+      if (d === "SEXTA-FEIRA") return "SEXTA";
+      return "";
+    }
+
+    function extrairTempoCurtoLocal(str) {
+      const t = String(str || "").toUpperCase();
+      const m = t.match(/TEMPO\s*ELETIVO\s*(\d)/);
+      if (m) return `T${m[1]}`;
+      return "";
+    }
+
+    async function carregarDadosIniciaisMatricula(mostrarAlerta) {
+      if (mostrarAlerta) Swal.fire({ title: 'Sincronizando matrículas e vagas...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const [resMat, resSer] = await Promise.all([
+        chamarAPI({ action: 'getDadosMatricula' }),
+        chamarAPI({ action: 'listarConfig', tipo: 'SERIE' })
+      ]);
+
+      if (mostrarAlerta) Swal.close();
+
+      if (resMat) {
+        listaAlunosBanco = resMat.alunos || [];
+        catalogoEletivasBanco = resMat.catalogo || [];
+        historicoMatriculasBanco = resMat.historico || [];
+      }
+
+      let seriesSet = new Set();
+      if (resSer && Array.isArray(resSer.lista)) {
+        resSer.lista.forEach(s => {
+          let ns = String(s.col2 || s.col1 || "").replace(/["']/g, "").trim().toUpperCase();
+          if (ns && ns !== "SÉRIE" && ns !== "TRANSFERIDO") seriesSet.add(ns);
+        });
+      }
+      if (resMat && Array.isArray(resMat.series)) {
+        resMat.series.forEach(s => seriesSet.add(String(s).replace(/["']/g, "").trim().toUpperCase()));
+      }
+      seriesOficiaisBanco = Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+      let htmlRelSerie = '<option value="">Selecione a turma...</option>';
+      seriesOficiaisBanco.forEach(s => { htmlRelSerie += `<option value="${s}">${s}</option>`; });
+      document.getElementById('relSerie').innerHTML = htmlRelSerie;
+
+      if (document.getElementById('matAlunoSelect').value) {
+        montarPainelDiasETemposEletivos();
+      }
+    }
+
+    function aoMudarSerieBase() {
+      const serieBase = document.getElementById('matSerieBase').value;
+      const selTurma = document.getElementById('matSerieTurma');
+      const selAluno = document.getElementById('matAlunoSelect');
+
+      if (!serieBase) {
+        selTurma.innerHTML = '<option value="">Selecione a Série Base...</option>';
+        selAluno.innerHTML = '<option value="">Selecione a Turma...</option>';
+        montarPainelDiasETemposEletivos();
+        return;
+      }
+
+      const turmasDaBase = seriesOficiaisBanco.filter(s => extrairSerieBaseLocal(s) === serieBase);
+      let html = '<option value="">Selecione a Turma...</option>';
+      turmasDaBase.forEach(t => { html += `<option value="${t}">${t}</option>`; });
+      selTurma.innerHTML = html;
+      selAluno.innerHTML = '<option value="">Selecione a Turma...</option>';
+      montarPainelDiasETemposEletivos();
+    }
+
+    function aoMudarTurmaEspecifica() {
+      const turma = document.getElementById('matSerieTurma').value;
+      const selAluno = document.getElementById('matAlunoSelect');
+      document.getElementById('badgeTurmaFotoMat').innerText = turma || 'Turma';
+
+      if (!turma) {
+        selAluno.innerHTML = '<option value="">Selecione a Turma...</option>';
+        montarPainelDiasETemposEletivos();
+        return;
+      }
+
+      const alunosDaTurma = listaAlunosBanco.filter(a => String(a.serie || "").replace(/["']/g, "").trim().toUpperCase() === turma);
+      let html = `<option value="">Selecione o Aluno (${alunosDaTurma.length})...</option>`;
+      alunosDaTurma.forEach(a => {
+        html += `<option value="${a.nome}">${a.nome}</option>`;
+      });
+      selAluno.innerHTML = html;
+      montarPainelDiasETemposEletivos();
+    }
+
+    async function aoSelecionarAlunoMatricula() {
+      const nomeAluno = document.getElementById('matAlunoSelect').value;
+      const boxFoto = document.getElementById('boxFotoMat');
+
+      montarPainelDiasETemposEletivos();
+
+      if (!nomeAluno) {
+        boxFoto.innerHTML = '<i class="bi bi-person-bounding-box fs-2 text-secondary"></i><span class="small text-muted" style="font-size: 0.7rem;">Foto 3x4</span>';
+        return;
+      }
+
+      boxFoto.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div>';
+      const resFoto = await chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: nomeAluno });
+      if (resFoto && resFoto.success && resFoto.foto && resFoto.foto.startsWith('data:image')) {
+        boxFoto.innerHTML = `<img src="${resFoto.foto}" alt="3x4">`;
+      } else {
+        boxFoto.innerHTML = '<i class="bi bi-person-circle fs-1 text-primary"></i>';
+      }
+    }
+
+    // =========================================================
+    // PAINEL DE MATRÍCULA AGRUPADO POR DIA DA SEMANA -> TEMPOS ELETIVOS DAQUELE DIA
+    // =========================================================
+    function montarPainelDiasETemposEletivos() {
+      const semestreSel = document.getElementById('matSemestre').value;
+      const serieBaseSel = document.getElementById('matSerieBase').value;
+      const turmaSel = document.getElementById('matSerieTurma').value;
+      const alunoSel = document.getElementById('matAlunoSelect').value;
+
+      const container = document.getElementById('areaMatrizTemposEletivos');
+      const boxHist = document.getElementById('boxHistoricoAlunoResumo');
+      const divBtn = document.getElementById('areaBotaoConfirmarMatricula');
+      escolhasAtuaisPorSlot = {};
+
+      if (!semestreSel || !serieBaseSel || !turmaSel || !alunoSel) {
+        boxHist.style.display = 'none';
+        divBtn.classList.add('d-none');
+        container.innerHTML = `
+          <div class="text-center p-4 bg-light border rounded text-muted">
+            Selecione o <b>Semestre</b>, a <b>Série Base</b>, a <b>Turma</b> e o <b>Nome do Aluno</b> acima para visualizar os Dias da Semana, os Tempos Eletivos de cada dia e as Vagas Disponíveis.
+          </div>`;
+        return;
+      }
+
+      // 1. Histórico completo do aluno (para bloquear repetição de eletiva já feita e identificar o que já está matriculado no semestre)
+      const matriculasDoAluno = historicoMatriculasBanco.filter(m => m.aluno === alunoSel);
+      const mapaEletivasJaCursadasPeloAluno = {};
+      const mapaMatriculasSemestreAtual = {};
+
+      matriculasDoAluno.forEach(m => {
+        const cod = extrairCodigoEletivaLocal(m.eletiva);
+        mapaEletivasJaCursadasPeloAluno[m.eletiva] = m.ano;
+        if (cod) mapaEletivasJaCursadasPeloAluno[cod] = m.ano;
+
+        if (String(m.ano) === String(semestreSel)) {
+          const diaMat = padronizarNomeDiaCompleto(m.dia || m.diaOuTempo);
+          const tempoMat = String(m.tempoEletivo || m.diaOuTempo || "TEMPO ELETIVO 1").trim().toUpperCase();
+          if (diaMat) {
+            mapaMatriculasSemestreAtual[`${diaMat}|${tempoMat}`] = m.eletiva;
+          }
+          mapaMatriculasSemestreAtual[tempoMat] = m.eletiva;
+        }
+      });
+
+      if (matriculasDoAluno.length > 0) {
+        boxHist.style.display = 'block';
+        const tags = matriculasDoAluno.map(m => `<span class="badge bg-white text-dark border me-1">${m.ano}: ${m.eletiva}</span>`).join('');
+        document.getElementById('textoHistoricoAlunoResumo').innerHTML =
+          `<i class="bi bi-shield-lock-fill text-primary me-1"></i><b>Histórico do(a) Aluno(a) (Bloqueado contra repetição):</b> ${tags}`;
+      } else {
+        boxHist.style.display = 'none';
+      }
+
+      // 2. Contagem de vagas ocupadas no semestre atual
+      const contagemOcupadasPorEletiva = {};
+      historicoMatriculasBanco.forEach(m => {
+        if (String(m.ano) === String(semestreSel)) {
+          const ch = String(m.eletiva || "").trim().toUpperCase();
+          contagemOcupadasPorEletiva[ch] = (contagemOcupadasPorEletiva[ch] || 0) + 1;
+        }
+      });
+
+      // 3. Filtra eletivas da Série Base / Turma no Semestre selecionado
+      const eletivasCompativeis = catalogoEletivasBanco.filter(e => {
+        if (String(e.ano) !== String(semestreSel)) return false;
+        const baseElet = extrairSerieBaseLocal(e.turma);
+        return e.turma === turmaSel || baseElet === serieBaseSel;
+      });
+
+      if (eletivasCompativeis.length === 0) {
+        divBtn.classList.add('d-none');
+        container.innerHTML = `
+          <div class="alert alert-warning text-center my-2">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>Nenhuma eletiva cadastrada na aba <b>ELETIVA 2025</b> para o semestre <b>${semestreSel}</b> e série <b>${serieBaseSel}</b>.
+          </div>`;
+        return;
+      }
+
+      // 4. Agrupa por DIA DA SEMANA e, dentro de cada Dia, pelos TEMPOS ELETIVOS daquele dia
+      const gruposPorDia = {};
+      eletivasCompativeis.forEach(e => {
+        const diaNome = padronizarNomeDiaCompleto(e.dia) || "SEM DIA DEFINIDO";
+        const tempoNome = String(e.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase();
+
+        if (!gruposPorDia[diaNome]) {
+          gruposPorDia[diaNome] = {
+            dia: diaNome,
+            temposMap: {}
+          };
+        }
+        if (!gruposPorDia[diaNome].temposMap[tempoNome]) {
+          gruposPorDia[diaNome].temposMap[tempoNome] = [];
+        }
+        gruposPorDia[diaNome].temposMap[tempoNome].push(e);
+      });
+
+      const diasOrdenados = Object.keys(gruposPorDia).sort((a, b) =>
+        (ORDEM_DIAS_SEMANA[a] || 99) - (ORDEM_DIAS_SEMANA[b] || 99)
+      );
+
+      let htmlGrid = '<div class="row g-3">';
+      let temAlgumSlotDisponivel = false;
+      let contadorSlotGlobal = 0;
+
+      diasOrdenados.forEach(diaNome => {
+        const objDia = gruposPorDia[diaNome];
+        const temposDoDia = Object.keys(objDia.temposMap).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+        const resumoTemposBadge = temposDoDia.join(" • ");
+
+        htmlGrid += `
+          <div class="col-12 col-md-6">
+            <div class="card-dia-semana">
+              <div class="header-dia-semana">
+                <div class="fw-bold text-primary fs-6">
+                  <i class="bi bi-calendar-week-fill me-2"></i>${diaNome}
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">${resumoTemposBadge}</span>
+              </div>
+              <div class="p-3">`;
+
+        temposDoDia.forEach(tempoNome => {
+          contadorSlotGlobal++;
+          const idxSlot = contadorSlotGlobal;
+          const chaveSlot = `${diaNome}|${tempoNome}`;
+          const opcoesDoTempoNoDia = objDia.temposMap[tempoNome];
+
+          // Verifica se o aluno já está matriculado especificamente neste Dia + Tempo Eletivo
+          const eletivaMatriculadaNoSlot = mapaMatriculasSemestreAtual[chaveSlot] ||
+            (opcoesDoTempoNoDia.find(op => mapaMatriculasSemestreAtual[tempoNome] === op.nome) ? mapaMatriculasSemestreAtual[tempoNome] : "");
+
+          if (!eletivaMatriculadaNoSlot) {
+            temAlgumSlotDisponivel = true;
+          }
+
+          htmlGrid += `
+            <div class="subbloco-tempo-do-dia ${eletivaMatriculadaNoSlot ? 'ja-matriculado' : ''}">
+              <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                <span class="fw-bold text-dark small">
+                  <i class="bi bi-clock-fill text-primary me-1"></i>${tempoNome}
+                  <span class="text-muted fw-normal">(${diaNome})</span>
+                </span>
+                ${eletivaMatriculadaNoSlot
+                  ? `<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Já Matriculado</span>`
+                  : `<span class="badge bg-white text-primary border">Escolha 1 eletiva</span>`
+                }
+              </div>`;
+
+          if (eletivaMatriculadaNoSlot) {
+            htmlGrid += `
+              <div class="p-2 bg-white border border-success rounded text-success fw-bold small">
+                <i class="bi bi-lock-fill me-1"></i>Matriculado(a) em: <span class="text-dark">${eletivaMatriculadaNoSlot}</span>
+              </div>`;
+          } else {
+            opcoesDoTempoNoDia.forEach((op, idxOp) => {
+              const ocupadas = contagemOcupadasPorEletiva[op.nome] || 0;
+              const restantes = Math.max(0, (op.vagasTotal || 45) - ocupadas);
+              const codOp = extrairCodigoEletivaLocal(op.nome);
+              const semestreJaCursou = mapaEletivasJaCursadasPeloAluno[op.nome] || (codOp ? mapaEletivasJaCursadasPeloAluno[codOp] : null);
+
+              const bloqueadaPorHistorico = Boolean(semestreJaCursou);
+              const bloqueadaPorVagas = (restantes <= 0);
+              const isBloqueada = bloqueadaPorHistorico || bloqueadaPorVagas;
+
+              let badgeDireita = '';
+              if (bloqueadaPorHistorico) {
+                badgeDireita = `<span class="badge bg-danger"><i class="bi bi-ban me-1"></i>Já cursou (${semestreJaCursou})</span>`;
+              } else if (bloqueadaPorVagas) {
+                badgeDireita = `<span class="badge bg-secondary">Lotada (0 vagas)</span>`;
+              } else {
+                badgeDireita = `<span class="badge bg-success">${restantes} vagas</span>`;
+              }
+
+              const idCard = `cardOp_${idxSlot}_${idxOp}`;
+              const chaveSlotEsc = chaveSlot.replace(/'/g, "\\'");
+              const tempoEsc = tempoNome.replace(/'/g, "\\'");
+              const diaEsc = diaNome.replace(/'/g, "\\'");
+              const nomeEsc = op.nome.replace(/'/g, "\\'");
+
+              htmlGrid += `
+                <div id="${idCard}" class="opcao-eletiva-card ${isBloqueada ? 'bloqueada' : ''} card-slot-${idxSlot}"
+                     onclick="${isBloqueada ? '' : `selecionarOpcaoEletivaSlot(${idxSlot}, '${idCard}', '${chaveSlotEsc}', '${tempoEsc}', '${diaEsc}', '${nomeEsc}')`}">
+                  <div>
+                    <div class="fw-bold ${isBloqueada ? 'text-decoration-line-through text-muted' : 'text-dark'}" style="font-size: 0.84rem;">
+                      ${op.nome}
+                    </div>
+                    <div class="text-muted" style="font-size: 0.72rem;">
+                      ${op.professor ? `<i class="bi bi-person-workspace me-1"></i>${op.professor} • ` : ''}
+                      Turma: ${op.turma}
+                    </div>
+                  </div>
+                  <div class="text-end flex-shrink-0">
+                    ${badgeDireita}
+                  </div>
+                </div>`;
+            });
+          }
+
+          htmlGrid += `</div>`;
+        });
+
+        htmlGrid += `</div></div></div>`;
+      });
+
+      htmlGrid += '</div>';
+      container.innerHTML = htmlGrid;
+
+      if (temAlgumSlotDisponivel) {
+        divBtn.classList.remove('d-none');
+      } else {
+        divBtn.classList.add('d-none');
+      }
+    }
+
+    function selecionarOpcaoEletivaSlot(idxSlot, idCard, chaveSlot, tempoEletivo, dia, nomeEletiva) {
+      const cardClicado = document.getElementById(idCard);
+      const jaEstavaSelecionado = cardClicado.classList.contains('selecionada');
+
+      document.querySelectorAll(`.card-slot-${idxSlot}`).forEach(el => el.classList.remove('selecionada'));
+
+      if (jaEstavaSelecionado) {
+        delete escolhasAtuaisPorSlot[chaveSlot];
+      } else {
+        cardClicado.classList.add('selecionada');
+        escolhasAtuaisPorSlot[chaveSlot] = {
+          tempoEletivo: tempoEletivo,
+          dia: dia === "SEM DIA DEFINIDO" ? "" : dia,
+          eletiva: nomeEletiva
+        };
+      }
+    }
+
+    async function confirmarMatriculaAluno() {
+      const semestre = document.getElementById('matSemestre').value;
+      const serieBase = document.getElementById('matSerieBase').value;
+      const serieTurma = document.getElementById('matSerieTurma').value;
+      const aluno = document.getElementById('matAlunoSelect').value;
+
+      const listaEscolhas = Object.values(escolhasAtuaisPorSlot);
+      if (listaEscolhas.length === 0) {
+        return Swal.fire('Atenção', 'Clique em pelo menos uma Eletiva disponível nos dias/tempos acima para matricular o aluno.', 'warning');
+      }
+
+      const codigosEscolhidos = new Set();
+      for (const item of listaEscolhas) {
+        const cod = extrairCodigoEletivaLocal(item.eletiva);
+        if (codigosEscolhidos.has(cod)) {
+          return Swal.fire('Eletiva Duplicada!', `Você selecionou a mesma eletiva (${item.eletiva}) mais de uma vez. Escolha eletivas distintas!`, 'error');
+        }
+        codigosEscolhidos.add(cod);
+      }
+
+      const payloadMatriculas = listaEscolhas.map(item => ({
+        ano: semestre,
+        serieBase: serieBase,
+        serie: serieTurma,
+        aluno: aluno,
+        tempoEletivo: item.tempoEletivo,
+        dia: item.dia,
+        eletiva: item.eletiva
+      }));
+
+      const btn = document.getElementById('btnConfirmarMatricula');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Validando e Salvando Matrícula...';
+
+      const res = await chamarAPI({ action: 'salvarMatricula', matriculas: payloadMatriculas });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle me-2"></i>Confirmar Matrícula nas Eletivas Selecionadas';
+
+      if (res && res.msg) {
+        const isBloqueio = res.msg.toLowerCase().includes("bloqueada");
+        Swal.fire({
+          title: isBloqueio ? 'Atenção!' : 'Matrícula Confirmada!',
+          text: res.msg,
+          icon: isBloqueio ? 'warning' : 'success',
+          confirmButtonColor: '#15438c'
+        });
+        await carregarDadosIniciaisMatricula(false);
+        montarPainelDiasETemposEletivos();
+      }
+    }
+
+    // =========================================================
+    // 2. CONSTRUTOR DA MATRIZ SEMANAL POR ALUNO (SEGUNDA A SEXTA)
+    // =========================================================
+    function construirMatrizSemanalDosAlunos(dadosBrutos, semestre, serieTurma) {
+      const mapaCatLocal = {};
+      catalogoEletivasBanco.forEach(c => {
+        const cod = extrairCodigoEletivaLocal(c.nome);
+        const diaNorm = normalizarDiaSemanaLocal(c.dia);
+        const info = { dia: diaNorm, tempo: c.tempoEletivo || "" };
+        if (c.ano) {
+          mapaCatLocal[`${c.ano}|${c.nome.toUpperCase()}`] = info;
+          if (cod) mapaCatLocal[`${c.ano}|${cod}`] = info;
+        }
+        if (!mapaCatLocal[c.nome.toUpperCase()] || diaNorm) mapaCatLocal[c.nome.toUpperCase()] = info;
+        if (cod && (!mapaCatLocal[cod] || diaNorm)) mapaCatLocal[cod] = info;
+      });
+
+      const mapaPorAluno = {};
+
+      (dadosBrutos || []).forEach(reg => {
+        const nomeAl = String(reg.aluno || "").replace(/\s+/g, " ").trim().toUpperCase();
+        if (!nomeAl) return;
+
+        if (!mapaPorAluno[nomeAl]) {
+          mapaPorAluno[nomeAl] = {
+            aluno: nomeAl,
+            SEGUNDA: [],
+            TERÇA: [],
+            QUARTA: [],
+            QUINTA: [],
+            SEXTA: [],
+            OUTROS: []
+          };
+        }
+
+        const nomeElet = String(reg.eletiva || "").trim();
+        const codElet = extrairCodigoEletivaLocal(nomeElet);
+        const catInfo = mapaCatLocal[`${semestre}|${nomeElet.toUpperCase()}`] ||
+                        (codElet ? mapaCatLocal[`${semestre}|${codElet}`] : null) ||
+                        mapaCatLocal[nomeElet.toUpperCase()] ||
+                        (codElet ? mapaCatLocal[codElet] : null) || {};
+
+        let diaChave = normalizarDiaSemanaLocal(reg.diaSemana || reg.dia) || catInfo.dia || "";
+        let tempoLabel = extrairTempoCurtoLocal(reg.tempoEletivo || reg.dia || catInfo.tempo);
+
+        if (!diaChave && tempoLabel) {
+          const catTempoSerie = catalogoEletivasBanco.find(c =>
+            String(c.ano) === String(semestre) &&
+            extrairTempoCurtoLocal(c.tempoEletivo) === tempoLabel &&
+            normalizarDiaSemanaLocal(c.dia) !== ""
+          );
+          if (catTempoSerie) {
+            diaChave = normalizarDiaSemanaLocal(catTempoSerie.dia);
+          }
+        }
+
+        const objItem = {
+          tempo: tempoLabel,
+          eletiva: nomeElet
+        };
+
+        const colunaDestino = (diaChave && mapaPorAluno[nomeAl][diaChave]) ? diaChave : "OUTROS";
+
+        const jaExisteNoDia = mapaPorAluno[nomeAl][colunaDestino].some(x =>
+          x.eletiva.toUpperCase() === nomeElet.toUpperCase() && x.tempo === tempoLabel
+        );
+        if (!jaExisteNoDia) {
+          mapaPorAluno[nomeAl][colunaDestino].push(objItem);
+        }
+      });
+
+      const diasCols = ["SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "OUTROS"];
+      const listaOrdenada = Object.values(mapaPorAluno).sort((a, b) => a.aluno.localeCompare(b.aluno, 'pt-BR'));
+
+      let existeAlgumEmOutros = false;
+      listaOrdenada.forEach(itemAl => {
+        diasCols.forEach(d => {
+          itemAl[d].sort((x, y) => String(x.tempo || "Z").localeCompare(String(y.tempo || "Z"), 'pt-BR', { numeric: true }));
+        });
+        if (itemAl.OUTROS.length > 0) existeAlgumEmOutros = true;
+      });
+
+      return { linhas: listaOrdenada, temOutros: existeAlgumEmOutros };
+    }
+
+    function formatarCelulaDiaHtml(listaItens) {
+      if (!listaItens || listaItens.length === 0) {
+        return '<div class="text-center text-muted py-2">-</div>';
+      }
+      return listaItens.map(it => `
+        <div class="item-eletiva-dia">
+          ${it.tempo ? `<span class="tag-tempo-mini">[${it.tempo}]</span> ` : ''}
+          <span class="fw-bold text-dark">${it.eletiva}</span>
+        </div>
+      `).join('');
+    }
+
+    function formatarCelulaDiaPdf(listaItens) {
+      if (!listaItens || listaItens.length === 0) return "-";
+      return listaItens.map(it => (it.tempo ? `[${it.tempo}] ` : '') + it.eletiva).join("\n\n");
+    }
+
+    async function consultarRelatorioTurmaNaTela() {
+      const semestre = document.getElementById('relSemestre').value;
+      const serie = document.getElementById('relSerie').value;
+      const divTab = document.getElementById('areaTabelaRelatorioTurma');
+      const theadRow = document.getElementById('theadRowMatrizTurma');
+      const tbody = document.getElementById('tbodyRelatorioTurma');
+
+      if (!semestre || !serie) {
+        divTab.classList.add('d-none');
+        return;
+      }
+
+      divTab.classList.remove('d-none');
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Montando grade semanal (Segunda a Sexta) dos alunos da turma...</td></tr>';
+
+      const dados = await chamarAPI({ action: 'getRelatorioMatriculas', ano: semestre, serie: serie });
+      if (!Array.isArray(dados) || dados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhuma matrícula encontrada para esta turma neste semestre.</td></tr>';
+        document.getElementById('lblResumoMatrizTurma').innerText = `${serie} (${semestre}) — 0 alunos matriculados`;
+        return;
+      }
+
+      const resultadoMatriz = construirMatrizSemanalDosAlunos(dados, semestre, serie);
+      cacheLinhasMatrizTurma = resultadoMatriz.linhas;
+      cacheTemColunaOutros = resultadoMatriz.temOutros;
+
+      document.getElementById('lblResumoMatrizTurma').innerText =
+        `Turma: ${serie}   •   Semestre: ${semestre}   •   Total: ${cacheLinhasMatrizTurma.length} aluno(s) matriculado(s)`;
+
+      if (cacheTemColunaOutros) {
+        theadRow.innerHTML = `
+          <th style="width: 4%;">Nº</th>
+          <th style="width: 18%; text-align: left; padding-left: 8px;">Nome do(a) Aluno(a)</th>
+          <th style="width: 13%;">Segunda-Feira</th>
+          <th style="width: 13%;">Terça-Feira</th>
+          <th style="width: 13%;">Quarta-Feira</th>
+          <th style="width: 13%;">Quinta-Feira</th>
+          <th style="width: 13%;">Sexta-Feira</th>
+          <th style="width: 13%;">Clube / Sem Dia Fixo</th>`;
+      } else {
+        theadRow.innerHTML = `
+          <th style="width: 4%;">Nº</th>
+          <th style="width: 21%; text-align: left; padding-left: 10px;">Nome do(a) Aluno(a)</th>
+          <th style="width: 15%;">Segunda-Feira</th>
+          <th style="width: 15%;">Terça-Feira</th>
+          <th style="width: 15%;">Quarta-Feira</th>
+          <th style="width: 15%;">Quinta-Feira</th>
+          <th style="width: 15%;">Sexta-Feira</th>`;
+      }
+
+      let html = '';
+      cacheLinhasMatrizTurma.forEach((al, idx) => {
+        html += `
+          <tr>
+            <td class="text-center fw-bold text-muted align-middle">${idx + 1}</td>
+            <td class="fw-bold text-dark align-middle" style="padding-left: 10px;">${al.aluno}</td>
+            <td>${formatarCelulaDiaHtml(al.SEGUNDA)}</td>
+            <td>${formatarCelulaDiaHtml(al.TERÇA)}</td>
+            <td>${formatarCelulaDiaHtml(al.QUARTA)}</td>
+            <td>${formatarCelulaDiaHtml(al.QUINTA)}</td>
+            <td>${formatarCelulaDiaHtml(al.SEXTA)}</td>
+            ${cacheTemColunaOutros ? `<td>${formatarCelulaDiaHtml(al.OUTROS)}</td>` : ''}
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    async function gerarPdfRelatorioTurma() {
+  const semestre = document.getElementById('relSemestre').value;
+  const serie = document.getElementById('relSerie').value;
+  if (!semestre || !serie) {
+    return Swal.fire('Atenção', 'Selecione o Semestre e a Série / Turma para gerar o PDF.', 'warning');
+  }
+
+  Swal.fire({ title: 'Gerando Grade Semanal em PDF com Brasão...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  const dados = await chamarAPI({ action: 'getRelatorioMatriculas', ano: semestre, serie: serie });
+  Swal.close();
+
+  if (!Array.isArray(dados) || dados.length === 0) {
+    return Swal.fire('Sem Registros', 'Nenhum aluno matriculado nesta turma para o semestre selecionado.', 'info');
+  }
+
+  const resultadoMatriz = construirMatrizSemanalDosAlunos(dados, semestre, serie);
+  const linhasAlunos = resultadoMatriz.linhas;
+  const temOutros = resultadoMatriz.temOutros;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+
+  // Desenha o Cabeçalho Padrão com o Brasão da Escola e retorna o startY
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "QUADRO DE MATRÍCULAS EM ELETIVAS POR TURMA (SEGUNDA A SEXTA)",
+    subtitulo1: `Turma: ${serie}   |   Semestre Letivo: ${semestre}   |   Total de Alunos Matriculados: ${linhasAlunos.length}`,
+    subtitulo2: `Emitido por: ${(usuarioLogado && usuarioLogado.nome) ? usuarioLogado.nome.toUpperCase() : 'GESTÃO ESCOLAR'} em ${new Date().toLocaleDateString('pt-BR')}`
+  });
+
+  const cabecalhoPdf = temOutros
+    ? [['Nº', 'Nome do(a) Aluno(a)', 'Segunda-Feira', 'Terça-Feira', 'Quarta-Feira', 'Quinta-Feira', 'Sexta-Feira', 'Clube / Outros']]
+    : [['Nº', 'Nome do(a) Aluno(a)', 'Segunda-Feira', 'Terça-Feira', 'Quarta-Feira', 'Quinta-Feira', 'Sexta-Feira']];
+
+  const corpoPdf = linhasAlunos.map((al, i) => {
+    const linhaBase = [
+      i + 1,
+      al.aluno,
+      formatarCelulaDiaPdf(al.SEGUNDA),
+      formatarCelulaDiaPdf(al.TERÇA),
+      formatarCelulaDiaPdf(al.QUARTA),
+      formatarCelulaDiaPdf(al.QUINTA),
+      formatarCelulaDiaPdf(al.SEXTA)
+    ];
+    if (temOutros) linhaBase.push(formatarCelulaDiaPdf(al.OUTROS));
+    return linhaBase;
+  });
+
+  doc.autoTable({
+    startY: startY,
+    head: cabecalhoPdf,
+    body: corpoPdf,
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 2, valign: 'middle' },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    columnStyles: {
+      0: { cellWidth: 9, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 48, fontStyle: 'bold' }
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] }
+  });
+
+  doc.save(`Grade_Eletivas_${serie.replace(/\s+/g, '_')}_${semestre}.pdf`);
+}
+  </script>
+</body>
+</html>

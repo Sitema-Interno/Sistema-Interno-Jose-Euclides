@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Histórico de Eletivas do Aluno - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1340px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .moldura-3x4-hist {
+      width: 96px;
+      height: 128px;
+      border-radius: 10px;
+      border: 2px solid var(--azul-primario);
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(21, 67, 140, 0.12);
+    }
+
+    .moldura-3x4-hist img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .kpi-box-hist {
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid var(--azul-primario);
+      border-radius: 12px;
+      padding: 12px 15px;
+      background: #f8fafc;
+      height: 100%;
+    }
+
+    .tabela-enquadrada {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-enquadrada th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      padding: 10px 8px;
+      word-wrap: break-word;
+    }
+
+    .tabela-enquadrada td {
+      vertical-align: middle;
+      font-size: 0.83rem;
+      padding: 10px 8px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .badge-quebra-linha {
+      white-space: normal !important;
+      text-align: center;
+      line-height: 1.25;
+      display: inline-block;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Administrador</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- CARD 1: BUSCA POR NOME DO ALUNO (E FILTRO OPCIONAL DE TURMA) -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-mortarboard-fill me-2"></i>Consultar Histórico Individual de Eletivas do Aluno
+          </h5>
+          <small class="text-muted">Pesquise pelo nome do(a) estudante para visualizar todas as eletivas cursadas, professores, notas, frequência, carga horária (C.H) e gerar o PDF.</small>
+        </div>
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Filtrar por Série / Turma (Opcional)</label>
+          <select id="filtroSerieHist" class="form-select fw-bold" onchange="filtrarSugestaoAlunosPorSerieHist()">
+            <option value="">Todas as Séries...</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-7">
+          <label class="form-label">Nome do(a) Aluno(a) (Digite para autocompletar) *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="bi bi-person-search text-primary"></i></span>
+            <input type="text" id="inputNomeAlunoHist" class="form-control text-uppercase fw-bold" list="datalistAlunosHist" placeholder="Comece a digitar ou selecione o nome do aluno..." onkeydown="if(event.key==='Enter') buscarHistoricoEletivasAluno()">
+            <button class="btn btn-outline-secondary" type="button" onclick="limparBuscaHistorico()" title="Limpar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <datalist id="datalistAlunosHist"></datalist>
+        </div>
+
+        <div class="col-12 col-md-2 d-grid">
+          <button class="btn btn-principal py-2" id="btnBuscarHist" onclick="buscarHistoricoEletivasAluno()">
+            <i class="bi bi-search me-1"></i>Buscar Histórico
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2: RESULTADO DO HISTÓRICO COMPLETO + EXPORTAÇÃO EM PDF -->
+    <div class="card p-4 d-none" id="cardResultadoHistorico">
+      <div class="card-header-custom">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="moldura-3x4-hist" id="boxFotoHist">
+            <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
+          </div>
+          <div>
+            <span class="badge bg-primary mb-1" id="lblSerieAtualHist">SÉRIE</span>
+            <h4 class="fw-bold m-0 text-dark" id="lblNomeAlunoHist">NOME DO ALUNO</h4>
+            <div class="small text-muted mt-1">
+              Histórico Oficial de Unidades Curriculares Eletivas — EEMTI Dr. José Euclides Ferreira Gomes Júnior
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <select id="filtroSemestreInternoHist" class="form-select form-select-sm fw-bold" style="width: 175px;" onchange="renderizarTabelaHistoricoLocal()">
+            <option value="">Todos os Semestres</option>
+          </select>
+          <button class="btn btn-danger fw-bold px-3" onclick="gerarPdfHistoricoAluno()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar Histórico em PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIs Resumo do Aluno -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="kpi-box-hist">
+            <div class="small fw-bold text-muted text-uppercase">Eletivas Cursadas</div>
+            <div class="fs-4 fw-bold text-primary mt-1" id="kpiTotalEletivas">0</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="kpi-box-hist" style="border-left-color: #16a34a;">
+            <div class="small fw-bold text-muted text-uppercase">Carga Horária Total (C.H)</div>
+            <div class="fs-4 fw-bold text-success mt-1" id="kpiCargaHorariaTotal">0h</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="kpi-box-hist" style="border-left-color: #2563eb;">
+            <div class="small fw-bold text-muted text-uppercase">Média Geral de Notas</div>
+            <div class="fs-4 fw-bold text-dark mt-1" id="kpiMediaNotas">-</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="kpi-box-hist" style="border-left-color: #dc2626;">
+            <div class="small fw-bold text-muted text-uppercase">Total Geral de Faltas</div>
+            <div class="fs-4 fw-bold text-danger mt-1" id="kpiTotalFaltasGeral">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela Enquadrada 100% na Tela -->
+      <div class="w-100">
+        <table class="table table-hover border align-middle mb-0 tabela-enquadrada" id="tabelaHistoricoEletivas">
+          <thead>
+            <tr>
+              <th style="width: 9%;" class="text-center">Semestre</th>
+              <th style="width: 10%;" class="text-center">Série / Turma</th>
+              <th style="width: 14%;" class="text-center">Tempo Eletivo / Dia</th>
+              <th style="width: 26%;">Eletiva Cursada</th>
+              <th style="width: 15%;">Professor(a)</th>
+              <th style="width: 7%;" class="text-center">C.H</th>
+              <th style="width: 8%;" class="text-center">Nota</th>
+              <th style="width: 11%;" class="text-center">Frequência / Faltas</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyHistoricoAluno"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    if (usuarioLogado) {
+      document.getElementById('lblNomeUsuario').innerText = (usuarioLogado.nome || usuarioLogado.usuario?.nome || "USUÁRIO").toUpperCase();
+      document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Servidor";
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let listaAlunosAutocomplete = [];
+    let dadosAlunoAtual = null;
+    let historicoCompletoAtual = [];
+    let historicoFiltradoAtual = [];
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    window.onload = async function() {
+      const [resFiltros, resSer] = await Promise.all([
+        chamarAPI({ action: 'getFiltrosOcorrencias' }),
+        chamarAPI({ action: 'listarConfig', tipo: 'SERIE' })
+      ]);
+
+      let seriesSet = new Set();
+      if (resSer && Array.isArray(resSer.lista)) {
+        resSer.lista.forEach(s => {
+          let ns = String(s.col2 || s.col1 || "").replace(/["']/g, "").trim().toUpperCase();
+          if (ns && ns !== "SÉRIE" && ns !== "TRANSFERIDO") seriesSet.add(ns);
+        });
+      }
+      if (resFiltros && Array.isArray(resFiltros.series)) {
+        resFiltros.series.forEach(s => seriesSet.add(String(s).replace(/["']/g, "").trim().toUpperCase()));
+      }
+
+      const seriesOrdenadas = Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+      let htmlSeries = '<option value="">Todas as Séries...</option>';
+      seriesOrdenadas.forEach(s => { htmlSeries += `<option value="${s}">${s}</option>`; });
+      document.getElementById('filtroSerieHist').innerHTML = htmlSeries;
+
+      if (resFiltros && Array.isArray(resFiltros.alunos)) {
+        listaAlunosAutocomplete = resFiltros.alunos;
+        filtrarSugestaoAlunosPorSerieHist();
+      }
+    };
+
+    function filtrarSugestaoAlunosPorSerieHist() {
+      const serieSel = document.getElementById('filtroSerieHist').value.trim().toUpperCase();
+      const filtrados = serieSel
+        ? listaAlunosAutocomplete.filter(a => String(a.serie || "").replace(/["']/g, "").trim().toUpperCase() === serieSel)
+        : listaAlunosAutocomplete;
+
+      let html = '';
+      filtrados.forEach(a => {
+        html += `<option value="${a.nome}">${a.serie || ''}</option>`;
+      });
+      document.getElementById('datalistAlunosHist').innerHTML = html;
+    }
+
+    function limparBuscaHistorico() {
+      document.getElementById('inputNomeAlunoHist').value = '';
+      document.getElementById('cardResultadoHistorico').classList.add('d-none');
+      document.getElementById('inputNomeAlunoHist').focus();
+    }
+
+    async function buscarHistoricoEletivasAluno() {
+      const nomeDigitado = document.getElementById('inputNomeAlunoHist').value.replace(/\s+/g, " ").trim().toUpperCase();
+      if (!nomeDigitado) {
+        return Swal.fire('Atenção', 'Digite ou selecione o nome completo do(a) aluno(a) para buscar o histórico.', 'warning');
+      }
+
+      const btn = document.getElementById('btnBuscarHist');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Buscando...';
+
+      const res = await chamarAPI({ action: 'getHistoricoEletivasAluno', aluno: nomeDigitado });
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search me-1"></i>Buscar Histórico';
+
+      if (!res || !res.success) {
+        return Swal.fire('Erro', (res && res.error) || 'Não foi possível consultar o histórico deste aluno.', 'error');
+      }
+
+      dadosAlunoAtual = res.aluno || { nome: nomeDigitado, serie: '-', foto: '' };
+      historicoCompletoAtual = Array.isArray(res.historico) ? res.historico : [];
+
+      document.getElementById('lblNomeAlunoHist').innerText = dadosAlunoAtual.nome || nomeDigitado;
+      document.getElementById('lblSerieAtualHist').innerText = String(dadosAlunoAtual.serie || 'ALUNO').replace(/["']/g, '');
+
+      const boxFoto = document.getElementById('boxFotoHist');
+      if (dadosAlunoAtual.foto && dadosAlunoAtual.foto.startsWith('data:image')) {
+        boxFoto.innerHTML = `<img src="${dadosAlunoAtual.foto}" alt="Foto 3x4">`;
+      } else {
+        boxFoto.innerHTML = '<i class="bi bi-person-circle fs-1 text-primary"></i>';
+        // Tenta buscar a foto individualmente caso ainda não tenha vindo no pacote inicial
+        chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: nomeDigitado }).then(rFoto => {
+          if (rFoto && rFoto.success && rFoto.foto && rFoto.foto.startsWith('data:image')) {
+            dadosAlunoAtual.foto = rFoto.foto;
+            boxFoto.innerHTML = `<img src="${rFoto.foto}" alt="Foto 3x4">`;
+          }
+        });
+      }
+
+      // Preenche o filtro interno de Semestres encontrados no histórico do aluno
+      const semSet = new Set();
+      historicoCompletoAtual.forEach(h => { if (h.semestre) semSet.add(h.semestre); });
+      const semArr = Array.from(semSet).sort();
+      let htmlSem = '<option value="">Todos os Semestres</option>';
+      semArr.forEach(s => { htmlSem += `<option value="${s}">Semestre ${s}</option>`; });
+      document.getElementById('filtroSemestreInternoHist').innerHTML = htmlSem;
+
+      renderizarTabelaHistoricoLocal();
+      document.getElementById('cardResultadoHistorico').classList.remove('d-none');
+    }
+
+    function renderizarTabelaHistoricoLocal() {
+      const semFiltro = document.getElementById('filtroSemestreInternoHist').value;
+      historicoFiltradoAtual = semFiltro
+        ? historicoCompletoAtual.filter(h => String(h.semestre) === String(semFiltro))
+        : historicoCompletoAtual.slice();
+
+      // Calcula os indicadores de resumo (KPIs)
+      let somaCH = 0;
+      let somaNotas = 0;
+      let qtdComNota = 0;
+      let somaFaltasGeral = 0;
+
+      historicoFiltradoAtual.forEach(h => {
+        const ch = parseInt(h.ch, 10) || 40;
+        somaCH += ch;
+        somaFaltasGeral += (Number(h.faltas) || 0);
+
+        const nVal = parseFloat(String(h.nota || "").replace(',', '.'));
+        if (!isNaN(nVal)) {
+          somaNotas += nVal;
+          qtdComNota++;
+        }
+      });
+
+      document.getElementById('kpiTotalEletivas').innerText = historicoFiltradoAtual.length;
+      document.getElementById('kpiCargaHorariaTotal').innerText = `${somaCH}h`;
+      document.getElementById('kpiMediaNotas').innerText = qtdComNota > 0 ? (somaNotas / qtdComNota).toFixed(1).replace('.', ',') : '-';
+      document.getElementById('kpiTotalFaltasGeral').innerText = `${somaFaltasGeral} aula(s)`;
+
+      const tbody = document.getElementById('tbodyHistoricoAluno');
+      if (historicoFiltradoAtual.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Nenhuma eletiva encontrada no histórico para este(a) aluno(a).</td></tr>';
+        return;
+      }
+
+      let html = '';
+      historicoFiltradoAtual.forEach(h => {
+        const chNum = parseInt(h.ch, 10) || 40;
+        const faltasNum = Number(h.faltas) || 0;
+        const freqPerc = h.frequenciaPercentual || (Math.max(0, Math.round(((chNum - faltasNum) / chNum) * 100)) + '%');
+
+        const notaStr = (h.nota !== undefined && h.nota !== null && String(h.nota).trim() !== "" && h.nota !== "?") ? String(h.nota).trim() : "";
+        const notaNum = parseFloat(notaStr.replace(',', '.'));
+        let badgeNota = '<span class="badge bg-secondary-subtle text-secondary border">Pendente</span>';
+        if (!isNaN(notaNum)) {
+          badgeNota = notaNum >= 6
+            ? `<span class="badge bg-success fs-6 px-2">${notaStr}</span>`
+            : `<span class="badge bg-danger fs-6 px-2">${notaStr}</span>`;
+        }
+
+        const badgeFreq = faltasNum === 0
+          ? `<span class="badge bg-success">${freqPerc} (0 faltas)</span>`
+          : `<span class="badge bg-warning text-dark border">${freqPerc} (${faltasNum} faltas)</span>`;
+
+        const tempoDiaTxt = [h.tempoEletivo, h.dia].filter(x => x && x !== "-").join(" • ") || "-";
+
+        html += `
+          <tr>
+            <td class="text-center"><span class="badge bg-light text-dark border fw-bold">${h.semestre || '-'}</span></td>
+            <td class="text-center"><span class="badge bg-secondary badge-quebra-linha">${String(h.serie || '-').replace(/["']/g, '')}</span></td>
+            <td class="text-center"><span class="badge bg-primary-subtle text-primary border border-primary-subtle badge-quebra-linha">${tempoDiaTxt}</span></td>
+            <td class="fw-bold text-dark">${h.eletiva || '-'}</td>
+            <td class="small fw-semibold text-secondary">${h.professor || '-'}</td>
+            <td class="text-center fw-bold text-dark">${chNum}h</td>
+            <td class="text-center">${badgeNota}</td>
+            <td class="text-center">
+              ${badgeFreq}
+              ${h.datasFaltas ? `<div class="text-muted mt-1" style="font-size: 0.68rem;">Datas: ${h.datasFaltas}</div>` : ''}
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    async function gerarPdfHistoricoAluno() {
+  if (!dadosAlunoAtual || historicoFiltradoAtual.length === 0) {
+    return Swal.fire('Atenção', 'Busque um aluno que possua eletivas no histórico antes de gerar o PDF.', 'warning');
+  }
+
+  // Se a foto ainda não estiver em memória, busca antes de gerar o PDF
+  if (!dadosAlunoAtual.foto || !dadosAlunoAtual.foto.startsWith('data:image')) {
+    const rF = await chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: dadosAlunoAtual.nome });
+    if (rF && rF.success && rF.foto) dadosAlunoAtual.foto = rF.foto;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: 'HISTÓRICO INDIVIDUAL DE UNIDADES CURRICULARES ELETIVAS',
+    subtitulo1: `ALUNO(A): ${dadosAlunoAtual.nome}   |   SÉRIE / TURMA: ${String(dadosAlunoAtual.serie || '-').replace(/["']/g, '')}`,
+    subtitulo2: `CARGA HORÁRIA TOTAL CUMPRIDA: ${document.getElementById('kpiCargaHorariaTotal').innerText}   |   MÉDIA GERAL: ${document.getElementById('kpiMediaNotas').innerText}`,
+    exibirMolduraFoto: true,
+    fotoAlunoBase64: dadosAlunoAtual.foto
+  });
+
+  const rowsPdf = historicoFiltradoAtual.map(h => {
+    const chNum = parseInt(h.ch, 10) || 40;
+    const faltasNum = Number(h.faltas) || 0;
+    const freqPerc = h.frequenciaPercentual || (Math.max(0, Math.round(((chNum - faltasNum) / chNum) * 100)) + '%');
+    const tempoDiaTxt = [h.tempoEletivo, h.dia].filter(x => x && x !== "-").join(" / ") || "-";
+    const notaTxt = (h.nota !== undefined && h.nota !== null && String(h.nota).trim() !== "" && h.nota !== "?") ? String(h.nota).trim() : "Pendente";
+    return [h.semestre || '-', String(h.serie || '-').replace(/["']/g, ''), tempoDiaTxt, h.eletiva || '-', h.professor || '-', `${chNum}h`, notaTxt, `${freqPerc} (${faltasNum} faltas)`];
+  });
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Semestre', 'Série / Turma', 'Tempo Eletivo / Dia', 'Unidade Curricular Eletiva', 'Professor(a)', 'C.H', 'Nota', 'Frequência / Faltas']],
+    body: rowsPdf,
+    styles: { fontSize: 8.5, cellPadding: 2.4 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] }
+  });
+
+  doc.save(`Historico_Eletivas_${dadosAlunoAtual.nome.replace(/\s+/g, '_')}.pdf`);
+}
+      // Cabeçalho Institucional
+      try {
+        const imgElement = document.getElementById('logoEscola');
+        if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
+          const canvas = document.createElement('canvas');
+          canvas.width = imgElement.naturalWidth;
+          canvas.height = imgElement.naturalHeight;
+          canvas.getContext('2d').drawImage(imgElement, 0, 0);
+          doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 22, 22);
+        }
+      } catch (e) {}
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(21, 67, 140);
+      doc.text("EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 16);
+
+      doc.setFontSize(10.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text("HISTÓRICO INDIVIDUAL DE UNIDADES CURRICULARES ELETIVAS", 40, 22);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 40, 27);
+
+      doc.setDrawColor(21, 67, 140);
+      doc.setLineWidth(0.5);
+      doc.line(14, 34, 283, 34);
+
+      // Dados do Aluno no PDF
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`ALUNO(A): ${dadosAlunoAtual.nome}`, 14, 41);
+      doc.text(`SÉRIE / TURMA ATUAL: ${String(dadosAlunoAtual.serie || '-').replace(/["']/g, '')}`, 155, 41);
+      doc.text(`C.H TOTAL CUMPRIDA: ${document.getElementById('kpiCargaHorariaTotal').innerText}`, 230, 41);
+
+      const rowsPdf = historicoFiltradoAtual.map(h => {
+        const chNum = parseInt(h.ch, 10) || 40;
+        const faltasNum = Number(h.faltas) || 0;
+        const freqPerc = h.frequenciaPercentual || (Math.max(0, Math.round(((chNum - faltasNum) / chNum) * 100)) + '%');
+        const tempoDiaTxt = [h.tempoEletivo, h.dia].filter(x => x && x !== "-").join(" / ") || "-";
+        const notaTxt = (h.nota !== undefined && h.nota !== null && String(h.nota).trim() !== "" && h.nota !== "?") ? String(h.nota).trim() : "Pendente";
+
+        return [
+          h.semestre || '-',
+          String(h.serie || '-').replace(/["']/g, ''),
+          tempoDiaTxt,
+          h.eletiva || '-',
+          h.professor || '-',
+          `${chNum}h`,
+          notaTxt,
+          `${freqPerc} (${faltasNum} faltas)`
+        ];
+      });
+
+      doc.autoTable({
+        startY: 46,
+        head: [['Semestre', 'Série / Turma', 'Tempo Eletivo / Dia', 'Unidade Curricular Eletiva', 'Professor(a)', 'C.H', 'Nota', 'Frequência / Faltas']],
+        body: rowsPdf,
+        styles: { fontSize: 8.5, cellPadding: 2.5 },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 18;
+      if (finalY < 190) {
+        doc.setDrawColor(100, 116, 139);
+        doc.setLineWidth(0.3);
+        doc.line(95, finalY, 200, finalY);
+        doc.setFontSize(8.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text("Assinatura da Coordenação / Secretaria Escolar", 147.5, finalY + 5, { align: "center" });
+      }
+
+      doc.save(`Historico_Eletivas_${dadosAlunoAtual.nome.replace(/\s+/g, '_')}.pdf`);
+    
+  </script>
+</body>
+</html>

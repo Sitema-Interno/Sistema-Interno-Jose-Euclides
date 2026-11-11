@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pontuação e Catálogo de Ocorrências - EEMTI</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
+    
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
+
+    .navbar-custom { background-color: #fff; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    
+    .main-container { padding: 30px 15px; max-width: 1100px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(5px); margin-bottom: 25px; padding: 30px; }
+    .card-header-custom { background: transparent; border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
+    
+    .btn-tema { background-color: #0f766e; color: white; border: none; font-weight: 600; }
+    .btn-tema:hover { background-color: #0d645e; color: white; }
+
+    /* Etiquetas dinâmicas para gravidade */
+    .badge-gravidade { font-size: 0.78rem; padding: 6px 12px; border-radius: 20px; font-weight: 700; display: inline-block; min-width: 110px; text-align: center; background-color: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+
+    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0,0,0,0.05); background: #fff; }
+    #conteudoPagina { display: none; }
+  </style>
+</head>
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1200 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Painel de Configurações - Ocorrências
+          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold"><i class="bi bi-house-door-fill me-1"></i> Início</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container" id="conteudoPagina">
+    <h3 class="fw-bold text-center mb-4 text-dark">Gestão Administrativa de Ocorrências</h3>
+
+    <!-- Sistema de Abas -->
+    <ul class="nav nav-tabs mb-4 justify-content-center" id="configOcoTab" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active fw-bold text-dark px-4" data-bs-toggle="tab" data-bs-target="#tabPontuacao" type="button" onclick="carregarPontuacoes()">
+          <i class="bi bi-star-fill text-warning me-2"></i>Gestão de Pontuação
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold text-dark px-4" data-bs-toggle="tab" data-bs-target="#tabCatalogo" type="button" onclick="carregarCatalogo()">
+          <i class="bi bi-journal-text text-success me-2"></i>Catálogo de Ocorrências
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      
+      <!-- ABA 1: GESTÃO DE PONTUAÇÃO -->
+      <div class="tab-pane fade show active" id="tabPontuacao">
+        <div class="card p-4">
+          <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-star text-warning me-2"></i>Cadastrar / Editar Pontuação</h5>
+          <input type="hidden" id="indexPontuacao" value="">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Legenda (Ocorrência / Gravidade)</label>
+              <input type="text" id="legendaPontuacao" class="form-control" placeholder="Ex: GRAVÍSSIMA">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Pontuação (Aceita negativo/decimal)</label>
+              <input type="text" id="valorPontuacao" class="form-control" placeholder="Ex: -0.25">
+            </div>
+          </div>
+          <button class="btn btn-tema w-100 py-2 mt-4 fw-bold" onclick="salvarPontuacao()">
+            <i class="bi bi-check-circle-fill me-2"></i>Registrar Pontuação
+          </button>
+        </div>
+
+        <div class="card p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold m-0"><i class="bi bi-search text-primary me-2"></i>Consultar e Gerir Pontuações</h5>
+            <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="carregarPontuacoes()"><i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista</button>
+          </div>
+          <input type="text" id="filtroPontuacao" class="form-control mb-3" placeholder="Pesquisa Inteligente por Legenda..." onkeyup="filtrarPontuacoes()">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle border">
+              <thead class="table-light">
+                <tr><th>Legenda</th><th>Pontuação</th><th class="text-end">Ações</th></tr>
+              </thead>
+              <tbody id="tabelaPontuacoes">
+                <tr><td colspan="3" class="text-center text-muted py-3">A carregar...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 2: CATÁLOGO DE OCORRÊNCIAS -->
+      <div class="tab-pane fade" id="tabCatalogo">
+        <div class="card p-4">
+          <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold m-0 text-dark" id="tituloFormCat">
+              <i class="bi bi-exclamation-octagon-fill text-danger me-2"></i>Cadastrar Ocorrência no Catálogo
+            </h5>
+            <span class="badge bg-secondary" id="contadorCatalogo">0 registos</span>
+          </div>
+
+          <input type="hidden" id="linhaEdicaoCat" value="">
+
+          <form id="formCatalogo" onsubmit="event.preventDefault(); salvarItemCatalogo();">
+            <div class="row g-3">
+              <div class="col-md-12">
+                <label class="form-label fw-semibold small">Descrição da Ocorrência (Coluna A)</label>
+                <textarea id="inputOcorrencia" class="form-control" rows="2" required placeholder="Ex: Chegar atrasado (a)..."></textarea>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small">Gravidade (Puxado da Aba Pontuação - Coluna A)</label>
+                <select id="selectGravidade" class="form-select" required>
+                  <option value="">A carregar gravidades do banco...</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small">Grupo / Categoria (Coluna C)</label>
+                <input type="text" id="inputGrupo" class="form-control" list="listaGruposSugeridos" required placeholder="Selecione ou digite...">
+                <datalist id="listaGruposSugeridos">
+                  <option value="Indisciplina">
+                  <option value="Leis ou Regimentos">
+                  <option value="Violência">
+                  <option value="Bullying / Cyberbullying">
+                  <option value="Patrimônio Escolar">
+                  <option value="Pedagógico">
+                </datalist>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+              <button type="button" id="btnCancelarEdicaoCat" class="btn btn-outline-secondary d-none fw-bold" onclick="cancelarEdicaoCat()">Cancelar Edição</button>
+              <button type="submit" id="btnSalvarCat" class="btn btn-tema flex-grow-1"><i class="bi bi-save-fill me-2"></i>Salvar Ocorrência</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card p-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 pb-3 border-bottom">
+            <h5 class="fw-bold m-0"><i class="bi bi-list-ul text-primary me-2"></i>Ocorrências Cadastradas</h5>
+            <button class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="gerarPDFCatalogo()"><i class="bi bi-file-earmark-pdf-fill me-1"></i> Baixar Catálogo PDF</button>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                <input type="text" id="filtroTextoCat" class="form-control" placeholder="Buscar ocorrência..." onkeyup="renderizarTabelaCatalogo()">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <select id="filtroGravidadeCat" class="form-select form-select-sm" onchange="renderizarTabelaCatalogo()">
+                <option value="">Todas as Gravidades...</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select id="filtroGrupoCat" class="form-select form-select-sm" onchange="renderizarTabelaCatalogo()">
+                <option value="">Todos os Grupos...</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+            <table class="table table-hover align-middle border small">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th style="width: 50px;" class="text-center">#</th>
+                  <th>OCORRÊNCIA</th>
+                  <th style="width: 140px;" class="text-center">GRAVIDADE</th>
+                  <th style="width: 190px;">GRUPO</th>
+                  <th style="width: 110px;" class="text-end">AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyCatalogo">
+                <tr><td colspan="5" class="text-center text-muted py-4">A carregar...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>&copy; <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec"; 
+
+    let dbPontuacoes = [];
+    let dbCatalogoOcorrencias = [];
+
+    window.onload = async () => {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      document.getElementById('conteudoPagina').style.display = 'block';
+      if (u) {
+        let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Utilizador";
+        document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+      }
+      await carregarPontuacoes();
+      await carregarCatalogo();
+    };
+
+    async function fetchAPI(payload) {
+      try {
+        const response = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await response.json();
+      } catch (error) { 
+        return { success: false, error: error.message }; 
+      }
+    }
+
+    // --- MÓDULO 1: GESTÃO DE PONTUAÇÃO ---
+    async function carregarPontuacoes() {
+      const res = await fetchAPI({ action: 'listarConfig', tipo: 'PONTUACAO' });
+      if (res && (res.success || res.sucesso)) {
+        dbPontuacoes = res.lista || [];
+        renderizarTabelaPontuacoes(dbPontuacoes);
+        atualizarSelectGravidadeDinamico();
+      }
+    }
+
+    function renderizarTabelaPontuacoes(lista) {
+      const tbody = document.getElementById('tabelaPontuacoes');
+      if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Nenhuma pontuação registada.</td></tr>';
+        return;
+      }
+      let html = '';
+      lista.forEach((item, idx) => {
+        let originalIdx = dbPontuacoes.findIndex(x => x.linha === item.linha);
+        html += `
+          <tr>
+            <td class="fw-bold">${item.col1}</td>
+            <td class="text-danger fw-bold">${item.col2}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-warning text-white me-1" onclick="editarPontuacao(${originalIdx})" title="Editar"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-danger" onclick="excluirPontuacao(${item.linha})" title="Excluir"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function filtrarPontuacoes() {
+      const termo = document.getElementById('filtroPontuacao').value.toLowerCase();
+      const filtrados = dbPontuacoes.filter(p => String(p.col1).toLowerCase().includes(termo));
+      renderizarTabelaPontuacoes(filtrados);
+    }
+
+    async function salvarPontuacao() {
+      const index = document.getElementById('indexPontuacao').value;
+      const legenda = document.getElementById('legendaPontuacao').value.trim();
+      const valor = document.getElementById('valorPontuacao').value.trim();
+
+      if (!legenda || !valor) return Swal.fire('Atenção', 'Preencha a legenda e o valor da pontuação.', 'warning');
+
+      Swal.fire({ title: 'Salvando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      
+      let linhaReal = "";
+      if (index !== "") {
+        linhaReal = dbPontuacoes[index].linha;
+      }
+
+      const res = await fetchAPI({
+        action: 'salvarConfig',
+        tipo: 'PONTUACAO',
+        dados: { linha: linhaReal, col1: legenda, col2: valor }
+      });
+
+      if (res && (res.success || res.sucesso)) {
+        Swal.fire('Sucesso!', 'Pontuação guardada!', 'success');
+        document.getElementById('indexPontuacao').value = "";
+        document.getElementById('legendaPontuacao').value = "";
+        document.getElementById('valorPontuacao').value = "";
+        await carregarPontuacoes();
+      } else {
+        Swal.fire('Erro', res.error || '', 'error');
+      }
+    }
+
+    function editarPontuacao(idx) {
+      const item = dbPontuacoes[idx];
+      document.getElementById('indexPontuacao').value = idx;
+      document.getElementById('legendaPontuacao').value = item.col1;
+      document.getElementById('valorPontuacao').value = item.col2;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function excluirPontuacao(linha) {
+      const conf = await Swal.fire({ title: 'Excluir?', text: 'Remover esta pontuação?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Sim' });
+      if (!conf.isConfirmed) return;
+
+      Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await fetchAPI({ action: 'excluirConfig', tipo: 'PONTUACAO', linha: Number(linha) });
+      if (res && (res.success || res.sucesso)) {
+        Swal.fire('Excluído!', '', 'success');
+        await carregarPontuacoes();
+      } else {
+        Swal.fire('Erro', res.error || '', 'error');
+      }
+    }
+
+    // --- POPULAR DINAMICAMENTE OS SELECTS DE GRAVIDADE COM A COLUNA A DA ABA PONTUAÇÃO ---
+    function atualizarSelectGravidadeDinamico() {
+      const selectForm = document.getElementById('selectGravidade');
+      const selectFiltro = document.getElementById('filtroGravidadeCat');
+      
+      const valorSelForm = selectForm.value;
+      const valorSelFiltro = selectFiltro.value;
+
+      let opcoesHtmlForm = '<option value="">Selecione a gravidade...</option>';
+      let opcoesHtmlFiltro = '<option value="">Todas as Gravidades...</option>';
+
+      dbPontuacoes.forEach(p => {
+        let nomeGravidade = String(p.col1 || "").trim();
+        if (nomeGravidade) {
+          opcoesHtmlForm += `<option value="${nomeGravidade}">${nomeGravidade}</option>`;
+          opcoesHtmlFiltro += `<option value="${nomeGravidade}">${nomeGravidade}</option>`;
+        }
+      });
+
+      selectForm.innerHTML = opcoesHtmlForm;
+      selectFiltro.innerHTML = opcoesHtmlFiltro;
+
+      selectForm.value = valorSelForm;
+      selectFiltro.value = valorSelFiltro;
+    }
+
+    // --- MÓDULO 2: CATÁLOGO DE OCORRÊNCIAS ---
+    async function carregarCatalogo() {
+      const res = await fetchAPI({ action: 'listarConfig', tipo: 'CATALOGO_OCORRENCIAS' });
+      if (res && (res.success || res.sucesso)) {
+        dbCatalogoOcorrencias = (res.lista || []).map((item, idx) => ({
+          linha: item.linha || (idx + 2),
+          ocorrencia: String(item.col1 || "").trim(),
+          gravidade: String(item.col2 || "").trim().toUpperCase(),
+          grupo: String(item.col3 || "").trim()
+        }));
+        atualizarFiltroGruposCat();
+        renderizarTabelaCatalogo();
+      }
+    }
+
+    function atualizarFiltroGruposCat() {
+      const selectGrupo = document.getElementById('filtroGrupoCat');
+      const valorAtual = selectGrupo.value;
+      const gruposUnicos = [...new Set(dbCatalogoOcorrencias.map(i => i.grupo).filter(Boolean))].sort();
+      
+      selectGrupo.innerHTML = '<option value="">Todos os Grupos...</option>';
+      gruposUnicos.forEach(g => {
+        selectGrupo.innerHTML += `<option value="${g}">${g}</option>`;
+      });
+      selectGrupo.value = valorAtual;
+    }
+
+    function renderizarTabelaCatalogo() {
+      const termo = document.getElementById('filtroTextoCat').value.toLowerCase().trim();
+      const gravFiltro = document.getElementById('filtroGravidadeCat').value.toUpperCase().trim();
+      const grupoFiltro = document.getElementById('filtroGrupoCat').value.trim();
+
+      const filtrados = dbCatalogoOcorrencias.filter(item => {
+        const bateTexto = !termo || item.ocorrencia.toLowerCase().includes(termo) || item.grupo.toLowerCase().includes(termo);
+        const bateGrav = !gravFiltro || item.gravidade === gravFiltro;
+        const bateGrupo = !grupoFiltro || item.grupo === grupoFiltro;
+        return bateTexto && bateGrav && bateGrupo;
+      });
+
+      document.getElementById('contadorCatalogo').innerText = `${filtrados.length} registo(s)`;
+
+      const tbody = document.getElementById('tbodyCatalogo');
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma ocorrência encontrada.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      filtrados.forEach((item, idx) => {
+        const indexOriginal = dbCatalogoOcorrencias.findIndex(x => x.linha === item.linha);
+
+        html += `
+          <tr>
+            <td class="text-center text-muted fw-bold">${idx + 1}</td>
+            <td class="fw-semibold">${item.ocorrencia}</td>
+            <td class="text-center"><span class="badge-gravidade">${item.gravidade || '-'}</span></td>
+            <td><span class="text-secondary fw-medium">${item.grupo || '-'}</span></td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="prepararEdicaoCat(${indexOriginal})" title="Editar"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="excluirItemCatalogo(${item.linha})" title="Excluir"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    async function salvarItemCatalogo() {
+      const linha = document.getElementById('linhaEdicaoCat').value;
+      const ocorrencia = document.getElementById('inputOcorrencia').value.trim();
+      const gravidade = document.getElementById('selectGravidade').value.trim();
+      const grupo = document.getElementById('inputGrupo').value.trim();
+
+      if (!ocorrencia || !gravidade || !grupo) {
+        return Swal.fire('Atenção', 'Preencha a Descrição, a Gravidade e o Grupo.', 'warning');
+      }
+
+      Swal.fire({ title: 'A guardar na planilha...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const payload = {
+        action: 'salvarConfig',
+        tipo: 'CATALOGO_OCORRENCIAS',
+        dados: { linha: linha ? Number(linha) : "", col1: ocorrencia, col2: gravidade, col3: grupo }
+      };
+
+      const res = await fetchAPI(payload);
+      if (res && (res.success || res.sucesso)) {
+        Swal.fire('Sucesso!', 'Ocorrência guardada com sucesso!', 'success');
+        cancelarEdicaoCat();
+        await carregarCatalogo();
+      } else {
+        Swal.fire('Erro', 'Não foi possível salvar: ' + (res.error || ''), 'error');
+      }
+    }
+
+    function prepararEdicaoCat(index) {
+      const item = dbCatalogoOcorrencias[index];
+      if (!item) return;
+
+      document.getElementById('linhaEdicaoCat').value = item.linha;
+      document.getElementById('inputOcorrencia').value = item.ocorrencia;
+      document.getElementById('selectGravidade').value = item.gravidade;
+      document.getElementById('inputGrupo').value = item.grupo;
+
+      document.getElementById('tituloFormCat').innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i>Editando Ocorrência (Linha ${item.linha})`;
+      document.getElementById('btnSalvarCat').innerHTML = `<i class="bi bi-check2-circle me-2"></i>Atualizar Ocorrência`;
+      document.getElementById('btnCancelarEdicaoCat').classList.remove('d-none');
+    }
+
+    function cancelarEdicaoCat() {
+      document.getElementById('formCatalogo').reset();
+      document.getElementById('linhaEdicaoCat').value = "";
+      document.getElementById('tituloFormCat').innerHTML = `<i class="bi bi-exclamation-octagon-fill text-danger me-2"></i>Cadastrar Ocorrência no Catálogo`;
+      document.getElementById('btnSalvarCat').innerHTML = `<i class="bi bi-save-fill me-2"></i>Salvar Ocorrência`;
+      document.getElementById('btnCancelarEdicaoCat').classList.add('d-none');
+    }
+
+    async function excluirItemCatalogo(linha) {
+      const conf = await Swal.fire({ title: 'Excluir Ocorrência?', text: 'Remover este item do catálogo?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Sim, excluir' });
+      if (!conf.isConfirmed) return;
+
+      Swal.fire({ title: 'A excluir...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await fetchAPI({ action: 'excluirConfig', tipo: 'CATALOGO_OCORRENCIAS', linha: Number(linha) });
+      
+      if (res && (res.success || res.sucesso)) {
+        Swal.fire('Excluído!', '', 'success');
+        await carregarCatalogo();
+      } else {
+        Swal.fire('Erro', res.error || '', 'error');
+      }
+    }
+
+    function obterBase64Logo() {
+      try {
+        const img = document.querySelector('.logo-escola');
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width || 100;
+        canvas.height = img.naturalHeight || img.height || 100;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/png');
+      } catch (e) { return null; }
+    }
+
+    function gerarPDFCatalogo() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+
+      const logo = obterBase64Logo();
+      if (logo) doc.addImage(logo, 'PNG', 14, 10, 18, 18);
+
+      doc.setFontSize(13); doc.setFont("helvetica", "bold");
+      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 35, 17);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text("CATÁLOGO OFICIAL DE OCORRÊNCIAS DISCIPLINARES", 35, 23);
+
+      const linhas = dbCatalogoOcorrencias.map((item, idx) => [ idx + 1, item.ocorrencia, item.gravidade, item.grupo ]);
+
+      doc.autoTable({
+        startY: 32, head: [['#', 'OCORRÊNCIA', 'GRAVIDADE', 'GRUPO']],
+        body: linhas, theme: 'grid', headStyles: { fillColor: [15, 118, 110] },
+        columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 105 }, 2: { cellWidth: 30, halign: 'center' }, 3: { cellWidth: 37 } },
+        styles: { fontSize: 8, cellPadding: 2.5 }
+      });
+
+      doc.save("Catalogo_Ocorrencias_EEMTI.pdf");
+    }
+  </script>
+</body>
+</html>

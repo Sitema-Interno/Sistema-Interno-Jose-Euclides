@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Módulo de Simulados - EEMTI</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+    
+    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    
+    .main-container { padding: 30px 15px; max-width: 1450px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: #fff; margin-bottom: 25px; }
+    
+    .btn-tema { background-color: #0f766e; color: white; border: none; font-weight: 600; }
+    .btn-tema:hover { background-color: #0d645e; color: white; }
+    
+    .bg-adequado { background-color: #198754 !important; color: white; }
+    .bg-intermediario { background-color: #ffc107 !important; color: black; }
+    .bg-critico { background-color: #fd7e14 !important; color: white; }
+    .bg-muito-critico { background-color: #dc3545 !important; color: white; }
+
+    .legenda-ponto { width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 6px; }
+    .cor-mc { background-color: #dc3545; }
+    .cor-c { background-color: #fd7e14; }
+    .cor-i { background-color: #ffc107; }
+    .cor-a { background-color: #198754; }
+
+    /* Estilos dos 4 Quadrantes de Questões */
+    .quadrante-questao { border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; height: 100%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+    .quadrante-header { padding: 8px 12px; font-weight: 700; font-size: 0.78rem; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
+    .quadrante-body { padding: 12px; flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; min-height: 95px; }
+    
+    .q-pill { padding: 4px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border: 1px solid transparent; }
+    .q-pill-mc { background-color: #fef2f2; color: #991b1b; border-color: #f87171; }
+    .q-pill-c { background-color: #fff7ed; color: #9a3412; border-color: #fb923c; }
+    .q-pill-i { background-color: #fefce8; color: #854d0e; border-color: #facc15; }
+    .q-pill-a { background-color: #f0fdf4; color: #166534; border-color: #4ade80; }
+
+    .btn-alt { width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; border-radius: 6px !important; border: 1px solid #dee2e6; color: #495057; background: #fff; cursor: pointer; transition: 0.2s;}
+    .btn-check:checked + .btn-alt { background-color: #0f766e; color: white; border-color: #0f766e; }
+    .btn-check:checked + .btn-alt-nula { background-color: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+    
+    .q-linha { background: #f8fafc; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .uppercase-input { text-transform: uppercase; }
+    
+    .tabela-resumo { width: 100%; font-size: 0.75rem; }
+    .tabela-resumo th, .tabela-resumo td { padding: 6px 4px; text-align: center; vertical-align: middle; }
+    .tabela-resumo th:first-child, .tabela-resumo td:first-child { text-align: left; width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 8px;}
+    .tabela-resumo th.col-q, .tabela-resumo td.col-q { width: 24px; }
+    .tabela-resumo th.col-acertos, .tabela-resumo td.col-acertos { width: 55px; }
+    .tabela-resumo th { background-color: #f1f5f9; text-transform: uppercase; font-weight: 700; }
+    .acerto-cell { background-color: #e6f4ea !important; color: #1e4620; font-weight: bold; }
+    .erro-cell { background-color: #fce8e6 !important; color: #a50e0e; }
+    
+    .missing-students-box { max-height: 150px; overflow-y: auto; border: 1px dashed #dc3545; border-radius: 8px; padding: 10px; background-color: #fff5f5; }
+    .turmas-checkbox-container { max-height: 130px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 6px; padding: 8px 12px; background: #fff; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar navbar-custom bg-white">
+    <div class="container-fluid max-w-1200 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>Módulo de Simulados<div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div></div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold"><i class="bi bi-house-door-fill me-1"></i> Início</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    
+    <ul class="nav nav-tabs mb-4" id="simuladosTab" role="tablist">
+      <li class="nav-item"><button class="nav-link active fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#lancamento" type="button"><i class="bi bi-pencil-square me-2 text-primary"></i>Lançar Respostas</button></li>
+      <li class="nav-item"><button class="nav-link fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" onclick="gerarGraficoTurma()"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Dashboard Turma</button></li>
+      <li class="nav-item"><button class="nav-link fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#resumo" type="button"><i class="bi bi-table me-2 text-info"></i>Resumo da Turma</button></li>
+      <li class="nav-item"><button class="nav-link fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#comparativo" type="button" onclick="inicializarComparativo()"><i class="bi bi-graph-up-arrow me-2 text-warning"></i>Análise Comparativa</button></li>
+      <li class="nav-item"><button class="nav-link fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#importacaoTurma" type="button"><i class="bi bi-file-earmark-excel-fill me-2 text-danger"></i>Importar Planilha</button></li>
+      <li class="nav-item"><button class="nav-link fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#gabaritos" type="button"><i class="bi bi-key-fill me-2 text-secondary"></i>Gabaritos Oficiais</button></li>
+    </ul>
+
+    <div class="tab-content">
+      
+      <!-- ABA 1: LANÇAR RESPOSTAS -->
+      <div class="tab-pane fade show active" id="lancamento">
+        <div class="card p-4">
+          <h5 class="fw-bold mb-4"><i class="bi bi-person-lines-fill text-primary me-2"></i>Registrar Respostas do Aluno</h5>
+          <input type="hidden" id="editIdAluno" value="">
+          <div class="row g-3 mb-4">
+            <div class="col-md-4"><label class="form-label">Série / Turma</label><select id="selectTurma" class="form-select" onchange="carregarAlunosDropdown()"><option value="">Selecione a turma...</option></select></div>
+            <div class="col-md-4"><label class="form-label">Aluno</label><select id="selectAluno" class="form-select"><option value="">Aguardando turma...</option></select></div>
+            <div class="col-md-4"><label class="form-label">Simulado</label><select id="selectSimulado" class="form-select"><option value="">Aguardando simulados...</option></select></div>
+          </div>
+          <label class="form-label fw-bold mb-3">Gabarito Marcado (Questões 1 a 26):</label>
+          <div class="row g-3 mb-4 justify-content-center">
+            <div class="col-xl-6 col-lg-6" id="colunaQuestoes1"></div>
+            <div class="col-xl-6 col-lg-6" id="colunaQuestoes2"></div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary d-none" id="btnCancelarEdicao" onclick="cancelarEdicaoAluno()">Cancelar Edição</button>
+            <button class="btn btn-tema px-4 py-2 flex-grow-1" onclick="salvarRespostasAluno()"><i class="bi bi-send-check-fill me-2"></i>Gravar Gabarito do Aluno no Banco</button>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="row align-items-center mb-3 g-2">
+            <div class="col-md-4"><h6 class="fw-bold m-0"><i class="bi bi-cloud-check me-2"></i>Lançamentos Salvos</h6></div>
+            <div class="col-md-4"><select id="filtroSimuladoLancamentos" class="form-select form-select-sm" onchange="atualizarTabelaLancamentos()"><option value="">Filtrar por Simulado (Todos)...</option></select></div>
+            <div class="col-md-4"><input type="text" id="buscaLancamento" class="form-control form-control-sm uppercase-input" placeholder="Autocompletar nome do aluno..." onkeyup="atualizarTabelaLancamentos()"></div>
+          </div>
+          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-hover align-middle small border">
+              <thead class="table-light sticky-top"><tr><th>Aluno</th><th>Turma</th><th>Simulado</th><th>Acertos</th><th class="text-end">Ações</th></tr></thead>
+              <tbody id="tabelaLancamentos"><tr><td colspan="5" class="text-center text-muted">Carregando dados...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 2: DASHBOARD -->
+      <div class="tab-pane fade" id="dashboard">
+        <div class="card p-4">
+          <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h5 class="fw-bold m-0"><i class="bi bi-pie-chart-fill text-success me-2"></i>Análise de Desempenho da Turma</h5>
+            <button class="btn btn-outline-danger fw-bold" onclick="gerarRelatorioPDFDash()"><i class="bi bi-file-pdf-fill me-1"></i> Baixar PDF com Gráfico</button>
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6"><label class="form-label">Série / Turma</label><select id="dashTurma" class="form-select" onchange="gerarGraficoTurma()"><option value="">Selecione...</option></select></div>
+            <div class="col-md-6"><label class="form-label">Simulado</label><select id="dashSimulado" class="form-select" onchange="gerarGraficoTurma()"><option value="">Selecione...</option></select></div>
+          </div>
+          
+          <div class="row" id="areaGrafico" style="display: none;">
+            <!-- Coluna Esquerda: Gráfico + Média + Legenda de Níveis -->
+            <div class="col-lg-4 d-flex flex-column align-items-center justify-content-start border-end pe-lg-4">
+              <div style="width: 100%; max-width: 270px;"><canvas id="graficoDesempenho"></canvas></div>
+              <h4 class="mt-2 fw-bold text-center">Média da Turma<br><span id="mediaTurmaDash" class="text-primary fs-2">0%</span></h4>
+              
+              <!-- Legenda dos Níveis Restaurada -->
+              <div class="card border p-3 mt-2 w-100 bg-light shadow-sm mb-0">
+                <span class="fw-bold small text-dark mb-2 d-block border-bottom pb-1"><i class="bi bi-bookmark-fill text-secondary me-1"></i>Legenda dos Níveis (Critérios de Corte):</span>
+                <div class="row g-2 small">
+                  <div class="col-6 d-flex align-items-center"><span class="legenda-ponto cor-mc"></span><span><b>Muito Crítico:</b> 0% a 25%</span></div>
+                  <div class="col-6 d-flex align-items-center"><span class="legenda-ponto cor-c"></span><span><b>Crítico:</b> 26% a 50%</span></div>
+                  <div class="col-6 d-flex align-items-center"><span class="legenda-ponto cor-i"></span><span><b>Intermediário:</b> 51% a 75%</span></div>
+                  <div class="col-6 d-flex align-items-center"><span class="legenda-ponto cor-a"></span><span><b>Adequado:</b> 76% a 100%</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Coluna Direita: Níveis de Alunos + Quadro de Questões em 4 Partes + Pendentes -->
+            <div class="col-lg-8 ps-lg-4 mt-4 mt-lg-0">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold m-0"><i class="bi bi-people-fill text-primary me-2"></i>Distribuição por Nível (Alunos)</h6>
+                <small class="text-muted">Clique num nível para ver os alunos</small>
+              </div>
+              <div class="d-flex gap-2 mb-4 text-center small fw-bold text-white">
+                <div class="flex-fill bg-muito-critico rounded p-2 shadow-sm" role="button" onclick="mostrarAlunosModal('MUITO CRÍTICO')">MUITO CRÍTICO<br><span id="pctMC" class="fs-6">0%</span></div>
+                <div class="flex-fill bg-critico rounded p-2 shadow-sm" role="button" onclick="mostrarAlunosModal('CRÍTICO')">CRÍTICO<br><span id="pctC" class="fs-6">0%</span></div>
+                <div class="flex-fill bg-intermediario rounded p-2 shadow-sm" role="button" onclick="mostrarAlunosModal('INTERMEDIÁRIO')">INTERMEDIÁRIO<br><span id="pctI" class="fs-6">0%</span></div>
+                <div class="flex-fill bg-adequado rounded p-2 shadow-sm" role="button" onclick="mostrarAlunosModal('ADEQUADO')">ADEQUADO<br><span id="pctA" class="fs-6">0%</span></div>
+              </div>
+
+              <!-- NOVO: Quadro de Questões Dividido em 4 Partes (0% a 100%) -->
+              <h6 class="fw-bold mb-2"><i class="bi bi-grid-1x2-fill text-success me-2"></i>Mapa de Questões por Taxa de Acerto da Turma (0% a 100%)</h6>
+              <div class="row g-2 mb-4">
+                <div class="col-md-6 col-xl-3">
+                  <div class="quadrante-questao">
+                    <div class="quadrante-header bg-muito-critico">1º Quadro: Muito Crítico (0% a 25%)</div>
+                    <div class="quadrante-body" id="quadQuestoesMC"></div>
+                  </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                  <div class="quadrante-questao">
+                    <div class="quadrante-header bg-critico">2º Quadro: Crítico (26% a 50%)</div>
+                    <div class="quadrante-body" id="quadQuestoesC"></div>
+                  </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                  <div class="quadrante-questao">
+                    <div class="quadrante-header bg-intermediario">3º Quadro: Intermediário (51% a 75%)</div>
+                    <div class="quadrante-body" id="quadQuestoesI"></div>
+                  </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                  <div class="quadrante-questao">
+                    <div class="quadrante-header bg-adequado">4º Quadro: Adequado (76% a 100%)</div>
+                    <div class="quadrante-body" id="quadQuestoesA"></div>
+                  </div>
+                </div>
+              </div>
+
+              <h6 class="fw-bold text-danger mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>Alunos Pendentes</h6>
+              <div class="missing-students-box small fw-semibold text-secondary" id="listaPendentesDash">Selecione a turma e o simulado...</div>
+            </div>
+          </div>
+
+          <div id="avisoGrafico" class="alert alert-info">Selecione uma turma e um simulado para gerar o gráfico.</div>
+        </div>
+      </div>
+
+      <!-- ABA 3: RESUMO DA TURMA -->
+      <div class="tab-pane fade" id="resumo">
+        <div class="card p-4">
+          <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h5 class="fw-bold m-0"><i class="bi bi-table text-info me-2"></i>Resumo Detalhado por Turma</h5>
+            <button class="btn btn-outline-danger fw-bold" onclick="gerarPDFResumo()"><i class="bi bi-file-pdf-fill me-1"></i> Baixar Tabela PDF</button>
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6"><label class="form-label">Série / Turma</label><select id="resumoTurma" class="form-select" onchange="gerarTabelaResumo()"><option value="">Selecione...</option></select></div>
+            <div class="col-md-6"><label class="form-label">Simulado</label><select id="resumoSimulado" class="form-select" onchange="gerarTabelaResumo()"><option value="">Selecione...</option></select></div>
+          </div>
+          <div class="table-responsive w-100" style="overflow-x: auto;">
+            <table class="table table-bordered align-middle tabela-resumo" id="tabelaResumoView">
+              <tr><td class="text-muted text-center">Selecione a turma e o simulado.</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 4: ANÁLISE COMPARATIVA -->
+      <div class="tab-pane fade" id="comparativo">
+        <div class="card p-4">
+          <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h5 class="fw-bold m-0"><i class="bi bi-graph-up-arrow text-warning me-2"></i>Análise Comparativa (Multi-Turmas & Simulados)</h5>
+            <button class="btn btn-outline-danger fw-bold" onclick="gerarPDFComparativo()"><i class="bi bi-file-pdf-fill me-1"></i> Baixar Relatório PDF</button>
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label fw-bold">1. Selecione as Turmas (Múltiplas)</label>
+              <div class="turmas-checkbox-container" id="containerCheckTurmas"><span class="text-muted small">Carregando...</span></div>
+              <div class="mt-1"><button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="selecionarTodasTurmas(true)">Marcar Todas</button> | <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="selecionarTodasTurmas(false)">Desmarcar Todas</button></div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">2. Simulado Inicial (Base)</label><select id="compSimulado1" class="form-select mb-3"><option value="">Selecione...</option></select>
+              <label class="form-label fw-bold">3. Simulado Final (Comparação)</label><select id="compSimulado2" class="form-select"><option value="">Selecione...</option></select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end"><button class="btn btn-tema w-100 py-2 fw-bold" onclick="processarAnaliseComparativa()"><i class="bi bi-search me-2"></i>Gerar Análise Comparativa</button></div>
+          </div>
+          <div id="resultadoComparativoArea" style="display: none;">
+            <div class="row g-3 mb-4 text-center">
+              <div class="col-md-4"><div class="p-3 border rounded bg-light"><span class="text-muted small d-block">Média Geral - Simulado 1</span><h3 class="fw-bold text-dark m-0" id="statMedia1">0%</h3></div></div>
+              <div class="col-md-4"><div class="p-3 border rounded bg-light"><span class="text-muted small d-block">Média Geral - Simulado 2</span><h3 class="fw-bold text-dark m-0" id="statMedia2">0%</h3></div></div>
+              <div class="col-md-4"><div class="p-3 border rounded bg-light"><span class="text-muted small d-block">Evolução Média da Turma</span><h3 class="fw-bold m-0" id="statEvolucao">+0%</h3></div></div>
+            </div>
+            <h6 class="fw-bold mb-3"><i class="bi bi-people-fill me-2"></i>Desempenho Individual e Evolução por Aluno</h6>
+            <div class="table-responsive w-100">
+              <table class="table table-hover align-middle small border" id="tabelaComparativaAlunos">
+                <thead class="table-light">
+                  <tr><th>Aluno</th><th>Turma</th><th class="text-center" id="thNomeSimu1">Simulado 1</th><th class="text-center" id="thNomeSimu2">Simulado 2</th><th class="text-center">Variação (%)</th><th class="text-center">Status / Tendência</th></tr>
+                </thead>
+                <tbody id="tbodyComparativo"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="avisoComparativo" class="alert alert-info m-0">Selecione pelo menos uma turma e dois simulados diferentes.</div>
+        </div>
+      </div>
+
+      <!-- ABA 5: IMPORTAR PLANILHA -->
+      <div class="tab-pane fade" id="importacaoTurma">
+        <div class="card p-4">
+          <h5 class="fw-bold mb-3"><i class="bi bi-file-earmark-excel-fill text-danger me-2"></i>Importação de Gabaritos via Planilha</h5>
+          <p class="text-muted small">Baixe o modelo oficial, preencha as respostas e envie o arquivo. O sistema cruzará os nomes com a base de dados para garantir o nome oficial completo do aluno.</p>
+          
+          <div class="mb-4">
+            <button class="btn btn-outline-success btn-sm fw-bold" onclick="baixarPlanilhaModelo()">
+              <i class="bi bi-download me-1"></i> Baixar Planilha Modelo (Excel)
+            </button>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Ano Letivo</label>
+              <select id="impAno" class="form-select" onchange="carregarSeriesPorAno()"><option value="">Selecione o Ano...</option></select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Série / Turma (Coluna B)</label>
+              <select id="impSerieTurma" class="form-select"><option value="">Selecione o Ano primeiro...</option></select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Simulado</label>
+              <select id="impSimulado" class="form-select"><option value="">Selecione...</option></select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Selecionar Ficheiro Preenchido (.xlsx ou .csv)</label>
+            <input type="file" id="inputArquivoExcel" class="form-control" accept=".xlsx, .xls, .csv">
+          </div>
+
+          <button class="btn btn-danger w-100 py-2 fw-bold" onclick="processarArquivoExcel()"><i class="bi bi-cloud-arrow-up-fill me-2"></i>Processar e Importar Alunos no Banco</button>
+        </div>
+      </div>
+
+      <!-- ABA 6: GABARITOS OFICIAIS -->
+      <div class="tab-pane fade" id="gabaritos">
+        <div class="card p-4">
+          <h5 class="fw-bold mb-4"><i class="bi bi-key text-secondary me-2"></i>Cadastrar Gabarito Oficial</h5>
+          <div class="row g-3 mb-4">
+            <div class="col-md-8">
+              <label class="form-label">Nome de Identificação do Simulado</label>
+              <input type="text" id="nomeNovoSimulado" class="form-control uppercase-input" placeholder="Ex: 3º ANO - AVALIAÇÃO DIAGNÓSTICA DE PORTUGUÊS">
+            </div>
+          </div>
+          <div class="row g-3 mb-4 justify-content-center">
+            <div class="col-xl-6 col-lg-6" id="colunaOficial1"></div>
+            <div class="col-xl-6 col-lg-6" id="colunaOficial2"></div>
+          </div>
+          <button class="btn btn-secondary fw-bold px-4 py-2 text-white w-100" onclick="salvarGabaritoOficial()"><i class="bi bi-save-fill me-2"></i>Salvar Gabarito Oficial no Banco</button>
+        </div>
+        <div class="card p-4 mt-4">
+           <h6 class="fw-bold mb-3"><i class="bi bi-list-check me-2"></i>Gabaritos Oficiais Salvos</h6>
+           <div class="table-responsive">
+             <table class="table table-sm table-hover align-middle small border">
+                <thead class="table-light"><tr><th>Simulado</th><th>Questões Cadastradas</th><th class="text-end">Ações</th></tr></thead>
+                <tbody id="tabelaGabaritosSalvos"></tbody>
+             </table>
+           </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal para Exibir Alunos por Nível -->
+  <div class="modal fade" id="modalAlunosNivel" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold" id="tituloModalNivel">Alunos por Nível</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="list-group list-group-flush" id="listaAlunosModal">
+            <li class="list-group-item text-muted">A carregar...</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
+const _fetchOriginal = window.fetch;
+window.fetch = function(url, options) {
+  if (options && options.method === 'POST' && typeof options.body === 'string') {
+    try {
+      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+      let bodyObj = JSON.parse(options.body);
+      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+      options.body = JSON.stringify(bodyObj);
+    } catch (e) {}
+  }
+  return _fetchOriginal(url, options);
+};
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    
+    let dbLancamentos = [];
+    let dbGabaritos = [];
+    let dbAlunos = [];
+    let dbSeriesConfig = [];
+
+    Chart.register(ChartDataLabels);
+    let chartDesempenhoObj = null;
+    let alunosPorNivelGlobal = {};
+    let questoesPorNivelGlobal = { 'MUITO CRÍTICO': [], 'CRÍTICO': [], 'INTERMEDIÁRIO': [], 'ADEQUADO': [] };
+
+    window.onload = async () => {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if(u) {
+        let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
+        document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+      }
+      
+      gerarGridsEmDuasColunas('aluno', 'colunaQuestoes1', 'colunaQuestoes2');
+      gerarGridsEmDuasColunas('oficial', 'colunaOficial1', 'colunaOficial2');
+      await carregarDadosDoBanco();
+    };
+
+    function gerarGridsEmDuasColunas(prefix, container1Id, container2Id) {
+      const opcoes = ['A', 'B', 'C', 'D', 'E', 'N'];
+      let html1 = "", html2 = "";
+      for(let i=1; i<=26; i++) {
+        let qStr = `Q.${i.toString().padStart(2, '0')}`;
+        let linhaHTML = `<div class="q-linha"><span class="fw-bold small text-dark" style="min-width: 50px;">${qStr}</span><div class="d-flex align-items-center"><div class="d-flex gap-1 me-3">`;
+        opcoes.forEach(op => {
+          if(op !== 'N') linhaHTML += `<div><input type="radio" class="btn-check" name="${prefix}_q${i}" id="${prefix}_q${i}_${op}" value="${op}"><label class="btn-alt" for="${prefix}_q${i}_${op}">${op}</label></div>`;
+        });
+        linhaHTML += `</div><div class="ms-2"><input type="radio" class="btn-check" name="${prefix}_q${i}" id="${prefix}_q${i}_N" value="N"><label class="btn-alt btn-alt-nula" for="${prefix}_q${i}_N">N</label></div></div></div>`;
+        if(i <= 13) html1 += linhaHTML; else html2 += linhaHTML;
+      }
+      document.getElementById(container1Id).innerHTML = html1;
+      document.getElementById(container2Id).innerHTML = html2;
+    }
+
+    async function fetchAPI(payload) {
+      try {
+        const response = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await response.json();
+      } catch (error) { return { success: false, error: error.message }; }
+    }
+
+    async function carregarDadosDoBanco() {
+      Swal.fire({title: 'Sincronizando com Banco de Dados...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+      
+      const res = await fetchAPI({ action: 'buscarDadosSimulados' });
+      const resSeries = await fetchAPI({ action: 'listarConfig', tipo: 'SERIE' });
+
+      if(res.success) {
+        dbLancamentos = res.dados.lancamentos || [];
+        dbGabaritos = res.dados.gabaritos || [];
+        dbAlunos = res.dados.alunos || [];
+        
+        let turmasSet = new Set(dbLancamentos.map(l => l.turma));
+        dbAlunos.forEach(a => { if(a.turma) turmasSet.add(a.turma); });
+
+        let simuladosSet = new Set(dbGabaritos.map(g => g.simulado));
+        
+        const optsTurma = `<option value="">Selecione...</option>` + Array.from(turmasSet).sort().map(t => `<option value="${t}">${t}</option>`).join('');
+        document.getElementById('selectTurma').innerHTML = optsTurma;
+        document.getElementById('dashTurma').innerHTML = optsTurma;
+        document.getElementById('resumoTurma').innerHTML = optsTurma;
+        
+        const optsSimu = `<option value="">Selecione...</option>` + Array.from(simuladosSet).sort().map(s => `<option value="${s}">${s}</option>`).join('');
+        document.getElementById('selectSimulado').innerHTML = optsSimu;
+        document.getElementById('dashSimulado').innerHTML = optsSimu;
+        document.getElementById('resumoSimulado').innerHTML = optsSimu;
+        document.getElementById('compSimulado1').innerHTML = optsSimu;
+        document.getElementById('compSimulado2').innerHTML = optsSimu;
+        document.getElementById('impSimulado').innerHTML = optsSimu;
+        document.getElementById('filtroSimuladoLancamentos').innerHTML = `<option value="">Filtrar por Simulado (Todos)...</option>` + Array.from(simuladosSet).sort().map(s => `<option value="${s}">${s}</option>`).join('');
+
+        if (resSeries && resSeries.success) {
+          dbSeriesConfig = resSeries.lista || [];
+          let anosSet = new Set(dbSeriesConfig.map(s => s.col1).filter(Boolean));
+          let optsAno = `<option value="">Selecione o Ano...</option>` + Array.from(anosSet).sort().map(a => `<option value="${a}">${a}</option>`).join('');
+          document.getElementById('impAno').innerHTML = optsAno;
+        }
+
+        atualizarTabelaLancamentos();
+        atualizarTabelaGabaritos();
+        inicializarComparativo();
+        Swal.close();
+      } else {
+        Swal.fire('Erro', 'Erro: ' + (res.error || 'Verifique o URL'), 'error');
+      }
+    }
+
+    function carregarSeriesPorAno() {
+      const anoSel = document.getElementById('impAno').value;
+      const selSerie = document.getElementById('impSerieTurma');
+      if(!anoSel) {
+        selSerie.innerHTML = '<option value="">Selecione o Ano primeiro...</option>';
+        return;
+      }
+      let seriesFiltradas = dbSeriesConfig.filter(s => String(s.col1).trim() === String(anoSel).trim()).map(s => s.col2).filter(Boolean).sort();
+      let html = '<option value="">Selecione a Série / Turma...</option>';
+      seriesFiltradas.forEach(s => html += `<option value="${s}">${s}</option>`);
+      selSerie.innerHTML = html;
+    }
+
+    function inicializarComparativo() {
+      let turmasSet = Array.from(new Set(dbLancamentos.map(l => l.turma))).sort();
+      let container = document.getElementById('containerCheckTurmas');
+      if(turmasSet.length === 0) { container.innerHTML = '<span class="text-muted small">Nenhuma turma encontrada.</span>'; return; }
+      let html = '';
+      turmasSet.forEach((t, i) => {
+        html += `<div class="form-check"><input class="form-check-input check-turma-comp" type="checkbox" value="${t}" id="turmaComp_${i}" checked><label class="form-check-label small fw-semibold" for="turmaComp_${i}">${t}</label></div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function selecionarTodasTurmas(marcar) { document.querySelectorAll('.check-turma-comp').forEach(chk => chk.checked = marcar); }
+
+    function processarAnaliseComparativa() {
+      const turmasSelecionadas = Array.from(document.querySelectorAll('.check-turma-comp:checked')).map(c => c.value);
+      const sim1 = document.getElementById('compSimulado1').value;
+      const sim2 = document.getElementById('compSimulado2').value;
+
+      if(turmasSelecionadas.length === 0) return Swal.fire('Atenção', 'Selecione pelo menos uma turma.', 'warning');
+      if(!sim1 || !sim2) return Swal.fire('Atenção', 'Selecione o Simulado 1 e o Simulado 2.', 'warning');
+
+      document.getElementById('avisoComparativo').style.display = 'none';
+      document.getElementById('resultadoComparativoArea').style.display = 'block';
+
+      document.getElementById('thNomeSimu1').innerText = sim1;
+      document.getElementById('thNomeSimu2').innerText = sim2;
+
+      let lancsSim1 = dbLancamentos.filter(l => turmasSelecionadas.includes(l.turma) && l.simulado === sim1);
+      let lancsSim2 = dbLancamentos.filter(l => turmasSelecionadas.includes(l.turma) && l.simulado === sim2);
+
+      let soma1 = 0, total1 = lancsSim1.length;
+      lancsSim1.forEach(l => soma1 += ((l.acertos / 26) * 100));
+      let media1 = total1 > 0 ? (soma1 / total1) : 0;
+
+      let soma2 = 0, total2 = lancsSim2.length;
+      lancsSim2.forEach(l => soma2 += ((l.acertos / 26) * 100));
+      let media2 = total2 > 0 ? (soma2 / total2) : 0;
+
+      let diffMedia = media2 - media1;
+      document.getElementById('statMedia1').innerText = `${media1.toFixed(1)}%`;
+      document.getElementById('statMedia2').innerText = `${media2.toFixed(1)}%`;
+      let elEvol = document.getElementById('statEvolucao');
+      elEvol.innerText = `${diffMedia >= 0 ? '+' : ''}${diffMedia.toFixed(1)}%`;
+      elEvol.className = `fw-bold m-0 ${diffMedia >= 0 ? 'text-success' : 'text-danger'}`;
+
+      let mapaAlunos = {};
+      lancsSim1.forEach(l => { if(!mapaAlunos[l.aluno]) mapaAlunos[l.aluno] = { turma: l.turma, acertos1: null, acertos2: null }; mapaAlunos[l.aluno].acertos1 = l.acertos; });
+      lancsSim2.forEach(l => { if(!mapaAlunos[l.aluno]) mapaAlunos[l.aluno] = { turma: l.turma, acertos1: null, acertos2: null }; mapaAlunos[l.aluno].acertos2 = l.acertos; if(!mapaAlunos[l.aluno].turma) mapaAlunos[l.aluno].turma = l.turma; });
+
+      let tbodyHtml = '';
+      let chavesAlunos = Object.keys(mapaAlunos).sort();
+
+      if(chavesAlunos.length === 0) {
+        tbodyHtml = '<tr><td colspan="6" class="text-center text-muted py-4">Nenhum aluno encontrado.</td></tr>';
+      } else {
+        chavesAlunos.forEach(nome => {
+          let dados = mapaAlunos[nome];
+          let a1 = dados.acertos1, a2 = dados.acertos2;
+          let pct1Str = a1 !== null ? `${a1}/26 (${((a1/26)*100).toFixed(0)}%)` : '-';
+          let pct2Str = a2 !== null ? `${a2}/26 (${((a2/26)*100).toFixed(0)}%)` : '-';
+          let diffVal = (a1 !== null && a2 !== null) ? (a2 - a1) : null;
+          let diffPctStr = '-', badgeStatus = '<span class="text-muted">-</span>';
+
+          if(diffVal !== null) {
+            let pctDiff = ((diffVal / 26) * 100);
+            diffPctStr = `${diffVal >= 0 ? '+' : ''}${diffVal} (${pctDiff >= 0 ? '+' : ''}${pctDiff.toFixed(1)}%)`;
+            if(diffVal > 0) badgeStatus = `<span class="badge bg-success"><i class="bi bi-arrow-up-circle me-1"></i>Avanço (+${diffVal})</span>`;
+            else if(diffVal < 0) badgeStatus = `<span class="badge bg-danger"><i class="bi bi-arrow-down-circle me-1"></i>Redução (${diffVal})</span>`;
+            else badgeStatus = `<span class="badge bg-secondary">Estável (0)</span>`;
+          } else {
+            badgeStatus = `<span class="badge bg-warning text-dark">Incompleto</span>`;
+          }
+
+          tbodyHtml += `<tr><td class="fw-bold">${nome}</td><td>${dados.turma}</td><td class="text-center">${pct1Str}</td><td class="text-center">${pct2Str}</td><td class="text-center fw-semibold">${diffPctStr}</td><td class="text-center">${badgeStatus}</td></tr>`;
+        });
+      }
+      document.getElementById('tbodyComparativo').innerHTML = tbodyHtml;
+    }
+
+    // --- ALGORITMO INTELIGENTE DE RECONHECIMENTO DE NOME (FUZZY MATCHING) ---
+    function encontrarNomeOficialBanco(nomeDigitado, turmaAlvo) {
+      const termoDigitado = String(nomeDigitado || "").trim().toUpperCase();
+      if (!termoDigitado) return "";
+
+      const alunosDaTurma = dbAlunos.filter(a => String(a.turma || "").trim().toUpperCase() === String(turmaAlvo || "").trim().toUpperCase());
+      let exato = alunosDaTurma.find(a => String(a.nome || "").trim().toUpperCase() === termoDigitado);
+      if (exato) return exato.nome;
+
+      let palavrasDigitadas = termoDigitado.split(/\s+/).filter(p => p.length > 2);
+      if (palavrasDigitadas.length === 0) palavrasDigitadas = [termoDigitado];
+
+      let melhorCandidato = "";
+      let maiorPontuacao = 0;
+
+      alunosDaTurma.forEach(alunoObj => {
+        let nomeBanco = String(alunoObj.nome || "").trim().toUpperCase();
+        let pontuacao = 0;
+        palavrasDigitadas.forEach(palavra => {
+          if (nomeBanco.includes(palavra)) pontuacao++;
+        });
+
+        if (pontuacao > maiorPontuacao) {
+          maiorPontuacao = pontuacao;
+          melhorCandidato = alunoObj.nome;
+        }
+      });
+
+      return maiorPontuacao > 0 ? melhorCandidato : termoDigitado;
+    }
+
+    function baixarPlanilhaModelo() {
+      let wb = XLSX.utils.book_new();
+      let dadosModelo = [
+        ["NOME DO ALUNO", "Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25", "Q26"],
+        ["EXEMPLO: JOÃO SILVA DA COSTA", "A", "B", "C", "D", "E", "A", "B", "C", "D", "E", "A", "B", "C", "D", "E", "A", "B", "C", "D", "E", "A", "B", "C", "D", "E", "A"],
+        ["EXEMPLO: MARIA OLIVEIRA", "B", "A", "C", "E", "D", "B", "A", "C", "E", "D", "B", "A", "C", "E", "D", "B", "A", "C", "E", "D", "B", "A", "C", "E", "D", "B"]
+      ];
+      let ws = XLSX.utils.aoa_to_sheet(dadosModelo);
+      XLSX.utils.book_append_sheet(wb, ws, "Gabaritos");
+      XLSX.writeFile(wb, "Modelo_Importacao_Simulado.xlsx");
+    }
+
+    async function processarArquivoExcel() {
+      const serieTurma = document.getElementById('impSerieTurma').value;
+      const simulado = document.getElementById('impSimulado').value;
+      const fileInput = document.getElementById('inputArquivoExcel');
+
+      if(!serieTurma || !simulado) return Swal.fire('Atenção', 'Selecione a Série/Turma e o Simulado.', 'warning');
+      if(fileInput.files.length === 0) return Swal.fire('Atenção', 'Selecione um ficheiro Excel ou CSV preenchido.', 'warning');
+
+      let file = fileInput.files[0];
+      let reader = new FileReader();
+
+      Swal.fire({title: 'A processar planilha...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+      reader.onload = async function(e) {
+        try {
+          let data = new Uint8Array(e.target.result);
+          let workbook = XLSX.read(data, {type: 'array'});
+          let firstSheetName = workbook.SheetNames[0];
+          let worksheet = workbook.Sheets[firstSheetName];
+          let rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+          let importados = 0;
+          for(let r = 1; r < rows.length; r++) {
+            let row = rows[r];
+            if(!row || row.length === 0 || !row[0]) continue;
+
+            let nomeDigitado = String(row[0]).trim();
+            if(nomeDigitado.toUpperCase().includes("EXEMPLO:") || nomeDigitado.toUpperCase().includes("NOME")) continue;
+
+            let nomeOficialBanco = encontrarNomeOficialBanco(nomeDigitado, serieTurma);
+
+            let respostasArr = [];
+            for(let q = 1; q <= 26; q++) {
+              let letra = row[q] ? String(row[q]).trim().toUpperCase() : 'N';
+              if(['A','B','C','D','E'].includes(letra)) respostasArr.push(letra);
+              else respostasArr.push('N');
+            }
+
+            let acertosCalc = calcularAcertos(respostasArr, simulado);
+            await fetchAPI({ action: 'salvarRespostaAluno', turma: serieTurma, aluno: nomeOficialBanco, simulado, respostas: respostasArr, acertos: acertosCalc });
+            importados++;
+          }
+
+          Swal.fire('Sucesso!', `${importados} alunos importados com sucesso!`, 'success');
+          fileInput.value = '';
+          await carregarDadosDoBanco();
+        } catch(err) {
+          Swal.fire('Erro', 'Falha ao ler o ficheiro: ' + err.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function carregarAlunosDropdown() {
+      const turma = document.getElementById('selectTurma').value;
+      const select = document.getElementById('selectAluno');
+      select.innerHTML = '<option value="">Selecione o aluno...</option>';
+      dbAlunos.filter(a => a.turma === turma).sort((a,b) => a.nome.localeCompare(b.nome)).forEach(a => {
+        select.innerHTML += `<option value="${a.nome}">${a.nome}</option>`;
+      });
+    }
+
+    function atualizarTabelaGabaritos() {
+      let html = '';
+      dbGabaritos.forEach((g, idx) => {
+        html += `<tr><td class="fw-bold">${g.simulado}</td><td>26</td><td class="text-end"><button class="btn btn-sm btn-outline-primary me-1" onclick="editarGabarito(${idx})"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="excluirGabarito('${g.simulado}')"><i class="bi bi-trash"></i></button></td></tr>`;
+      });
+      document.getElementById('tabelaGabaritosSalvos').innerHTML = html || '<tr><td colspan="3" class="text-center">Nenhum gabarito cadastrado.</td></tr>';
+    }
+
+    function editarGabarito(idx) {
+      const g = dbGabaritos[idx];
+      document.getElementById('nomeNovoSimulado').value = g.simulado;
+      g.respostas.forEach((resp, i) => { if(resp) { let r = document.getElementById(`oficial_q${i+1}_${resp}`); if(r) r.checked = true; } });
+      window.scrollTo(0, 0);
+      Swal.fire('Modo de Edição', 'Altere e salve o gabarito.', 'info');
+    }
+
+    async function excluirGabarito(simuladoNome) {
+      const confirm = await Swal.fire({title: 'Tem certeza?', text: `Excluir "${simuladoNome}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Sim'});
+      if(confirm.isConfirmed) {
+        Swal.fire({title: 'Excluindo...', didOpen: () => Swal.showLoading()});
+        const res = await fetchAPI({ action: 'excluirGabaritoOficial', simulado: simuladoNome });
+        if(res.success) { Swal.fire('Excluído!', '', 'success'); await carregarDadosDoBanco(); }
+        else { Swal.fire('Erro', res.error, 'error'); }
+      }
+    }
+
+    async function salvarRespostasAluno() {
+      const turma = document.getElementById('selectTurma').value;
+      const aluno = document.getElementById('selectAluno').value;
+      const simulado = document.getElementById('selectSimulado').value;
+      if(!aluno || !simulado) return Swal.fire('Atenção', 'Selecione Aluno e Simulado.', 'warning');
+      
+      let respostasArr = [];
+      for(let i=1; i<=26; i++) {
+        let check = document.querySelector(`input[name="aluno_q${i}"]:checked`);
+        respostasArr.push(check ? check.value : "N");
+      }
+      
+      Swal.fire({title: 'Salvando...', didOpen: () => Swal.showLoading()});
+      const acertosCalc = calcularAcertos(respostasArr, simulado);
+      const res = await fetchAPI({ action: 'salvarRespostaAluno', turma, aluno, simulado, respostas: respostasArr, acertos: acertosCalc });
+      
+      if(res.success) { Swal.fire('Sucesso!', 'Salvo com sucesso.', 'success'); cancelarEdicaoAluno(); await carregarDadosDoBanco(); }
+      else { Swal.fire('Erro', res.error, 'error'); }
+    }
+
+    function cancelarEdicaoAluno() {
+      document.getElementById('editIdAluno').value = "";
+      document.getElementById('selectAluno').value = "";
+      document.getElementById('btnCancelarEdicao').classList.add('d-none');
+      document.querySelectorAll(`input[name^="aluno_q"]`).forEach(r => r.checked = false);
+    }
+
+    function calcularAcertos(respAluno, simulado) {
+      const gab = dbGabaritos.find(g => g.simulado === simulado);
+      if(!gab) return 0;
+      return respAluno.reduce((acc, r, i) => acc + ((r !== 'N' && r !== '' && r === gab.respostas[i]) ? 1 : 0), 0);
+    }
+
+    function atualizarTabelaLancamentos() {
+      const filtroTexto = document.getElementById('buscaLancamento').value.toUpperCase().trim();
+      const filtroSimulado = document.getElementById('filtroSimuladoLancamentos').value;
+      let html = '';
+      dbLancamentos.filter(r => r.aluno.toUpperCase().includes(filtroTexto) && (filtroSimulado === "" || r.simulado === filtroSimulado)).forEach((r) => {
+        let originalIdx = dbLancamentos.indexOf(r);
+        html += `<tr><td class="fw-bold">${r.aluno}</td><td>${r.turma}</td><td>${r.simulado}</td><td><span class="badge bg-success">${r.acertos}/26</span></td><td class="text-end"><button class="btn btn-sm btn-outline-primary" onclick="editarLancamento(${originalIdx})"><i class="bi bi-pencil"></i></button></td></tr>`;
+      });
+      document.getElementById('tabelaLancamentos').innerHTML = html || '<tr><td colspan="5" class="text-center text-muted">Nenhum lançamento.</td></tr>';
+    }
+
+    function editarLancamento(idx) {
+      const r = dbLancamentos[idx];
+      document.getElementById('selectTurma').value = r.turma;
+      carregarAlunosDropdown();
+      document.getElementById('selectAluno').value = r.aluno;
+      document.getElementById('selectSimulado').value = r.simulado;
+      document.getElementById('editIdAluno').value = "editando";
+      document.getElementById('btnCancelarEdicao').classList.remove('d-none');
+      r.respostas.forEach((resp, i) => { let rad = document.getElementById(`aluno_q${i+1}_${resp}`); if(rad) rad.checked = true; });
+      window.scrollTo(0,0);
+    }
+
+    async function salvarGabaritoOficial() {
+      const simulado = document.getElementById('nomeNovoSimulado').value.toUpperCase();
+      if(!simulado) return Swal.fire('Atenção', 'Digite o nome do simulado.', 'warning');
+      let resps = [];
+      for(let i=1; i<=26; i++) { let chk = document.querySelector(`input[name="oficial_q${i}"]:checked`); resps.push(chk ? chk.value : ""); }
+      if(resps.includes("")) return Swal.fire('Atenção', 'Preencha as 26 questões.', 'warning');
+
+      Swal.fire({title: 'Gravando...', didOpen: () => Swal.showLoading()});
+      const res = await fetchAPI({ action: 'salvarGabaritoOficial', simulado, respostas: resps });
+      if(res.success) { Swal.fire('Sucesso!', 'Gabarito salvo.', 'success'); document.getElementById('nomeNovoSimulado').value = ""; document.querySelectorAll(`input[name^="oficial_q"]`).forEach(r => r.checked = false); await carregarDadosDoBanco(); }
+      else { Swal.fire('Erro', res.error, 'error'); }
+    }
+
+    function classificarNivel(pct) {
+      if(pct <= 25) return { nome: 'MUITO CRÍTICO', cor: '#dc3545', classe: 'bg-muito-critico', pillClass: 'q-pill-mc' };
+      if(pct <= 50) return { nome: 'CRÍTICO', cor: '#fd7e14', classe: 'bg-critico', pillClass: 'q-pill-c' };
+      if(pct <= 75) return { nome: 'INTERMEDIÁRIO', cor: '#ffc107', classe: 'bg-intermediario', pillClass: 'q-pill-i' };
+      return { nome: 'ADEQUADO', cor: '#198754', classe: 'bg-adequado', pillClass: 'q-pill-a' };
+    }
+
+    function gerarGraficoTurma() {
+      const turma = document.getElementById('dashTurma').value;
+      const simulado = document.getElementById('dashSimulado').value;
+      if(!turma || !simulado) { document.getElementById('areaGrafico').style.display = 'none'; document.getElementById('avisoGrafico').style.display = 'block'; return; }
+      
+      document.getElementById('areaGrafico').style.display = 'flex';
+      document.getElementById('avisoGrafico').style.display = 'none';
+      
+      const gabaritoObj = dbGabaritos.find(g => g.simulado === simulado);
+      const alunosTurma = dbLancamentos.filter(l => l.turma === turma && l.simulado === simulado);
+      let contagem = { 'MUITO CRÍTICO': 0, 'CRÍTICO': 0, 'INTERMEDIÁRIO': 0, 'ADEQUADO': 0 };
+      alunosPorNivelGlobal = { 'MUITO CRÍTICO': [], 'CRÍTICO': [], 'INTERMEDIÁRIO': [], 'ADEQUADO': [] };
+      questoesPorNivelGlobal = { 'MUITO CRÍTICO': [], 'CRÍTICO': [], 'INTERMEDIÁRIO': [], 'ADEQUADO': [] };
+      let somaAcertos = 0;
+      let acertosPorQuestao = Array(26).fill(0);
+      
+      alunosTurma.forEach(al => {
+        let numAcertos = al.acertos;
+        if(gabaritoObj) {
+          let calc = 0;
+          for(let i = 0; i < 26; i++) {
+            let r = al.respostas[i];
+            if(r !== 'N' && r !== '' && r === gabaritoObj.respostas[i]) {
+              calc++;
+              acertosPorQuestao[i]++;
+            }
+          }
+          if(numAcertos === undefined || numAcertos === null) numAcertos = calc;
+        }
+        let pct = (numAcertos / 26) * 100;
+        somaAcertos += pct;
+        let nivel = classificarNivel(pct);
+        contagem[nivel.nome]++;
+        alunosPorNivelGlobal[nivel.nome].push(al.aluno);
+      });
+      
+      const total = alunosTurma.length || 1;
+      const media = alunosTurma.length ? (somaAcertos / total).toFixed(1) : 0;
+      document.getElementById('mediaTurmaDash').innerText = `${media}%`;
+      document.getElementById('pctMC').innerText = `${((contagem['MUITO CRÍTICO']/total)*100).toFixed(1)}%`;
+      document.getElementById('pctC').innerText = `${((contagem['CRÍTICO']/total)*100).toFixed(1)}%`;
+      document.getElementById('pctI').innerText = `${((contagem['INTERMEDIÁRIO']/total)*100).toFixed(1)}%`;
+      document.getElementById('pctA').innerText = `${((contagem['ADEQUADO']/total)*100).toFixed(1)}%`;
+      
+      // Preenche os 4 Quadrantes de Questões (0% a 100%)
+      let htmlQ = { 'MUITO CRÍTICO': '', 'CRÍTICO': '', 'INTERMEDIÁRIO': '', 'ADEQUADO': '' };
+      if (gabaritoObj && alunosTurma.length > 0) {
+        for (let q = 0; q < 26; q++) {
+          let pctQ = (acertosPorQuestao[q] / alunosTurma.length) * 100;
+          let nivQ = classificarNivel(pctQ);
+          let labelQ = `Q.${(q + 1).toString().padStart(2, '0')} (${pctQ.toFixed(0)}%)`;
+          questoesPorNivelGlobal[nivQ.nome].push(labelQ);
+          htmlQ[nivQ.nome] += `<span class="q-pill ${nivQ.pillClass}">Q.${(q + 1).toString().padStart(2, '0')} <small class="fw-normal">(${pctQ.toFixed(0)}%)</small></span>`;
+        }
+      }
+      document.getElementById('quadQuestoesMC').innerHTML = htmlQ['MUITO CRÍTICO'] || '<span class="text-muted small fst-italic">Nenhuma questão</span>';
+      document.getElementById('quadQuestoesC').innerHTML = htmlQ['CRÍTICO'] || '<span class="text-muted small fst-italic">Nenhuma questão</span>';
+      document.getElementById('quadQuestoesI').innerHTML = htmlQ['INTERMEDIÁRIO'] || '<span class="text-muted small fst-italic">Nenhuma questão</span>';
+      document.getElementById('quadQuestoesA').innerHTML = htmlQ['ADEQUADO'] || '<span class="text-muted small fst-italic">Nenhuma questão</span>';
+
+      const alunosDaTurmaList = dbAlunos.filter(a => a.turma === turma).map(a => a.nome);
+      const lançadosList = alunosTurma.map(a => a.aluno);
+      const pendentes = alunosDaTurmaList.filter(a => !lançadosList.includes(a));
+      document.getElementById('listaPendentesDash').innerHTML = pendentes.length ? `<ul class="mb-0 ps-3">` + pendentes.map(p => `<li>${p}</li>`).join('') + `</ul>` : '<span class="text-success fw-bold">Todos lançados!</span>';
+
+      if(chartDesempenhoObj) chartDesempenhoObj.destroy();
+      const ctx = document.getElementById('graficoDesempenho').getContext('2d');
+      chartDesempenhoObj = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: ['Muito Crítico', 'Crítico', 'Intermediário', 'Adequado'], datasets: [{ data: [contagem['MUITO CRÍTICO'], contagem['CRÍTICO'], contagem['INTERMEDIÁRIO'], contagem['ADEQUADO']], backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#198754'] }] },
+        options: { responsive: true, plugins: { legend: { display: false }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 }, formatter: (value, ctx) => { let sum = ctx.dataset.data.reduce((a, b) => a + b, 0); if(sum === 0 || value === 0) return ''; return ((value * 100) / sum).toFixed(1) + "%"; } } } }
+      });
+    }
+
+    function mostrarAlunosModal(nivel) {
+      document.getElementById('tituloModalNivel').innerText = `Alunos - ${nivel}`;
+      const lista = document.getElementById('listaAlunosModal');
+      const nomes = alunosPorNivelGlobal[nivel] || [];
+      
+      if (nomes.length === 0) {
+        lista.innerHTML = `<li class="list-group-item text-muted text-center py-3">Nenhum aluno neste nível.</li>`;
+      } else {
+        lista.innerHTML = nomes.map(n => `<li class="list-group-item fw-semibold text-secondary"><i class="bi bi-person-fill me-2 text-primary"></i>${n}</li>`).join('');
+      }
+      new bootstrap.Modal(document.getElementById('modalAlunosNivel')).show();
+    }
+
+    // Carregador assíncrono do Brasão para os PDFs
+    async function obterBase64LogoAsync() {
+      return new Promise((resolve) => {
+        const img = document.querySelector('.logo-escola');
+        if (!img) return resolve(null);
+
+        const tentarCanvas = (elementoImg) => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = elementoImg.naturalWidth || elementoImg.width || 120;
+            canvas.height = elementoImg.naturalHeight || elementoImg.height || 120;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(elementoImg, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/png');
+          } catch (e) {
+            return null;
+          }
+        };
+
+        if (img.complete && img.naturalWidth > 0) {
+          let dataUrl = tentarCanvas(img);
+          if (dataUrl) return resolve(dataUrl);
+        }
+
+        const novaImg = new Image();
+        novaImg.crossOrigin = "Anonymous";
+        novaImg.onload = () => resolve(tentarCanvas(novaImg));
+        novaImg.onerror = () => resolve(null);
+        novaImg.src = img.src;
+      });
+    }
+
+    async function desenharCabecalhoPadraoPaisagem(doc, tituloRelatorio, subtituloFiltros) {
+      const logo = await obterBase64LogoAsync();
+      if (logo) {
+        doc.addImage(logo, 'PNG', 14, 9, 22, 22);
+      }
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text("ESCOLA DE ENSINO MÉDIO EM TEMPO INTEGRAL", 40, 14);
+      
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 118, 110);
+      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 20.5);
+
+      doc.setFontSize(9.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(51, 65, 85);
+      doc.text(tituloRelatorio, 40, 26);
+
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text(subtituloFiltros, 40, 30.5);
+
+      const dataAtual = new Date();
+      const dataStr = dataAtual.toLocaleDateString('pt-BR') + ' às ' + dataAtual.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+      doc.setFontSize(8.5);
+      doc.text(`Emitido em: ${dataStr}`, 283, 30.5, { align: 'right' });
+
+      doc.setDrawColor(15, 118, 110);
+      doc.setLineWidth(0.5);
+      doc.line(14, 34, 283, 34);
+      doc.setTextColor(0, 0, 0);
+    }
+
+    // Exportação PDF do Dashboard com Retângulos de Alunos e Mapa de Questões
+    async function gerarRelatorioPDFDash() {
+      const turma = document.getElementById('dashTurma').value;
+      const simulado = document.getElementById('dashSimulado').value;
+      if (!turma || !simulado) return Swal.fire('Atenção', 'Selecione a Turma e o Simulado.', 'warning');
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+
+      await desenharCabecalhoPadraoPaisagem(
+        doc,
+        "RELATÓRIO DE DESEMPENHO POR NÍVEL DE PROFICIÊNCIA",
+        `Turma: ${turma}   |   Simulado: ${simulado}`
+      );
+
+      const canvasEl = document.getElementById('graficoDesempenho');
+      if (canvasEl) {
+        const canvasImg = canvasEl.toDataURL('image/png', 1.0);
+        doc.addImage(canvasImg, 'PNG', 16, 40, 58, 58);
+      }
+
+      const mediaTexto = document.getElementById('mediaTurmaDash').innerText || "0%";
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(16, 102, 58, 16, 2, 2, 'FD');
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100, 116, 139);
+      doc.text("MÉDIA DA TURMA", 45, 108, { align: 'center' });
+      doc.setFontSize(13);
+      doc.setTextColor(15, 118, 110);
+      doc.text(mediaTexto, 45, 115, { align: 'center' });
+
+      // Legenda dos Níveis abaixo da média no PDF
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(16, 122, 58, 28, 2, 2, 'FD');
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text("LEGENDA DOS NÍVEIS:", 19, 127);
+
+      const legItems = [
+        { cor: [220, 53, 69], txt: "Muito Crítico: 0% a 25%" },
+        { cor: [253, 126, 20], txt: "Crítico: 26% a 50%" },
+        { cor: [255, 193, 7], txt: "Intermediário: 51% a 75%" },
+        { cor: [25, 135, 84], txt: "Adequado: 76% a 100%" }
+      ];
+      legItems.forEach((it, idx) => {
+        let yPos = 132 + (idx * 4.5);
+        doc.setFillColor(...it.cor);
+        doc.circle(21, yPos - 1, 1.3, 'F');
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(51, 65, 85);
+        doc.text(it.txt, 24, yPos);
+      });
+      doc.setTextColor(0, 0, 0);
+
+      const configNiveis = [
+        { chave: 'MUITO CRÍTICO', label: 'MUITO CRÍTICO\n(0% a 25%)', corBadge: [220, 53, 69], corFundoTag: [254, 242, 242], corBordaTag: [248, 113, 113] },
+        { chave: 'CRÍTICO', label: 'CRÍTICO\n(26% a 50%)', corBadge: [253, 126, 20], corFundoTag: [255, 247, 237], corBordaTag: [251, 146, 60] },
+        { chave: 'INTERMEDIÁRIO', label: 'INTERMEDIÁRIO\n(51% a 75%)', corBadge: [255, 193, 7], corFundoTag: [254, 252, 232], corBordaTag: [250, 204, 21] },
+        { chave: 'ADEQUADO', label: 'ADEQUADO\n(76% a 100%)', corBadge: [25, 135, 84], corFundoTag: [240, 253, 244], corBordaTag: [74, 222, 128] }
+      ];
+
+      let totalAlunosGeral = Object.values(alunosPorNivelGlobal).flat().length || 1;
+
+      let dadosTabelaNiveis = configNiveis.map(cfg => {
+        let listaNomes = (alunosPorNivelGlobal[cfg.chave] || []).slice().sort();
+        let qtd = listaNomes.length;
+        let pct = ((qtd / totalAlunosGeral) * 100).toFixed(1) + "%";
+        let questoesStr = (questoesPorNivelGlobal[cfg.chave] || []).join(', ') || "Nenhuma";
+
+        let numLinhasCards = Math.max(1, Math.ceil(qtd / 2));
+        let placeholderAltura = Array(numLinhasCards).fill(" ").join("\n\n");
+
+        return [cfg.label, qtd, pct, placeholderAltura, questoesStr];
+      });
+
+      doc.autoTable({
+        startY: 39,
+        margin: { left: 79, right: 14 },
+        head: [['Nível', 'Qtd', '%', 'Alunos Nesses Níveis', 'Questões no Nível']],
+        body: dadosTabelaNiveis,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 118, 110], fontSize: 8, halign: 'center', valign: 'middle' },
+        columnStyles: {
+          0: { cellWidth: 28, fontStyle: 'bold', halign: 'center', valign: 'middle' },
+          1: { cellWidth: 10, halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 8.5 },
+          2: { cellWidth: 13, halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 8.5 },
+          3: { cellWidth: 115, valign: 'top' },
+          4: { cellWidth: 38, fontSize: 7, valign: 'middle' }
+        },
+        styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [226, 232, 240], lineWidth: 0.3 },
+        didParseCell: function(data) {
+          if (data.section === 'body' && data.column.index === 0) {
+            const cfg = configNiveis[data.row.index];
+            if (cfg) {
+              data.cell.styles.fillColor = cfg.corBadge;
+              data.cell.styles.textColor = cfg.chave === 'INTERMEDIÁRIO' ? [33, 37, 41] : [255, 255, 255];
+            }
+          }
+        },
+        didDrawCell: function(data) {
+          if (data.section === 'body' && data.column.index === 3) {
+            const cfg = configNiveis[data.row.index];
+            const listaNomes = (alunosPorNivelGlobal[cfg.chave] || []).slice().sort();
+
+            if (listaNomes.length === 0) {
+              doc.setFontSize(7.5);
+              doc.setFont("helvetica", "italic");
+              doc.setTextColor(148, 163, 184);
+              doc.text("Nenhum aluno registado neste nível.", data.cell.x + 3, data.cell.y + 5.5);
+              return;
+            }
+
+            const paddingX = 2;
+            const paddingY = 2;
+            const gapX = 2;
+            const gapY = 1.8;
+            const cols = 2;
+            const cardWidth = (data.cell.width - (paddingX * 2) - gapX) / cols;
+            const cardHeight = 5;
+
+            listaNomes.forEach((nome, idx) => {
+              const colIdx = idx % cols;
+              const rowIdx = Math.floor(idx / cols);
+
+              const x = data.cell.x + paddingX + colIdx * (cardWidth + gapX);
+              const y = data.cell.y + paddingY + rowIdx * (cardHeight + gapY);
+
+              doc.setFillColor(...cfg.corFundoTag);
+              doc.setDrawColor(...cfg.corBordaTag);
+              doc.setLineWidth(0.25);
+              doc.roundedRect(x, y, cardWidth, cardHeight, 1, 1, 'FD');
+
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(6);
+              doc.setTextColor(30, 41, 59);
+              
+              let nomeExibir = String(nome || "").trim();
+              if (nomeExibir.length > 32) nomeExibir = nomeExibir.substring(0, 31) + "...";
+              doc.text(`${idx + 1}. ${nomeExibir}`, x + 1.5, y + 3.4);
+            });
+          }
+        }
+      });
+
+      doc.save(`Desempenho_Turma_${turma.replace(/ /g, '_')}.pdf`);
+    }
+
+    function gerarTabelaResumo() {
+      const turma = document.getElementById('resumoTurma').value;
+      const simulado = document.getElementById('resumoSimulado').value;
+      const gabarito = dbGabaritos.find(g => g.simulado === simulado);
+      if(!turma || !simulado) { document.getElementById('tabelaResumoView').innerHTML = '<tr><td class="text-muted text-center">Selecione turma e simulado.</td></tr>'; return; }
+      if(!gabarito) { document.getElementById('tabelaResumoView').innerHTML = '<tr><td class="text-danger fw-bold text-center">Gabarito oficial não encontrado.</td></tr>'; return; }
+
+      let thead = `<thead class="table-light"><tr><th>ALUNO</th>`;
+      for(let i=1; i<=26; i++) thead += `<th class="col-q">Q${i.toString().padStart(2,'0')}</th>`;
+      thead += `<th class="col-acertos">ACERTOS</th><th class="col-acertos">%</th><th style="width: 140px;">NÍVEL</th></tr>`;
+      thead += `<tr class="bg-warning bg-opacity-25"><th class="text-dark fw-bold">GABARITO OFICIAL</th>`;
+      gabarito.respostas.forEach(r => thead += `<th class="text-dark fw-bold">${r}</th>`);
+      thead += `<th>-</th><th>-</th><th>-</th></tr></thead>`;
+
+      let tbody = `<tbody>`;
+      const alunosTurma = dbLancamentos.filter(l => l.turma === turma && l.simulado === simulado).sort((a,b) => a.aluno.localeCompare(b.aluno));
+      
+      alunosTurma.forEach(al => {
+        tbody += `<tr><td class="fw-semibold">${al.aluno}</td>`;
+        let acertosCalculados = 0;
+        let respostasAluno = [...al.respostas];
+        while(respostasAluno.length < 26) respostasAluno.push('');
+
+        respostasAluno.forEach((resp, i) => {
+          const certa = (gabarito.respostas[i] === resp) && (resp !== 'N') && (resp !== '');
+          if(certa) acertosCalculados++;
+          tbody += `<td class="${certa ? 'acerto-cell' : 'erro-cell'}">${resp || '-'}</td>`;
+        });
+        const pct = ((acertosCalculados/26)*100);
+        const nivelInfo = classificarNivel(pct);
+        tbody += `<td class="fw-bold bg-light">${acertosCalculados}</td><td class="fw-bold bg-light">${pct.toFixed(1)}%</td><td style="background-color: ${nivelInfo.cor}; color: #fff; font-weight: bold; text-align: center;">${nivelInfo.nome}</td></tr>`;
+      });
+      tbody += `</tbody>`;
+      document.getElementById('tabelaResumoView').innerHTML = thead + tbody;
+    }
+
+    async function gerarPDFResumo() {
+      const turma = document.getElementById('resumoTurma').value || "Não informada";
+      const simulado = document.getElementById('resumoSimulado').value || "Não informado";
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      
+      await desenharCabecalhoPadraoPaisagem(doc, "MAPA DETALHADO DE RESPOSTAS DO SIMULADO", `Turma: ${turma}   |   Simulado: ${simulado}`);
+      doc.autoTable({ html: '#tabelaResumoView', startY: 38, theme: 'grid', styles: { fontSize: 5.5, cellPadding: 1, halign: 'center' }, columnStyles: { 0: { halign: 'left', cellWidth: 35 } }, headStyles: { fillColor: [15, 118, 110] } });
+      doc.save("Resumo_Simulado.pdf");
+    }
+
+    async function gerarPDFComparativo() {
+      const sim1 = document.getElementById('compSimulado1').value || "Simulado 1";
+      const sim2 = document.getElementById('compSimulado2').value || "Simulado 2";
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+
+      await desenharCabecalhoPadraoPaisagem(doc, "RELATÓRIO DE ANÁLISE COMPARATIVA DE SIMULADOS", `Comparação: ${sim1}   vs   ${sim2}`);
+      doc.autoTable({ html: '#tabelaComparativaAlunos', startY: 38, theme: 'grid', styles: { fontSize: 7.5, cellPadding: 2.5, halign: 'center' }, columnStyles: { 0: { halign: 'left', cellWidth: 75 } }, headStyles: { fillColor: [15, 118, 110] } });
+      doc.save("Analise_Comparativa_Simulado.pdf");
+    }
+  </script>
+</body>
+</html>

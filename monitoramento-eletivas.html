@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoramento de Frequência e Notas das Eletivas - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1440px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1380px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 22px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .kpi-card-mon {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-left: 5px solid var(--azul-primario);
+      border-radius: 14px;
+      padding: 16px 18px;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+      height: 100%;
+    }
+
+    .form-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 8px 11px;
+      font-size: 0.85rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 9px 16px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    /* Tabela 100% Enquadrada na Tela */
+    .tabela-enquadrada {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-enquadrada th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      padding: 10px 8px;
+      word-wrap: break-word;
+    }
+
+    .tabela-enquadrada td {
+      vertical-align: middle;
+      font-size: 0.82rem;
+      padding: 12px 8px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    /* Chips de Datas Pendentes com botão × para Feriado */
+    .chip-data-pendente {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #be123c;
+      font-weight: 700;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin: 2px;
+    }
+
+    .btn-dispensar-chip {
+      border: none;
+      background: transparent;
+      color: #e11d48;
+      font-weight: 900;
+      padding: 0 2px;
+      line-height: 1;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .btn-dispensar-chip:hover {
+      color: #881337;
+      transform: scale(1.15);
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="badge bg-success-subtle text-success border border-success-subtle d-none" id="badgeModoEdicaoTopo">
+        <i class="bi bi-shield-check me-1"></i>Modo Edição Ativo
+      </span>
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Administrador</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- CARDS DE INDICADORES (KPIs) -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="kpi-card-mon" style="border-left-color: #15438c;">
+          <div class="small fw-bold text-uppercase text-muted">Total de Eletivas</div>
+          <div class="fs-2 fw-bold text-dark my-1" id="kpiTotalEletivas">0</div>
+          <small class="text-muted" id="kpiSubSemestre">Semestre: -</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card-mon" style="border-left-color: #16a34a;">
+          <div class="small fw-bold text-uppercase text-success">Frequência em Dia</div>
+          <div class="fs-2 fw-bold text-success my-1" id="kpiFreqEmDia">0</div>
+          <small class="text-muted">Sem datas pendentes</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card-mon" style="border-left-color: #dc2626;">
+          <div class="small fw-bold text-uppercase text-danger">Com Atraso de Frequência</div>
+          <div class="fs-2 fw-bold text-danger my-1" id="kpiFreqAtraso">0</div>
+          <small class="text-muted">Possuem datas sem chamada</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card-mon" style="border-left-color: #f59e0b;">
+          <div class="small fw-bold text-uppercase text-warning text-dark">Notas 100% Cadastradas</div>
+          <div class="fs-2 fw-bold text-dark my-1" id="kpiNotasCompletas">0 / 0</div>
+          <small class="text-muted">Todos os alunos com nota</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD DE FILTROS E CONTROLE DE PERÍODO / FERIADOS -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-sliders me-2"></i>Filtros de Monitoramento e Período de Referência
+          </h5>
+          <small class="text-muted">Filtre as eletivas por semestre, série base, tempo eletivo, dia da semana, status de pendência ou pesquise pelo professor.</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="abrirModalFeriados()">
+            <i class="bi bi-calendar-x text-danger me-1"></i>Gerenciar Feriados / Datas Excluídas (<span id="contadorFeriadosBtn">0</span>)
+          </button>
+          <button class="btn btn-danger btn-sm fw-bold" onclick="baixarRelatorioMonitoramentoPdf()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar Relatório PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-2 align-items-end">
+        <div class="col-6 col-md-2">
+          <label class="form-label">Semestre Letivo</label>
+          <select id="monSemestre" class="form-select fw-bold" onchange="carregarMonitoramentoServidor(false)"></select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Início das Aulas</label>
+          <input type="date" id="monDataIni" class="form-control fw-bold">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Data Limite (Até)</label>
+          <input type="date" id="monDataFim" class="form-control fw-bold">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Dia da Eletiva</label>
+          <select id="monFiltroDia" class="form-select fw-bold" onchange="aplicarFiltrosLocaisMonitoramento()">
+            <option value="">Todos os Dias</option>
+            <option value="SEGUNDA-FEIRA">SEGUNDA-FEIRA</option>
+            <option value="TERÇA-FEIRA">TERÇA-FEIRA</option>
+            <option value="QUARTA-FEIRA">QUARTA-FEIRA</option>
+            <option value="QUINTA-FEIRA">QUINTA-FEIRA</option>
+            <option value="SEXTA-FEIRA">SEXTA-FEIRA</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Status de Pendência</label>
+          <select id="monFiltroStatus" class="form-select fw-bold" onchange="aplicarFiltrosLocaisMonitoramento()">
+            <option value="">Todas as Eletivas</option>
+            <option value="ATRASO_FREQ">Com Atraso de Frequência</option>
+            <option value="EM_DIA_FREQ">Frequência 100% em Dia</option>
+            <option value="PENDENTE_NOTA">Com Notas Pendentes</option>
+            <option value="COMPLETA_NOTA">Notas 100% Lançadas</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2 d-grid">
+          <button class="btn btn-principal" onclick="carregarMonitoramentoServidor(true)">
+            <i class="bi bi-funnel-fill me-1"></i>Filtrar Período
+          </button>
+        </div>
+
+        <div class="col-6 col-md-2 mt-2">
+          <select id="monFiltroSerieBase" class="form-select form-select-sm fw-bold" onchange="aplicarFiltrosLocaisMonitoramento()">
+            <option value="">Todas as Séries Base</option>
+            <option value="1ª SÉRIE">1ª SÉRIE</option>
+            <option value="2ª SÉRIE">2ª SÉRIE</option>
+            <option value="3ª SÉRIE">3ª SÉRIE</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3 mt-2">
+          <select id="monFiltroTempo" class="form-select form-select-sm fw-bold" onchange="aplicarFiltrosLocaisMonitoramento()">
+            <option value="">Todos os Tempos Eletivos</option>
+            <option value="TEMPO ELETIVO 1">TEMPO ELETIVO 1</option>
+            <option value="TEMPO ELETIVO 2">TEMPO ELETIVO 2</option>
+            <option value="TEMPO ELETIVO 3">TEMPO ELETIVO 3</option>
+            <option value="TEMPO ELETIVO 4">TEMPO ELETIVO 4</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-7 mt-2">
+          <input type="text" id="monFiltroTexto" class="form-control form-control-sm" placeholder="Pesquisar por código/nome da eletiva ou nome do(a) professor(a)..." oninput="aplicarFiltrosLocaisMonitoramento()">
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL DE ACOMPANHAMENTO POR ELETIVA -->
+    <div class="card p-3 p-md-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-clipboard2-check-fill me-2"></i>Painel de Acompanhamento por Eletiva
+          </h5>
+          <small class="text-muted">
+            <b>Permissão de Edição Ativa:</b> Se alguma data listada em vermelho foi feriado ou ponto facultativo, clique no botão <b>"×"</b> ao lado da data para excluí-la da cobrança!
+          </small>
+        </div>
+      </div>
+
+      <div class="w-100">
+        <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
+          <thead>
+            <tr>
+              <th style="width: 24%;">Eletiva / Professor / Turma</th>
+              <th style="width: 12%;" class="text-center">Dia / Tempo</th>
+              <th style="width: 11%;" class="text-center">Frequências Feitas</th>
+              <th style="width: 12%;" class="text-center">Status / Atraso</th>
+              <th style="width: 26%;">Datas Sem Frequência (Clique no × se foi Feriado)</th>
+              <th style="width: 15%;" class="text-center">Notas Cadastradas (Válidas)</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyMonitoramento">
+            <tr><td colspan="6" class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Calculando monitoramento de frequência e notas das eletivas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PARA GERENCIAR FERIADOS E DATAS DISPENSADAS -->
+  <div class="modal fade" id="modalFeriados" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header text-white" style="background-color: var(--azul-primario);">
+          <h5 class="modal-title fw-bold"><i class="bi bi-calendar-x me-2"></i>Gerenciar Feriados e Datas Dispensadas</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="p-3 bg-light rounded border mb-3">
+            <h6 class="fw-bold text-dark mb-2">Adicionar Novo Feriado / Dia Não Letivo Manualmente</h6>
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-3">
+                <label class="form-label">Data</label>
+                <input type="date" id="ferNovaData" class="form-control form-control-sm fw-bold">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Aplicar Para</label>
+                <select id="ferNovoEscopo" class="form-select form-select-sm fw-bold">
+                  <option value="TODAS">TODAS AS ELETIVAS (Feriado Escolar)</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label">Motivo</label>
+                <input type="text" id="ferNovoMotivo" class="form-control form-control-sm" placeholder="Ex: Feriado Nacional, Evento...">
+              </div>
+              <div class="col-12 col-md-2 d-grid">
+                <button class="btn btn-danger btn-sm fw-bold" onclick="salvarNovoFeriadoModal()">
+                  <i class="bi bi-plus-circle me-1"></i>Dispensar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Data Dispensada</th>
+                  <th>Dia da Semana</th>
+                  <th>Escopo / Eletiva</th>
+                  <th>Motivo</th>
+                  <th class="text-center" style="width: 100px;">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyFeriadosModal"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Monitoramento de Eletivas.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "USUÁRIO").trim().toUpperCase();
+    const perfilUser = String((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role)) || "Professor").trim().toUpperCase();
+    const podeEditarFeriados = perfilUser.includes("ADMIN") || perfilUser.includes("DIRE") || perfilUser.includes("COORD");
+
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Servidor";
+    if (podeEditarFeriados) {
+      document.getElementById('badgeModoEdicaoTopo').classList.remove('d-none');
+    }
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    let modalFeriadosInstancia;
+    let listaEletivasMonGlobal = [];
+    let listaEletivasMonFiltrada = [];
+    let listaFeriadosAtivosGlobal = [];
+
+    async function chamarAPI(payload) {
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    window.onload = async function() {
+      modalFeriadosInstancia = new bootstrap.Modal(document.getElementById('modalFeriados'));
+      await carregarMonitoramentoServidor(false, true);
+    };
+
+    async function carregarMonitoramentoServidor(usarDatasInput, isPrimeiraCarga) {
+      const semSel = isPrimeiraCarga ? "" : document.getElementById('monSemestre').value;
+      const dtIni = usarDatasInput ? document.getElementById('monDataIni').value : "";
+      const dtFim = usarDatasInput ? document.getElementById('monDataFim').value : "";
+
+      if (usarDatasInput) {
+        Swal.fire({ title: 'Recalculando período...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      }
+
+      const res = await chamarAPI({
+        action: 'getMonitoramentoEletivas',
+        semestre: semSel,
+        dataInicio: dtIni,
+        dataFim: dtFim
+      });
+
+      if (usarDatasInput) Swal.close();
+
+      if (!res || !res.success) {
+        document.getElementById('tbodyMonitoramento').innerHTML =
+          `<tr><td colspan="6" class="text-center py-4 text-danger fw-bold">Erro ao carregar monitoramento: ${(res && res.error) || 'Falha de conexão'}</td></tr>`;
+        return;
+      }
+
+      // Popula os Semestres
+      const semestres = (Array.isArray(res.semestres) && res.semestres.length > 0) ? res.semestres : ["2026.1", "2026.2"];
+      const semAtivo = res.semestreSelecionado || semestres[semestres.length - 1];
+      let htmlSem = '';
+      semestres.forEach(s => {
+        htmlSem += `<option value="${s}" ${s === semAtivo ? 'selected' : ''}>${s}</option>`;
+      });
+      document.getElementById('monSemestre').innerHTML = htmlSem;
+      document.getElementById('monSemestre').value = semAtivo;
+
+      if (res.dataInicioAplicada) document.getElementById('monDataIni').value = res.dataInicioAplicada;
+      if (res.dataFimAplicada) document.getElementById('monDataFim').value = res.dataFimAplicada;
+
+      listaEletivasMonGlobal = Array.isArray(res.eletivas) ? res.eletivas : [];
+      listaFeriadosAtivosGlobal = Array.isArray(res.feriados) ? res.feriados : [];
+      document.getElementById('contadorFeriadosBtn').innerText = listaFeriadosAtivosGlobal.length;
+
+      // Popula opções de eletivas no Modal de Feriados
+      let htmlEscopo = '<option value="TODAS">TODAS AS ELETIVAS (Feriado Escolar Geral)</option>';
+      listaEletivasMonGlobal.forEach(e => {
+        htmlEscopo += `<option value="${e.eletiva.toUpperCase()}">${e.eletiva} (${e.turma})</option>`;
+      });
+      document.getElementById('ferNovoEscopo').innerHTML = htmlEscopo;
+
+      aplicarFiltrosLocaisMonitoramento();
+    }
+
+    function aplicarFiltrosLocaisMonitoramento() {
+      const semAtivo = document.getElementById('monSemestre').value;
+      const diaF = document.getElementById('monFiltroDia').value.trim().toUpperCase();
+      const statusF = document.getElementById('monFiltroStatus').value;
+      const serieBaseF = document.getElementById('monFiltroSerieBase').value.trim().toUpperCase();
+      const tempoF = document.getElementById('monFiltroTempo').value.trim().toUpperCase();
+      const textoF = document.getElementById('monFiltroTexto').value.trim().toUpperCase();
+
+      listaEletivasMonFiltrada = listaEletivasMonGlobal.filter(item => {
+        const bateDia = !diaF || String(item.dia || "").toUpperCase().includes(diaF);
+        const bateSerie = !serieBaseF || String(item.serieBase || item.turma || "").toUpperCase().includes(serieBaseF);
+        const bateTempo = !tempoF || String(item.tempoEletivo || "").toUpperCase() === tempoF;
+        const bateTexto = !textoF ||
+          String(item.eletiva || "").toUpperCase().includes(textoF) ||
+          String(item.professor || "").toUpperCase().includes(textoF) ||
+          String(item.turma || "").toUpperCase().includes(textoF);
+
+        let bateStatus = true;
+        if (statusF === "ATRASO_FREQ") bateStatus = item.diasEmAtraso > 0;
+        else if (statusF === "EM_DIA_FREQ") bateStatus = item.diasEmAtraso === 0;
+        else if (statusF === "PENDENTE_NOTA") bateStatus = item.totalAlunos > 0 && item.notasPendentes > 0;
+        else if (statusF === "COMPLETA_NOTA") bateStatus = item.totalAlunos > 0 && item.notasPendentes === 0;
+
+        return bateDia && bateSerie && bateTempo && bateTexto && bateStatus;
+      });
+
+      // Atualiza os 4 KPIs Superiores
+      const totalElet = listaEletivasMonFiltrada.length;
+      const emDiaFreq = listaEletivasMonFiltrada.filter(x => x.diasEmAtraso === 0).length;
+      const atrasoFreq = listaEletivasMonFiltrada.filter(x => x.diasEmAtraso > 0).length;
+      const notas100 = listaEletivasMonFiltrada.filter(x => x.totalAlunos > 0 && x.notasPendentes === 0).length;
+
+      document.getElementById('kpiTotalEletivas').innerText = totalElet;
+      document.getElementById('kpiSubSemestre').innerText = `Semestre: ${semAtivo}`;
+      document.getElementById('kpiFreqEmDia').innerText = emDiaFreq;
+      document.getElementById('kpiFreqAtraso').innerText = atrasoFreq;
+      document.getElementById('kpiNotasCompletas').innerText = `${notas100} / ${totalElet}`;
+
+      renderizarTabelaMonitoramento();
+    }
+
+    function renderizarTabelaMonitoramento() {
+      const tbody = document.getElementById('tbodyMonitoramento');
+      if (listaEletivasMonFiltrada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhuma eletiva encontrada para os filtros selecionados.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaEletivasMonFiltrada.forEach((item, idx) => {
+        const badgeStatusFreq = item.diasEmAtraso === 0
+          ? `<span class="badge bg-success px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Em dia</span>`
+          : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>${item.diasEmAtraso} dia(s) em atraso</span>`;
+
+        // Chips de Datas Pendentes
+        let htmlDatasPendentes = '';
+        if (item.datasPendentesLista && item.datasPendentesLista.length > 0) {
+          item.datasPendentesLista.forEach(dt => {
+            const eletEscapada = String(item.eletiva || "").replace(/'/g, "\\'");
+            htmlDatasPendentes += `
+              <span class="chip-data-pendente">
+                <i class="bi bi-calendar-event"></i>${dt}
+                ${podeEditarFeriados
+                  ? `<button type="button" class="btn-dispensar-chip" title="Excluir/Dispensar esta data (Feriado ou Ponto Facultativo)" onclick="dispensarDataRapido('${dt}', '${eletEscapada}')">×</button>`
+                  : ''}
+              </span>`;
+          });
+        } else {
+          htmlDatasPendentes = `<span class="text-success fw-bold small"><i class="bi bi-check2-all me-1"></i>Todas as chamadas realizadas no período!</span>`;
+        }
+
+        // Coluna de Notas Cadastradas
+        let htmlNotas = '';
+        if (item.totalAlunos === 0) {
+          htmlNotas = `<span class="badge bg-secondary">Sem alunos matriculados</span>`;
+        } else if (item.notasPendentes === 0) {
+          htmlNotas = `
+            <div class="fw-bold text-success">${item.notasCadastradas} / ${item.totalAlunos} notas</div>
+            <span class="badge bg-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>100% Cadastradas</span>`;
+        } else {
+          htmlNotas = `
+            <div class="fw-bold text-dark">${item.notasCadastradas} / ${item.totalAlunos} notas</div>
+            <button type="button" class="badge bg-warning text-dark border-0 mt-1" style="cursor:pointer;" onclick="verAlunosSemNota(${idx})">
+              <i class="bi bi-person-exclamation me-1"></i>Faltam ${item.notasPendentes} (Ver)
+            </button>`;
+        }
+
+        html += `
+          <tr>
+            <td>
+              <div class="fw-bold text-dark" style="font-size: 0.86rem;">${item.eletiva}</div>
+              <div class="small text-secondary fw-semibold mt-1">
+                <i class="bi bi-person-workspace text-primary me-1"></i>Prof: ${item.professor}
+              </div>
+              <div class="mt-1">
+                <span class="badge bg-light text-dark border">${item.turma}</span>
+              </div>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-primary px-2 py-1">${item.dia}</span>
+              <div class="small fw-bold text-secondary mt-1">${item.tempoEletivo || ''}</div>
+            </td>
+            <td class="text-center">
+              <div class="fw-bold fs-6 text-dark">${item.diasRealizados} / ${item.diasEsperados} dias</div>
+              <small class="text-muted">realizados no período</small>
+            </td>
+            <td class="text-center">${badgeStatusFreq}</td>
+            <td>${htmlDatasPendentes}</td>
+            <td class="text-center">${htmlNotas}</td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function verAlunosSemNota(idxFiltrado) {
+      const item = listaEletivasMonFiltrada[idxFiltrado];
+      if (!item || !item.alunosSemNotaLista) return;
+
+      const listaHtml = item.alunosSemNotaLista.map((al, i) => `${i + 1}. <b>${al}</b>`).join('<br>');
+      Swal.fire({
+        title: `Alunos Pendentes de Nota (${item.notasPendentes})`,
+        html: `<div class="small text-muted mb-2">${item.eletiva} — Prof: ${item.professor}</div>
+               <div class="text-start p-3 bg-light border rounded" style="max-height: 280px; overflow-y: auto; font-size: 0.85rem;">${listaHtml}</div>`,
+        icon: 'info',
+        confirmButtonColor: '#15438c'
+      });
+    }
+
+    async function dispensarDataRapido(dataBr, nomeEletiva) {
+      const { value: formValues } = await Swal.fire({
+        title: `Dispensar Data: ${dataBr}`,
+        html: `
+          <p class="small text-muted mb-2">Como deseja dispensar a cobrança de frequência do dia <b>${dataBr}</b>?</p>
+          <select id="swalEscopoDispensa" class="form-select mb-2 fw-bold">
+            <option value="TODAS">Para TODAS as Eletivas da Escola (Feriado Geral)</option>
+            <option value="${nomeEletiva.toUpperCase()}">Apenas para ${nomeEletiva}</option>
+          </select>
+          <input id="swalMotivoDispensa" class="form-control" placeholder="Motivo (Ex: Feriado, Ponto Facultativo, Evento Escolar)" value="Feriado / Dia Não Letivo">
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '<i class="bi bi-calendar-x me-1"></i>Dispensar Data',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+          return {
+            escopo: document.getElementById('swalEscopoDispensa').value,
+            motivo: document.getElementById('swalMotivoDispensa').value.trim() || 'Feriado / Dia Não Letivo'
+          };
+        }
+      });
+
+      if (!formValues) return;
+
+      Swal.fire({ title: 'Dispensando data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({
+        action: 'dispensarDataEletiva',
+        dados: {
+          data: dataBr,
+          escopo: formValues.escopo,
+          motivo: formValues.motivo
+        }
+      });
+      Swal.close();
+
+      if (res && res.success) {
+        await carregarMonitoramentoServidor(true);
+        Swal.fire({ title: 'Data Dispensada!', text: res.msg, icon: 'success', timer: 1400, showConfirmButton: false });
+      }
+    }
+
+    function abrirModalFeriados() {
+      const tbody = document.getElementById('tbodyFeriadosModal');
+      if (listaFeriadosAtivosGlobal.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Nenhuma data dispensada até o momento.</td></tr>';
+      } else {
+        let html = '';
+        listaFeriadosAtivosGlobal.forEach(f => {
+          html += `
+            <tr>
+              <td class="fw-bold text-danger">${f.data}</td>
+              <td class="small fw-semibold">${f.diaSemana || '-'}</td>
+              <td><span class="badge bg-secondary">${f.escopo}</span></td>
+              <td class="small">${f.motivo}</td>
+              <td class="text-center">
+                <button class="btn btn-outline-success btn-sm py-0 px-2 fw-bold" onclick="restaurarDataFeriado(${f.linha}, '${f.data}')">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar
+                </button>
+              </td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+      }
+      modalFeriadosInstancia.show();
+    }
+
+    async function salvarNovoFeriadoModal() {
+      const dtIso = document.getElementById('ferNovaData').value;
+      if (!dtIso) return Swal.fire('Atenção', 'Selecione a data que deseja dispensar.', 'warning');
+      const p = dtIso.split('-');
+      const dataBr = `${p[2]}/${p[1]}/${p[0]}`;
+
+      Swal.fire({ title: 'Salvando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({
+        action: 'dispensarDataEletiva',
+        dados: {
+          data: dataBr,
+          escopo: document.getElementById('ferNovoEscopo').value,
+          motivo: document.getElementById('ferNovoMotivo').value.trim() || 'Feriado / Dia Não Letivo'
+        }
+      });
+      Swal.close();
+
+      if (res && res.success) {
+        await carregarMonitoramentoServidor(true);
+        abrirModalFeriados();
+      }
+    }
+
+    async function restaurarDataFeriado(linha, dataBr) {
+      Swal.fire({ title: 'Restaurando data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({
+        action: 'restaurarDataEletiva',
+        dados: { linha: linha, data: dataBr }
+      });
+      Swal.close();
+
+      if (res && res.success) {
+        await carregarMonitoramentoServidor(true);
+        abrirModalFeriados();
+      }
+    }
+
+    async function baixarRelatorioMonitoramentoPdf() {
+  if (listaEletivasMonFiltrada.length === 0) {
+    return Swal.fire('Atenção', 'Não há eletivas listadas para exportar.', 'warning');
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+  const sem = document.getElementById('monSemestre').value;
+
+  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+    tituloDocumento: "RELATÓRIO DE MONITORAMENTO DE FREQUÊNCIA E NOTAS DAS ELETIVAS",
+    subtitulo1: `Semestre Letivo: ${sem}   |   Total de Eletivas Monitoradas: ${listaEletivasMonFiltrada.length}`,
+    subtitulo2: `Emitido por: ${nomeUser} em ${new Date().toLocaleDateString('pt-BR')}`
+  });
+
+  const rows = listaEletivasMonFiltrada.map(item => [
+    item.eletiva,
+    item.professor,
+    `${item.turma} (${item.tempoEletivo || ''})`,
+    item.dia,
+    `${item.diasRealizados} / ${item.diasEsperados} dias`,
+    item.diasEmAtraso === 0 ? 'EM DIA' : `${item.diasEmAtraso} dia(s) pendente(s)`,
+    (item.datasPendentesLista || []).join(', ') || 'Nenhuma',
+    item.totalAlunos === 0 ? 'Sem alunos' : `${item.notasCadastradas} / ${item.totalAlunos} notas`
+  ]);
+
+  doc.autoTable({
+    startY: startY,
+    head: [['Eletiva', 'Professor(a)', 'Turma / Tempo', 'Dia', 'Frequências', 'Status', 'Datas Pendentes', 'Notas']],
+    body: rows,
+    styles: { fontSize: 7.8, cellPadding: 2.2 },
+    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] }
+  });
+
+  doc.save(`Monitoramento_Eletivas_${sem}.pdf`);
+}
+  </script>
+</body>
+</html>

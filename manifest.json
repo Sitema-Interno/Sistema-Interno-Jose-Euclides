@@ -1,0 +1,21 @@
+{
+  "name": "Portal Escolar Integrado - EEMTI Dr. José Euclides",
+  "short_name": "Portal EEMTI",
+  "description": "Sistema de Gestão Escolar e Lançamento de Notas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#15438c",
+  "icons": [
+    {
+      "src": "LOGO-removebg-preview.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "LOGO-removebg-preview.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

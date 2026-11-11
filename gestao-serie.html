@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão de Série - EEMTI</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="portal-core.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { background-color: #f4f7f6; font-family: 'Inter', sans-serif; color: #333; }
+    
+    /* Navbar Padrão */
+    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.2rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 40px; object-fit: contain; }
+    
+    /* Estrutura Principal */
+    .main-container { max-width: 950px; margin: 40px auto; }
+    .page-title { text-align: center; font-weight: 700; color: #1e293b; margin-bottom: 30px; }
+    
+    /* Cartões */
+    .card { border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); background: white; margin-bottom: 25px; }
+    .card-header-custom { padding: 20px 25px 15px; border-bottom: 1px solid #f0f0f0; }
+    .card-title-text { font-weight: 700; color: #0f766e; font-size: 1.1rem; margin: 0; }
+    
+    /* Formulários */
+    .form-label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .form-control { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 15px; font-size: 0.95rem; }
+    .form-control:focus { border-color: #0f766e; box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15); }
+    
+    /* Botões Padrão da Imagem */
+    .btn-tema { background-color: #0f766e; color: white; font-weight: 600; padding: 10px; border-radius: 6px; border: none; }
+    .btn-tema:hover { background-color: #0d645d; color: white; }
+    .btn-outline-atualizar { border: 1px solid #cbd5e1; color: #64748b; font-size: 0.85rem; font-weight: 500; }
+    
+    /* Tabela */
+    .table th { font-size: 0.85rem; color: #64748b; font-weight: 600; padding: 15px; border-bottom: 2px solid #f0f0f0; }
+    .table td { padding: 15px; vertical-align: middle; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; font-weight: 500;}
+    .btn-acao { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: none; }
+    .btn-editar { background-color: #ffc107; color: #000; }
+    .btn-excluir { background-color: #dc3545; color: #fff; }
+  </style>
+</head>
+<body>
+  <!-- Cabeçalho -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid">
+      <span class="navbar-brand">
+        
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Logo" onerror="this.src='https://placehold.co/100?text=Logo'">
+        <div>
+          Cadastro de Série
+          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm" style="border-color: #cbd5e1; color: #334155;">
+        <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    <h2 class="page-title">Painel do Administrador - Gestão de Séries</h2>
+    
+    <!-- CARTÃO 1: CADASTRAR -->
+    <div class="card">
+      <div class="card-header-custom">
+        <h5 class="card-title-text"><i class="bi bi-person-plus-fill me-2"></i> Cadastrar / Editar Série</h5>
+      </div>
+      <div class="card-body p-4">
+        <form id="formSerie">
+          <input type="hidden" id="linhaEdit">
+          <div class="row g-4 mb-4">
+            <div class="col-md-4">
+              <label class="form-label">Ano Letivo</label>
+              <input type="number" id="ano" class="form-control bg-light" required placeholder="Ex: 2026">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Nome da Série / Turma</label>
+              <input type="text" id="serie" class="form-control bg-light" required placeholder="Ex: 1º ANO A">
+            </div>
+          </div>
+          <button type="submit" class="btn-tema w-100" id="btnSalvar">
+            <i class="bi bi-check-circle-fill me-2"></i> Registrar Série
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- CARTÃO 2: CONSULTAR -->
+    <div class="card">
+      <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h5 class="card-title-text"><i class="bi bi-search me-2"></i> Consultar e Gerir Séries</h5>
+        <button class="btn btn-outline-atualizar" onclick="carregarDados()"><i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista</button>
+      </div>
+      <div class="card-body p-4">
+        
+        <!-- Pesquisa Inteligente -->
+        <label class="form-label">Pesquisa Inteligente por Série ou Ano</label>
+        <div class="input-group mb-4">
+          <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-search"></i></span>
+          <input type="text" id="pesquisa" class="form-control border-start-0 ps-0" placeholder="Comece a digitar o nome da série...">
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-borderless table-hover">
+            <thead>
+              <tr>
+                <th style="width: 20%;">Ano</th>
+                <th style="width: 60%;">Série / Turma</th>
+                <th class="text-end" style="width: 20%;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="listaDados">
+              <tr><td colspan="3" class="text-center text-muted">Carregando dados...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
+const _fetchOriginal = window.fetch;
+window.fetch = function(url, options) {
+  if (options && options.method === 'POST' && typeof options.body === 'string') {
+    try {
+      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+      let bodyObj = JSON.parse(options.body);
+      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+      options.body = JSON.stringify(bodyObj);
+    } catch (e) {}
+  }
+  return _fetchOriginal(url, options);
+};
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    
+    window.onload = carregarDados;
+
+    async function carregarDados() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+  if (u) {
+    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
+    const elUser = document.getElementById('nomeUsuarioUi');
+    if (elUser) {
+      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+    }
+  }
+      document.getElementById('listaDados').innerHTML = '<tr><td colspan="3" class="text-center text-muted">Carregando dados...</td></tr>';
+      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) });
+      const dados = await res.json();
+      let html = '';
+      if(dados.lista && dados.lista.length > 0) {
+        dados.lista.forEach(item => {
+          html += `<tr class="linha-tabela">
+            <td class="fw-bold">${item.col1}</td>
+            <td class="text-dark">${item.col2}</td>
+            <td class="text-end">
+              <button class="btn-acao btn-editar me-1" title="Editar" onclick="editar(${item.linha}, '${item.col1}', '${item.col2}')"><i class="bi bi-pencil-fill"></i></button>
+              <button class="btn-acao btn-excluir" title="Excluir" onclick="excluir(${item.linha})"><i class="bi bi-trash-fill"></i></button>
+            </td>
+          </tr>`;
+        });
+      } else {
+        html = '<tr><td colspan="3" class="text-center text-muted">Nenhuma série cadastrada.</td></tr>';
+      }
+      document.getElementById('listaDados').innerHTML = html;
+    }
+
+    // Lógica da Pesquisa Inteligente
+    document.getElementById('pesquisa').addEventListener('input', function() {
+      const termo = this.value.toLowerCase();
+      const linhas = document.querySelectorAll('.linha-tabela');
+      linhas.forEach(linha => {
+        const texto = linha.textContent.toLowerCase();
+        linha.style.display = texto.includes(termo) ? '' : 'none';
+      });
+    });
+
+    document.getElementById('formSerie').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      document.getElementById('btnSalvar').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Salvando...';
+      const payload = {
+        action: 'salvarConfig', tipo: 'SERIE',
+        dados: {
+          linha: document.getElementById('linhaEdit').value,
+          col1: document.getElementById('ano').value,
+          col2: document.getElementById('serie').value.toUpperCase()
+        }
+      };
+      await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+      document.getElementById('formSerie').reset();
+      document.getElementById('linhaEdit').value = "";
+      document.getElementById('btnSalvar').innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Registrar Série';
+      Swal.fire('Sucesso!', 'Série salva com sucesso.', 'success');
+      carregarDados();
+    });
+
+    function editar(linha, col1, col2) {
+      document.getElementById('linhaEdit').value = linha;
+      document.getElementById('ano').value = col1;
+      document.getElementById('serie').value = col2;
+      document.getElementById('btnSalvar').innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Atualizar Série';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function excluir(linha) {
+      const result = await Swal.fire({ title: 'Tem certeza?', text: "Esta ação não pode ser revertida!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Sim, excluir' });
+      if(result.isConfirmed) {
+        await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'excluirConfig', tipo: 'SERIE', linha: linha }) });
+        Swal.fire('Excluído!', 'O registo foi removido.', 'success');
+        carregarDados();
+      }
+    }
+  </script>
+</body>
+</html>
