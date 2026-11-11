@@ -331,6 +331,9 @@
     </a>
 
     <div class="user-bar">
+      <span class="badge bg-success-subtle text-success border border-success-subtle" id="badgeConexaoTopo">
+        <i class="bi bi-wifi me-1"></i>Online
+      </span>
       <span class="fw-bold small text-dark">
         <i class="bi bi-person-circle text-primary me-1"></i>
         Olá, <span id="lblNomeUsuario">USUÁRIO</span>
@@ -343,6 +346,14 @@
   </header>
 
   <div class="main-container">
+    <!-- Banner de Fila Offline (Aparece automaticamente quando há atividades salvas sem internet) -->
+    <div id="bannerFilaOfflineAtiv" class="alert alert-warning d-none d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 shadow-sm">
+      <div class="small fw-bold text-dark" id="textoFilaOfflineAtiv"></div>
+      <button type="button" class="btn btn-warning btn-sm fw-bold border border-dark-subtle" onclick="sincronizarFilaOfflineAtividades()">
+        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Sincronizar Agora
+      </button>
+    </div>
+
     <!-- ABAS DO MÓDULO DE ATIVIDADES -->
     <ul class="nav nav-tabs mb-4" id="ativTabs" role="tablist">
       <li class="nav-item" role="presentation">
@@ -359,7 +370,7 @@
 
     <div class="tab-content">
       <!-- ========================================================= -->
-      <!-- ABA 1: LANÇAMENTO UNIFICADO (DISCIPLINA OU ELETIVA)       -->
+      <!-- ABA 1: LANÇAMENTO COMPACTO NAS COLUNAS REALIZOU / NÃO / AUSENTE -->
       <!-- ========================================================= -->
       <div class="tab-pane fade show active" id="abaLancarAtiv" role="tabpanel">
         <div class="card p-4">
@@ -368,7 +379,7 @@
               <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
                 <i class="bi bi-funnel-fill me-2"></i>1. Escolha o Tipo de Componente e os Dados da Aula
               </h5>
-              <small class="text-muted">Todos os lançamentos são salvos em <b>ATIVIDADES</b> (preenchendo a coluna <b>SEMESTRE</b> apenas quando selecionar Eletiva).</small>
+              <small class="text-muted">Os nomes são agrupados em <b>1 única linha por aula</b> nas colunas <b>REALIZOU (G)</b>, <b>NÃO REALIZOU (H)</b> e <b>AUSENTE (I)</b> para manter o banco de dados leve (Funciona <b>Offline</b>).</small>
             </div>
 
             <div class="switch-tipo-box">
@@ -457,7 +468,7 @@
           <div class="card-header-custom">
             <div>
               <h5 class="fw-bold m-0 text-dark" id="lblTituloTurmaAberta">Turma — Disciplina</h5>
-              <small class="text-muted">Ao clicar em uma opção, todo o nome do(a) aluno(a) muda imediatamente para a cor correspondente.</small>
+              <small class="text-muted">Ao clicar em uma opção, todo o nome do(a) aluno(a) muda imediatamente para a cor selecionada.</small>
             </div>
 
             <div class="d-flex flex-wrap gap-2">
@@ -490,7 +501,7 @@
           <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="small fw-bold" id="lblResumoContagemRodape"></div>
             <button type="button" class="btn btn-principal px-5 py-2 fw-bold shadow-sm" id="btnSalvarAtividadeBanco" onclick="salvarAtividadeNoBancoUnificado()">
-              <i class="bi bi-cloud-arrow-up-fill me-2"></i>Enviar Atividade para o Banco de Dados
+              <i class="bi bi-cloud-arrow-up-fill me-2"></i>Enviar Atividade Compacta para o Banco de Dados
             </button>
           </div>
         </div>
@@ -626,12 +637,12 @@
     document.getElementById('eletProfInput').value = nomeUser;
 
     const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
-    const CACHE_ATIV_INIT_KEY = "cache_ativ_rapido_v2";
+    const CACHE_ATIV_INIT_KEY = "cache_ativ_rapido_v3";
+    const FILA_OFFLINE_ATIV_KEY = "fila_offline_atividades_eemti_v1";
 
     let modoLancamentoAtual = "DISCIPLINA";
     let modoRelatorioAtual = "DISCIPLINA";
 
-    // Listas padrão já carregadas em 0ms para abrir a tela imediatamente sem travar!
     let disciplinasCurricularesLista = JSON.parse(localStorage.getItem(CACHE_ATIV_INIT_KEY + "_disc") || 'null') || [
       "ARTE", "BIOLOGIA", "EDUCAÇÃO FÍSICA", "FILOSOFIA", "FÍSICA", "GEOGRAFIA",
       "HISTÓRIA", "INGLÊS", "MATEMÁTICA", "PORTUGUÊS", "QUÍMICA", "REDAÇÃO", "SOCIOLOGIA"
@@ -645,15 +656,105 @@
 
     let alunosCarregadosParaChamada = [];
     let todosLancamentosAtividadesBanco = [];
-    let cacheAlunosPorEletivaRelatorio = {};
+    let cacheAlunosPorEletivaRelatorio = JSON.parse(localStorage.getItem(CACHE_ATIV_INIT_KEY + "_al_elet") || '{}');
     let linhasCalculadasRelatorioAtual = [];
+
+    // =========================================================
+    // MOTOR OFFLINE NATIVO E SINCRONIZAÇÃO AUTOMÁTICA
+    // =========================================================
+    function atualizarIndicadoresOfflineNaTela() {
+      const badgeTopo = document.getElementById('badgeConexaoTopo');
+      const bannerFila = document.getElementById('bannerFilaOfflineAtiv');
+      const textoFila = document.getElementById('textoFilaOfflineAtiv');
+      const fila = JSON.parse(localStorage.getItem(FILA_OFFLINE_ATIV_KEY) || '[]');
+
+      if (!navigator.onLine) {
+        badgeTopo.className = "badge bg-danger text-white";
+        badgeTopo.innerHTML = `<i class="bi bi-wifi-off me-1"></i>Modo Offline`;
+      } else {
+        badgeTopo.className = "badge bg-success-subtle text-success border border-success-subtle";
+        badgeTopo.innerHTML = `<i class="bi bi-wifi me-1"></i>Online`;
+      }
+
+      if (fila.length > 0) {
+        bannerFila.classList.remove('d-none');
+        textoFila.innerHTML = `<i class="bi bi-cloud-slash-fill text-danger me-2"></i>Há <b>${fila.length} atividade(s)</b> salva(s) no Modo Offline aguardando sincronização com a planilha.`;
+      } else {
+        bannerFila.classList.add('d-none');
+      }
+    }
+
+    function salvarAtividadeNaFilaOfflineLocal(payloadEnvio, resumoTexto) {
+      const fila = JSON.parse(localStorage.getItem(FILA_OFFLINE_ATIV_KEY) || '[]');
+      fila.push({
+        idLocal: Date.now(),
+        payload: payloadEnvio,
+        resumo: resumoTexto
+      });
+      localStorage.setItem(FILA_OFFLINE_ATIV_KEY, JSON.stringify(fila));
+      atualizarIndicadoresOfflineNaTela();
+    }
+
+    async function sincronizarFilaOfflineAtividades() {
+      if (!navigator.onLine) return;
+      const fila = JSON.parse(localStorage.getItem(FILA_OFFLINE_ATIV_KEY) || '[]');
+      if (fila.length === 0) return;
+
+      Swal.fire({
+        title: 'Conexão Restaurada!',
+        html: `Sincronizando <b>${fila.length}</b> atividade(s) lançada(s) no Modo Offline...`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const sincronizadosListaHtml = [];
+      const pendentesRestantes = [];
+
+      for (const item of fila) {
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(item.payload)
+          }).then(r => r.json());
+
+          if (res && res.success) {
+            sincronizadosListaHtml.push(`<li>${item.resumo}</li>`);
+          } else {
+            pendentesRestantes.push(item);
+          }
+        } catch (err) {
+          pendentesRestantes.push(item);
+        }
+      }
+
+      localStorage.setItem(FILA_OFFLINE_ATIV_KEY, JSON.stringify(pendentesRestantes));
+      atualizarIndicadoresOfflineNaTela();
+
+      if (sincronizadosListaHtml.length > 0) {
+        todosLancamentosAtividadesBanco = [];
+        Swal.fire({
+          title: 'Atividades Offline Sincronizadas!',
+          html: `
+            <p class="small text-muted mb-2">A internet retornou e os seguintes lançamentos foram gravados na planilha:</p>
+            <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 220px; overflow-y: auto;">
+              ${sincronizadosListaHtml.join('')}
+            </ul>
+          `,
+          icon: 'success',
+          confirmButtonColor: '#15438c'
+        });
+      }
+    }
+
+    window.addEventListener('online', () => {
+      atualizarIndicadoresOfflineNaTela();
+      sincronizarFilaOfflineAtividades();
+    });
+    window.addEventListener('offline', atualizarIndicadoresOfflineNaTela);
 
     async function chamarAPI(payload) {
       try {
-        const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
-        const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
-        if (nomeAutor && !payload.usuarioLogado) payload.usuarioLogado = nomeAutor;
-
+        if (nomeUser && !payload.usuarioLogado) payload.usuarioLogado = nomeUser;
         const res = await fetch(API_URL, {
           method: 'POST',
           body: JSON.stringify(payload)
@@ -701,9 +802,7 @@
       return 0;
     }
 
-    // Preenche todos os seletores da tela IMEDIATAMENTE (em 0ms, sem tela de loading!)
     function renderizarSeletoresNaTela() {
-      // 1. Disciplinas
       const selDisc = document.getElementById('discSelectNome');
       const discAnt = selDisc.value;
       let htmlDisc = '<option value="">Selecione a disciplina...</option>';
@@ -711,7 +810,6 @@
       selDisc.innerHTML = htmlDisc;
       if (discAnt && disciplinasCurricularesLista.includes(discAnt)) selDisc.value = discAnt;
 
-      // 2. Séries / Turmas
       const selSerie = document.getElementById('discSelectSerie');
       const selRelSerie = document.getElementById('relAtivSerie');
       const serAnt = selSerie.value;
@@ -725,7 +823,6 @@
       selRelSerie.innerHTML = htmlRelSer;
       if (serAnt && seriesOficiaisLista.includes(serAnt)) selSerie.value = serAnt;
 
-      // 3. Semestres das Eletivas
       const semSet = new Set();
       catalogoEletivasGlobal.forEach(c => { if (c.semestre) semSet.add(c.semestre); });
       if (semSet.size === 0) ["2026.2", "2026.1", "2025.2"].forEach(s => semSet.add(s));
@@ -746,7 +843,6 @@
       document.getElementById('relAtivSemestreElet').innerHTML = htmlSem;
       filtrarEletivasDoProfessorLogado();
 
-      // 4. Bimestres
       let htmlBim = '<option value="">Todos os Bimestres</option>';
       listaBimestresEscola.forEach((b, idx) => {
         htmlBim += `<option value="${idx}">${b.nome}</option>`;
@@ -756,12 +852,13 @@
       atualizarSelectComponentesRelatorio();
     }
 
-    // ABERTURA INSTANTÂNEA DA PÁGINA (Sem Swal.fire travando a tela!)
     window.onload = function() {
-      // 1. Popula os campos imediatamente na abertura
+      atualizarIndicadoresOfflineNaTela();
       renderizarSeletoresNaTela();
+      if (navigator.onLine) {
+        setTimeout(sincronizarFilaOfflineAtividades, 1200);
+      }
 
-      // 2. Sincroniza silenciosamente em segundo plano com a planilha
       chamarAPI({ action: 'listarDisciplinasCadastradas' }).then(resDisc => {
         if (resDisc && Array.isArray(resDisc.disciplinas) && resDisc.disciplinas.length > 0) {
           disciplinasCurricularesLista = resDisc.disciplinas;
@@ -811,7 +908,6 @@
         }
       });
 
-      // Carrega a lista de nomes/turmas dos alunos em segundo plano (guardando apenas nome e série, sem fotos pesadas)
       chamarAPI({ action: 'getFiltrosOcorrencias' }).then(resFiltros => {
         if (resFiltros && Array.isArray(resFiltros.alunos)) {
           todosAlunosEscolaCache = resFiltros.alunos.map(a => ({
@@ -823,9 +919,6 @@
       });
     };
 
-    // =========================================================
-    // ABA 1: ALTERNAR ENTRE DISCIPLINA CURRICULAR E ELETIVA DO PROFESSOR
-    // =========================================================
     function alternarModoLancamento(novoModo) {
       modoLancamentoAtual = novoModo;
       document.getElementById('btnModoDisciplina').classList.toggle('ativo', novoModo === 'DISCIPLINA');
@@ -880,8 +973,7 @@
           return Swal.fire('Atenção', 'Selecione a Disciplina Curricular e a Série / Turma.', 'warning');
         }
 
-        // Se o cache em segundo plano ainda estiver baixando no 1º acesso, aguarda rapidamente
-        if (todosAlunosEscolaCache.length === 0) {
+        if (todosAlunosEscolaCache.length === 0 && navigator.onLine) {
           Swal.fire({ title: `Carregando alunos da ${serie}...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
           const resFiltros = await chamarAPI({ action: 'getFiltrosOcorrencias' });
           Swal.close();
@@ -922,24 +1014,36 @@
           return Swal.fire('Atenção', 'Selecione o Semestre e a sua Eletiva cadastrada.', 'warning');
         }
 
-        Swal.fire({ title: 'Carregando alunos matriculados na sua eletiva...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const resAl = await chamarAPI({
-          action: 'getAlunosFrequencia',
-          ano: sem,
-          eletiva: eletiva,
-          serieBase: serieBase,
-          tempoEletivo: tempoElet
-        });
-        Swal.close();
+        const chaveCacheElet = `${sem}|${eletiva.toUpperCase()}`;
+        let listaAl = cacheAlunosPorEletivaRelatorio[chaveCacheElet] || [];
 
-        const listaAl = Array.isArray(resAl) ? resAl : [];
+        if (navigator.onLine) {
+          Swal.fire({ title: 'Carregando alunos matriculados na sua eletiva...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+          const resAl = await chamarAPI({
+            action: 'getAlunosFrequencia',
+            ano: sem,
+            eletiva: eletiva,
+            serieBase: serieBase,
+            tempoEletivo: tempoElet
+          });
+          Swal.close();
+          if (Array.isArray(resAl) && resAl.length > 0) {
+            listaAl = resAl.map(item => ({
+              nome: String(item.nome || item || "").trim().toUpperCase(),
+              serie: normalizarSeriePadrao(item.turma || serieBase || "ELETIVA")
+            }));
+            cacheAlunosPorEletivaRelatorio[chaveCacheElet] = listaAl;
+            try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_al_elet", JSON.stringify(cacheAlunosPorEletivaRelatorio)); } catch (e) {}
+          }
+        }
+
         if (listaAl.length === 0) {
-          return Swal.fire('Aviso', 'Nenhum aluno encontrado matriculado nesta eletiva para o semestre selecionado.', 'info');
+          return Swal.fire('Aviso', 'Nenhum aluno encontrado matriculado nesta eletiva.', 'info');
         }
 
         alunosCarregadosParaChamada = listaAl.map(item => ({
-          nome: String(item.nome || item || "").trim().toUpperCase(),
-          serie: normalizarSeriePadrao(item.turma || serieBase || "ELETIVA"),
+          nome: item.nome,
+          serie: item.serie,
           status: "REALIZOU"
         })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
@@ -1025,12 +1129,16 @@
       const totAusente = alunosCarregadosParaChamada.filter(a => a.status === 'AUSENTE').length;
 
       document.getElementById('lblResumoContagemRodape').innerHTML = `
-        <span class="text-success me-3"><i class="bi bi-check-circle-fill me-1"></i>Realizou: ${totRealizou}</span>
-        <span class="text-danger me-3"><i class="bi bi-x-circle-fill me-1"></i>Não Realizou: ${totNao}</span>
-        <span class="text-warning text-dark"><i class="bi bi-exclamation-circle-fill me-1"></i>Ausente: ${totAusente}</span>
+        <span class="text-success me-3"><i class="bi bi-check-circle-fill me-1"></i>Realizou (Coluna G): ${totRealizou}</span>
+        <span class="text-danger me-3"><i class="bi bi-x-circle-fill me-1"></i>Não Realizou (Coluna H): ${totNao}</span>
+        <span class="text-warning text-dark"><i class="bi bi-exclamation-circle-fill me-1"></i>Ausente (Coluna I): ${totAusente}</span>
       `;
     }
 
+    // =========================================================
+    // ENVIO COMPACTO EM 1 ÚNICA LINHA (COLUNAS REALIZOU, NÃO REALIZOU E AUSENTE)
+    // + SUPORTE OFFLINE COMPLETO
+    // =========================================================
     async function salvarAtividadeNoBancoUnificado() {
       if (alunosCarregadosParaChamada.length === 0) return;
 
@@ -1063,31 +1171,53 @@
       const p = dataIso.split('-');
       const dataBr = `${p[2]}/${p[1]}/${p[0]}`;
 
-      const payloadDados = {
-        tipo: modoLancamentoAtual,
-        data: dataBr,
-        semestre: semestreColC,
-        disciplina: componenteNome,
-        aula: aulaOuTempo,
-        serie: seriePadrao,
-        registros: alunosCarregadosParaChamada.map(a => ({
-          aluno: a.nome,
-          serie: a.serie,
-          status: a.status
-        }))
+      // Agrupa os nomes exatamente nas 3 colunas da planilha: REALIZOU (G), NÃO REALIZOU (H) e AUSENTE (I)
+      const nomesRealizou = alunosCarregadosParaChamada.filter(a => a.status === "REALIZOU").map(a => a.nome);
+      const nomesNaoRealizou = alunosCarregadosParaChamada.filter(a => a.status === "NÃO REALIZOU").map(a => a.nome);
+      const nomesAusente = alunosCarregadosParaChamada.filter(a => a.status === "AUSENTE").map(a => a.nome);
+
+      const payloadEnvio = {
+        action: 'salvarAtividadeDisciplinas',
+        usuarioLogado: nomeUser,
+        dados: {
+          tipo: modoLancamentoAtual,
+          data: dataBr,
+          semestre: semestreColC,
+          disciplina: componenteNome,
+          aula: aulaOuTempo,
+          serie: seriePadrao,
+          realizou: nomesRealizou.join(" , "),
+          naoRealizou: nomesNaoRealizou.join(" , "),
+          ausente: nomesAusente.join(" , "),
+          registros: alunosCarregadosParaChamada.map(a => ({
+            aluno: a.nome,
+            serie: a.serie,
+            status: a.status
+          }))
+        }
       };
+
+      const resumoItem = `<b>${componenteNome}</b> (${seriePadrao || semestreColC} • ${aulaOuTempo} em ${dataBr}) — Realizou: ${nomesRealizou.length} | Não Realizou: ${nomesNaoRealizou.length} | Ausente: ${nomesAusente.length}`;
+
+      // Se estiver sem internet, salva imediatamente na fila offline do aparelho!
+      if (!navigator.onLine) {
+        salvarAtividadeNaFilaOfflineLocal(payloadEnvio, resumoItem);
+        return Swal.fire({
+          title: 'Salvo no Modo Offline!',
+          html: `Você está sem internet no momento.<br><br>A atividade de <b>${componenteNome}</b> (${dataBr}) foi salva de forma compacta no aparelho e será enviada automaticamente para a planilha assim que a conexão retornar!`,
+          icon: 'info',
+          confirmButtonColor: '#15438c'
+        });
+      }
 
       const btn = document.getElementById('btnSalvarAtividadeBanco');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando na Planilha...';
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando Linha Compacta na Planilha...';
 
-      const res = await chamarAPI({
-        action: 'salvarAtividadeDisciplinas',
-        dados: payloadDados
-      });
+      const res = await chamarAPI(payloadEnvio);
 
       btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-2"></i>Enviar Atividade para o Banco de Dados';
+      btn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-2"></i>Enviar Atividade Compacta para o Banco de Dados';
 
       if (res && res.success) {
         Swal.fire({
@@ -1097,8 +1227,17 @@
           confirmButtonColor: '#15438c'
         });
         todosLancamentosAtividadesBanco = [];
+      } else if (!res) {
+        // Caso a internet tenha caído durante o clique
+        salvarAtividadeNaFilaOfflineLocal(payloadEnvio, resumoItem);
+        Swal.fire({
+          title: 'Conexão Instável — Salvo Offline!',
+          html: `A conexão oscilou, mas a atividade de <b>${componenteNome}</b> foi guardada no Modo Offline e será sincronizada automaticamente quando a rede estabilizar!`,
+          icon: 'info',
+          confirmButtonColor: '#15438c'
+        });
       } else {
-        Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar a atividade.', 'error');
+        Swal.fire('Erro', res.error || 'Não foi possível salvar a atividade.', 'error');
       }
     }
 
@@ -1259,6 +1398,7 @@
         : [];
 
       cacheAlunosPorEletivaRelatorio[chaveCache] = listaMatriculados;
+      try { localStorage.setItem(CACHE_ATIV_INIT_KEY + "_al_elet", JSON.stringify(cacheAlunosPorEletivaRelatorio)); } catch (e) {}
       return listaMatriculados;
     }
 
