@@ -1,32 +1,35 @@
 // =========================================================================
-// MOTOR CENTRAL: OFFLINE + SINCRONIZAÇÃO + AUTO-UPDATE GITHUB + PDF PADRÃO
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS):
+// - FILA OFFLINE GLOBAL (SINCRONIZA AO ABRIR QUALQUER PÁGINA COM INTERNET)
+// - CACHE LEVE UNIVERSAL DE ALUNOS E SÉRIES (PARA FUNCIONAR 100% OFFLINE)
+// - CABEÇALHO INSTITUCIONAL PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
 // =========================================================================
 (function() {
-  const FILA_OFFLINE_KEY = 'fila_offline_eemti_v1';
-  const CACHE_LEITURA_PREFIX = 'cache_api_eemti_';
+  const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
+  const FILAS_LEGADAS = [
+    'fila_offline_rac_eemti_v1',
+    'fila_offline_atividades_eemti_v1',
+    'fila_offline_mapeamento_v1'
+  ];
 
-  // Ações de gravação que funcionam Offline e sincronizam ao voltar a internet
+  // Chave universal leve de alunos e séries compartilhada entre Ocorrências, Frequência Secretaria, Atividades e Mapeamento
+  window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
+  window.KEY_SERIES_UNIVERSAL_EEMTI = 'cache_rac_series_v3';
+
   const ACOES_GRAVACAO_OFFLINE = {
     'salvarOcorrencia': 'Ocorrência Disciplinar (RAC)',
     'salvarAtividadeDisciplinas': 'Atividade Contínua (Disciplina/Eletiva)',
     'salvarAtividadeEletivas': 'Atividade de Eletiva',
     'salvarFrequenciaSecretaria': 'Frequência da Secretaria (Manhã/Tarde)',
-    'salvarFrequencia': 'Frequência de Eletiva'
+    'salvarFrequencia': 'Frequência de Eletiva',
+    'salvarMapeamentoSala': 'Mapeamento de Sala de Aula'
   };
-
-  // Ações de leitura que ficam salvas em cache para abrir listas de alunos/turmas mesmo sem internet
-  const ACOES_LEITURA_CACHEAVEIS = [
-    'getFiltrosOcorrencias', 'listarConfig', 'listarPDT', 'getFiltrosFrequencia',
-    'getFiltrosIniciais', 'listarDisciplinasCadastradas', 'getAlunosFrequencia',
-    'buscarAlunos', 'getAlunosParaEdicao', 'listarFrequenciaSecretaria',
-    'listarAtividadesUnificadas', 'buscarOcorrencias'
-  ];
 
   // 1. Registra o Service Worker e atualiza automaticamente quando houver push no GitHub
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').then(reg => {
-        setInterval(() => reg.update(), 60000); // Checa atualizações no GitHub a cada 1 minuto
+        setInterval(() => reg.update(), 60000);
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
@@ -39,7 +42,43 @@
     });
   }
 
-  // 2. Descreve de forma legível o que foi salvo para exibir quando a internet voltar
+  // 2. Migra automaticamente qualquer item que estivesse nas filas separadas para a Fila Global Única
+  function unificarFilasOfflineNoStorage() {
+    let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
+    let alterou = false;
+
+    FILAS_LEGADAS.forEach(chaveAntiga => {
+      const itensAntigos = JSON.parse(localStorage.getItem(chaveAntiga) || '[]');
+      if (Array.isArray(itensAntigos) && itensAntigos.length > 0) {
+        itensAntigos.forEach(item => {
+          let payloadUnificado = item.payload;
+          if (!payloadUnificado && item.dados) {
+            let acaoInferida = 'salvarOcorrencia';
+            if (chaveAntiga.includes('atividades')) acaoInferida = 'salvarAtividadeDisciplinas';
+            if (chaveAntiga.includes('mapeamento')) acaoInferida = 'salvarMapeamentoSala';
+            payloadUnificado = { action: acaoInferida, dados: item.dados };
+          }
+          if (payloadUnificado) {
+            filaGlobal.push({
+              idFila: item.idFila || item.idTemp || item.idLocal || (Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+              dataHora: item.dataHora || new Date().toLocaleString('pt-BR'),
+              url: item.url || "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec",
+              payload: payloadUnificado,
+              resumoHtml: item.resumoHtml || (`<li>${item.resumo || resumirItemSincronizado(payloadUnificado)}</li>`)
+            });
+            alterou = true;
+          }
+        });
+        localStorage.removeItem(chaveAntiga);
+      }
+    });
+
+    if (alterou) {
+      localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaGlobal));
+    }
+    return filaGlobal;
+  }
+
   function resumirItemSincronizado(payload) {
     const act = payload.action;
     const d = payload.dados || payload.dadosFrequencia || payload;
@@ -47,8 +86,7 @@
       return `<li><b>Ocorrência RAC:</b> ${d.aluno || '-'} (${d.serie || '-'}) — <i>${d.ocorrencia || '-'}</i></li>`;
     }
     if (act === 'salvarAtividadeDisciplinas' || act === 'salvarAtividadeEletivas') {
-      const qtd = Array.isArray(d.registros) ? d.registros.length : 0;
-      return `<li><b>Atividade (${d.disciplina || d.eletiva || '-'}):</b> Turma ${d.serie || d.semestre || '-'} (${d.data || '-'}) — <i>${qtd} alunos</i></li>`;
+      return `<li><b>Atividade (${d.disciplina || d.eletiva || '-'}):</b> Turma ${d.serie || d.semestre || '-'} (${d.data || '-'})</li>`;
     }
     if (act === 'salvarFrequenciaSecretaria') {
       return `<li><b>Frequência Secretaria:</b> Turma ${d.serie || '-'} • Turno ${d.turno || '-'} (${d.data || '-'})</li>`;
@@ -56,10 +94,36 @@
     if (act === 'salvarFrequencia') {
       return `<li><b>Frequência Eletiva:</b> ${d.eletiva || '-'} (${d.data || '-'} • ${d.semestre || '-'})</li>`;
     }
+    if (act === 'salvarMapeamentoSala') {
+      return `<li><b>Mapeamento de Sala:</b> Turma ${d.serie || '-'} (PDT: ${d.pdt || '-'})</li>`;
+    }
     return `<li><b>${ACOES_GRAVACAO_OFFLINE[act] || act}:</b> Sincronizado com sucesso</li>`;
   }
 
-  // 3. Interceptador Global de Fetch (Cacheia leituras e guarda gravações quando Offline)
+  // Salva de forma leve os nomes/turmas/dados dos alunos sempre que qualquer página consultar o servidor
+  function atualizarCacheLeveAlunosUniversal(listaAlunosBruta, listaSeriesBruta) {
+    try {
+      if (Array.isArray(listaSeriesBruta) && listaSeriesBruta.length > 0) {
+        const seriesLimpas = listaSeriesBruta.map(s => String(s || "").replace(/["']/g, "").trim().toUpperCase()).filter(Boolean);
+        localStorage.setItem(window.KEY_SERIES_UNIVERSAL_EEMTI, JSON.stringify(seriesLimpas));
+      }
+      if (Array.isArray(listaAlunosBruta) && listaAlunosBruta.length > 0) {
+        const alunosLeves = listaAlunosBruta.map(a => ({
+          nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+          serie: String(a.serie || "").replace(/["']/g, "").trim().toUpperCase(),
+          bolsaFamilia: String(a.bolsaFamilia || "NÃO").trim().toUpperCase(),
+          peDeMeia: String(a.peDeMeia || "NÃO").trim().toUpperCase(),
+          sexo: String(a.sexo || "-").trim().toUpperCase()
+        })).filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO");
+
+        if (alunosLeves.length > 0) {
+          localStorage.setItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI, JSON.stringify(alunosLeves));
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 3. Interceptador Global de Fetch
   const _fetchNativo = window.fetch;
   window.fetch = async function(url, options) {
     if (options && options.method === 'POST' && typeof options.body === 'string' && String(url).includes('script.google.com')) {
@@ -73,48 +137,38 @@
       } catch (e) {}
 
       const action = bodyObj.action || '';
-      const chaveCacheLeitura = CACHE_LEITURA_PREFIX + action + '_' + JSON.stringify(bodyObj).slice(0, 120);
 
-      // Se estiver OFFLINE antes mesmo de tentar enviar:
-      if (!navigator.onLine) {
-        if (ACOES_GRAVACAO_OFFLINE[action]) {
-          enfileirarOperacaoOffline(url, bodyObj);
-          return new Response(JSON.stringify({
-            success: true,
-            offline: true,
-            msg: 'Sem internet no momento! O lançamento foi salvo no aparelho (Modo Offline) e será sincronizado automaticamente assim que a conexão voltar.'
-          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-        }
-        const cacheSalvo = localStorage.getItem(chaveCacheLeitura);
-        if (cacheSalvo) {
-          return new Response(cacheSalvo, { status: 200, headers: { 'Content-Type': 'application/json' } });
-        }
+      // Se estiver OFFLINE e for uma ação de gravação (Ocorrências, Atividades, Frequência Secretaria, Frequência Eletiva, Mapeamento):
+      if (!navigator.onLine && ACOES_GRAVACAO_OFFLINE[action]) {
+        window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
+        return new Response(JSON.stringify({
+          success: true,
+          offline: true,
+          msg: 'Sem internet no momento! O registro foi colocado na Fila de Sincronização Offline e será enviado automaticamente assim que você acessar o aplicativo com internet.'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
 
-      // Tenta buscar na internet
       try {
         const response = await _fetchNativo(url, options);
         const clone = response.clone();
-        if (ACOES_LEITURA_CACHEAVEIS.includes(action)) {
-          clone.text().then(txt => {
-            try { localStorage.setItem(chaveCacheLeitura, txt); } catch (e) {}
-          });
+
+        // Se a resposta trouxe alunos (de getFiltrosOcorrencias ou listarFrequenciaSecretaria), salva a lista leve universal para uso offline!
+        if (action === 'getFiltrosOcorrencias' || action === 'listarFrequenciaSecretaria') {
+          clone.json().then(data => {
+            if (data && data.success) {
+              atualizarCacheLeveAlunosUniversal(data.alunos || data.alunosDetalhados, data.series);
+            }
+          }).catch(() => {});
         }
         return response;
       } catch (errRede) {
-        // Se a internet caiu no meio do envio de uma gravação:
         if (ACOES_GRAVACAO_OFFLINE[action]) {
-          enfileirarOperacaoOffline(url, bodyObj);
+          window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Conexão instável! O registro foi salvo no Modo Offline do aparelho e será enviado automaticamente quando a internet estabilizar.'
+            msg: 'Conexão instável! O lançamento foi guardado na Fila Offline e será sincronizado automaticamente quando a internet voltar.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-        }
-        // Se for leitura, devolve o cache local
-        const cacheFallback = localStorage.getItem(chaveCacheLeitura);
-        if (cacheFallback) {
-          return new Response(cacheFallback, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         throw errRede;
       }
@@ -122,29 +176,33 @@
     return _fetchNativo(url, options);
   };
 
-  function enfileirarOperacaoOffline(url, payload) {
-    const fila = JSON.parse(localStorage.getItem(FILA_OFFLINE_KEY) || '[]');
+  window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
+    const fila = unificarFilasOfflineNoStorage();
     fila.push({
       idFila: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       dataHora: new Date().toLocaleString('pt-BR'),
-      url: url,
+      url: url || "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec",
       payload: payload,
-      resumoHtml: resumirItemSincronizado(payload)
+      resumoHtml: resumoCustomizado ? `<li>${resumoCustomizado}</li>` : resumirItemSincronizado(payload)
     });
-    localStorage.setItem(FILA_OFFLINE_KEY, JSON.stringify(fila));
-    atualizarBadgeStatusConexao();
-  }
+    localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+    window.atualizarBadgeStatusConexaoGlobal();
+  };
 
-  // 4. Sincroniza tudo automaticamente quando a internet retorna e exibe o modal com os dados sincronizados!
-  async function sincronizarFilaOffline() {
-    if (!navigator.onLine) return;
-    const fila = JSON.parse(localStorage.getItem(FILA_OFFLINE_KEY) || '[]');
-    if (fila.length === 0) return;
+  window.obterFilaOfflineGlobal = function() {
+    return unificarFilasOfflineNoStorage();
+  };
+
+  // 4. Sincroniza automaticamente a fila inteira assim que abrir o aplicativo com internet
+  window.sincronizarFilaOfflineGlobal = async function() {
+    const fila = unificarFilasOfflineNoStorage();
+    window.atualizarBadgeStatusConexaoGlobal();
+    if (!navigator.onLine || fila.length === 0) return;
 
     if (typeof Swal !== 'undefined') {
       Swal.fire({
-        title: 'Conexão Restaurada!',
-        html: `Sincronizando <b>${fila.length}</b> lançamento(s) feitos em Modo Offline...`,
+        title: 'Sincronizando Fila Offline...',
+        html: `Enviando <b>${fila.length}</b> registro(s) pendente(s) na fila para o banco de dados...`,
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -159,7 +217,8 @@
           method: 'POST',
           body: JSON.stringify(item.payload)
         });
-        if (res && res.ok) {
+        const json = await res.json();
+        if (json && (json.success || json.msg)) {
           sincronizadosHtml.push(item.resumoHtml);
         } else {
           restantes.push(item);
@@ -169,59 +228,66 @@
       }
     }
 
-    localStorage.setItem(FILA_OFFLINE_KEY, JSON.stringify(restantes));
-    atualizarBadgeStatusConexao();
+    localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(restantes));
+    window.atualizarBadgeStatusConexaoGlobal();
 
-    if (sincronizadosHtml.length > 0 && typeof Swal !== 'undefined') {
-      Swal.fire({
-        title: 'Dados Offline Sincronizados!',
-        html: `
-          <p class="small text-muted mb-2">A conexão retornou e os seguintes lançamentos foram salvos na planilha:</p>
-          <ul class="text-start small bg-light p-3 rounded border" style="max-height: 240px; overflow-y: auto;">
-            ${sincronizadosHtml.join('')}
-          </ul>
-        `,
-        icon: 'success',
-        confirmButtonColor: '#15438c',
-        confirmButtonText: 'Ótimo!'
-      });
+    if (sincronizadosHtml.length > 0) {
+      window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Dados Offline Sincronizados!',
+          html: `
+            <p class="small text-muted mb-2">Os seguintes registros que estavam na fila offline foram salvos na planilha:</p>
+            <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
+              ${sincronizadosHtml.join('')}
+            </ul>
+          `,
+          icon: 'success',
+          confirmButtonColor: '#15438c',
+          confirmButtonText: 'Concluído!'
+        });
+      }
     }
-  }
+  };
 
-  function atualizarBadgeStatusConexao() {
+  window.atualizarBadgeStatusConexaoGlobal = function() {
     let badge = document.getElementById('badgeStatusOfflineGlobal');
-    const fila = JSON.parse(localStorage.getItem(FILA_OFFLINE_KEY) || '[]');
-    if (!badge) {
+    const fila = unificarFilasOfflineNoStorage();
+    if (!badge && document.body) {
       badge = document.createElement('div');
       badge.id = 'badgeStatusOfflineGlobal';
-      badge.style.cssText = 'position:fixed;bottom:14px;right:14px;z-index:9999;padding:8px 14px;border-radius:30px;font-weight:800;font-size:0.76rem;box-shadow:0 4px 14px rgba(0,0,0,0.18);cursor:pointer;';
-      badge.onclick = () => sincronizarFilaOffline();
+      badge.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99999;padding:10px 16px;border-radius:30px;font-weight:800;font-size:0.8rem;box-shadow:0 6px 18px rgba(0,0,0,0.22);cursor:pointer;transition:all 0.2s;';
+      badge.onclick = () => window.sincronizarFilaOfflineGlobal();
       document.body.appendChild(badge);
     }
+    if (!badge) return;
 
     if (!navigator.onLine) {
       badge.style.display = 'block';
       badge.style.backgroundColor = '#dc2626';
       badge.style.color = '#ffffff';
-      badge.innerHTML = `<i class="bi bi-wifi-off me-1"></i>Modo Offline Ativo (${fila.length} na fila)`;
+      badge.innerHTML = `<i class="bi bi-wifi-off me-2"></i>Modo Offline (${fila.length} na fila para sincronizar)`;
     } else if (fila.length > 0) {
       badge.style.display = 'block';
       badge.style.backgroundColor = '#f59e0b';
       badge.style.color = '#0f172a';
-      badge.innerHTML = `<i class="bi bi-cloud-arrow-up-fill me-1"></i>Sincronizar Agora (${fila.length} pendentes)`;
+      badge.innerHTML = `<span class="spinner-grow spinner-grow-sm me-2"></span>Na fila para sincronizar (${fila.length}) — Clique aqui`;
     } else {
       badge.style.display = 'none';
     }
-  }
+  };
 
   window.addEventListener('online', () => {
-    atualizarBadgeStatusConexao();
-    sincronizarFilaOffline();
+    window.atualizarBadgeStatusConexaoGlobal();
+    window.sincronizarFilaOfflineGlobal();
   });
-  window.addEventListener('offline', atualizarBadgeStatusConexao);
+  window.addEventListener('offline', window.atualizarBadgeStatusConexaoGlobal);
   window.addEventListener('DOMContentLoaded', () => {
-    atualizarBadgeStatusConexao();
-    if (navigator.onLine) setTimeout(sincronizarFilaOffline, 1500);
+    unificarFilasOfflineNoStorage();
+    window.atualizarBadgeStatusConexaoGlobal();
+    if (navigator.onLine) {
+      setTimeout(window.sincronizarFilaOfflineGlobal, 800);
+    }
   });
 
   // =========================================================================
@@ -251,18 +317,12 @@
     });
   };
 
-  /**
-   * Desenha o Cabeçalho Institucional Padrão com o Brasão da Escola em qualquer PDF (Retrato ou Paisagem)
-   * e opcionalmente desenha a Foto 3×4 do Aluno à direita!
-   * Retorna a coordenada Y (`startY`) onde a tabela `doc.autoTable` deve começar.
-   */
   window.desenharCabecalhoPadraoEEMTI = async function(doc, opcoes = {}) {
     const largPagina = doc.internal.pageSize.getWidth();
     const margemEsq = 14;
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    // 1. Captura o Brasão da Escola (do elemento <img> do cabeçalho ou do arquivo LOGO-removebg-preview.png)
     const imgLogoDom = document.getElementById('logoEscola') || document.querySelector('.brand-escola img');
     const srcLogo = (imgLogoDom && imgLogoDom.src) ? imgLogoDom.src : 'LOGO-removebg-preview.png';
     const logoB64 = await window.converterImagemParaDataUrlPdf(srcLogo, 200, 200);
@@ -271,7 +331,6 @@
       try { doc.addImage(logoB64, 'JPEG', margemEsq, 10, 20, 20); } catch (e) {}
     }
 
-    // 2. Textos Institucionais Padrão
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12.5);
     doc.setTextColor(21, 67, 140);
@@ -293,7 +352,6 @@
       doc.text(String(opcoes.subtitulo2), margemEsq + 23, 31);
     }
 
-    // 3. Se o relatório tiver Foto 3×4 do Aluno (Histórico de Eletivas, Histórico Disciplinar, Relatório de Turmas)
     if (temFotoAluno) {
       const xFoto = margemDir - 25;
       const yFoto = 9;
@@ -321,13 +379,12 @@
       doc.setDrawColor(21, 67, 140);
       doc.setLineWidth(0.5);
       doc.line(margemEsq, 44, margemDir, 44);
-      return 48; // startY para tabelas quando tem Foto 3x4 no cabeçalho
+      return 48;
     }
 
-    // Linha divisória padrão quando não tem foto individual no cabeçalho
     doc.setDrawColor(21, 67, 140);
     doc.setLineWidth(0.5);
     doc.line(margemEsq, 34, margemDir, 34);
-    return 38; // startY padrão
+    return 38;
   };
 })();
