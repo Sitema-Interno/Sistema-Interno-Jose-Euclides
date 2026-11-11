@@ -117,7 +117,7 @@
 
     .main-container {
       padding: 16px 15px 40px 15px;
-      max-width: 1320px;
+      max-width: 1280px;
       margin: 0 auto;
       width: 100%;
       flex: 1;
@@ -145,7 +145,7 @@
     }
 
     .form-label {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
       color: #475569;
       margin-bottom: 4px;
@@ -155,7 +155,7 @@
       border-radius: 9px;
       border: 1px solid #cbd5e1;
       padding: 9px 12px;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
     }
 
     .form-control:focus, .form-select:focus {
@@ -188,7 +188,13 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      margin: 0 auto;
       box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+    }
+
+    .moldura-3x4-rac.com-foto {
+      border-style: solid;
+      border-color: var(--azul-primario);
     }
 
     .moldura-3x4-rac img {
@@ -208,7 +214,7 @@
       border-bottom: 2px solid #e2e8f0;
       color: #475569;
       font-weight: 800;
-      font-size: 0.74rem;
+      font-size: 0.73rem;
       text-transform: uppercase;
       padding: 10px 8px;
     }
@@ -253,11 +259,14 @@
     </a>
 
     <div class="user-bar">
+      <span class="badge bg-success-subtle text-success border border-success-subtle" id="badgeConexaoRac">
+        <i class="bi bi-wifi me-1"></i>Online
+      </span>
       <span class="fw-bold small text-dark">
         <i class="bi bi-person-circle text-primary me-1"></i>
         Olá, <span id="lblNomeUsuario">USUÁRIO</span>
       </span>
-      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Servidor</span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Professor</span>
       <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
         <i class="bi bi-house-door-fill me-1"></i>Início
       </a>
@@ -265,42 +274,50 @@
   </header>
 
   <div class="main-container">
+    <!-- Banner de Fila Offline de Ocorrências -->
+    <div id="bannerFilaOfflineRac" class="alert alert-warning d-none d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 shadow-sm">
+      <div class="small fw-bold text-dark" id="textoFilaOfflineRac"></div>
+      <button type="button" class="btn btn-warning btn-sm fw-bold border border-dark-subtle" onclick="sincronizarFilaOfflineRac()">
+        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Sincronizar Agora
+      </button>
+    </div>
+
+    <!-- ABAS DO MÓDULO DE OCORRÊNCIAS (RAC) -->
     <ul class="nav nav-tabs mb-4" id="racTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active fw-bold" id="tab-lancar-rac-btn" data-bs-toggle="tab" data-bs-target="#abaLancarRac" type="button" role="tab">
-          <i class="bi bi-exclamation-triangle-fill text-primary me-2"></i><span id="lblAbaFormRac">Lançar Ocorrência (RAC)</span>
-        </button>
+          <i class="bi bi-exclamation-triangle-fill text-primary me-2"></i>Lançar Ocorrência (CRO)        </button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold" id="tab-consultar-rac-btn" data-bs-toggle="tab" data-bs-target="#abaConsultarRac" type="button" role="tab" onclick="executarBuscaOcorrencias()">
-          <i class="bi bi-card-list text-success me-2"></i>Consultar / Editar / Excluir Registros
+        <button class="nav-link fw-bold" id="tab-consultar-rac-btn" data-bs-toggle="tab" data-bs-target="#abaConsultarRac" type="button" role="tab" onclick="carregarMinhasOcorrenciasRegistradas(false)">
+          <i class="bi bi-list-check text-primary me-2"></i>Consultar / Editar / Excluir Meus Registros (<span id="badgeQtdMinhasOco">0</span>)
         </button>
       </li>
     </ul>
 
     <div class="tab-content">
       <!-- ========================================================= -->
-      <!-- ABA 1: LANÇAR OU EDITAR OCORRÊNCIA (RAC)                  -->
+      <!-- ABA 1: LANÇAR / EDITAR OCORRÊNCIA DISCIPLINAR (RAC)       -->
       <!-- ========================================================= -->
       <div class="tab-pane fade show active" id="abaLancarRac" role="tabpanel">
         <div class="card p-4">
           <div class="card-header-custom">
             <div>
-              <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="tituloCardRac">
-                <i class="bi bi-person-bounding-box me-2"></i>Nova Ocorrência Disciplinar (Aba REGISTRO RAC)
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="lblTituloFormRac">
+                <i class="bi bi-person-exclamation me-2"></i>Nova Ocorrência Disciplinar 
               </h5>
-              <small class="text-muted">Selecione a turma e o(a) aluno(a) para carregar a Foto 3x4 e registrar a ocorrência no banco de dados.</small>
+              <small class="text-muted">Selecione a turma e o(a) aluno(a) para registrar a ocorrência no banco de dados (Funciona <b>Offline</b>).</small>
             </div>
-            <span class="badge bg-warning text-dark d-none" id="badgeEdicaoRac">Modo Edição Ativo</span>
+            <span class="badge bg-warning text-dark d-none" id="badgeModoEdicaoRac">Editando Registro</span>
           </div>
 
-          <form id="formRac" onsubmit="event.preventDefault(); salvarRegistroOcorrencia();">
-            <input type="hidden" id="racIdEdit" value="">
+          <form id="formRac" onsubmit="event.preventDefault(); salvarOcorrenciaRac();">
+            <input type="hidden" id="racIdEdicao" value="">
 
             <div class="row g-4 align-items-start">
-              <!-- Coluna da Foto 3x4 -->
-              <div class="col-12 col-md-2 d-flex flex-column align-items-center">
-                <div class="moldura-3x4-rac" id="boxFotoAlunoRac">
+              <!-- Moldura 3x4 do Aluno -->
+              <div class="col-12 col-md-2 text-center">
+                <div class="moldura-3x4-rac" id="molduraFotoRac">
                   <i class="bi bi-person-fill fs-1 text-secondary"></i>
                 </div>
                 <span class="badge bg-secondary mt-2" id="badgeTurmaFotoRac">Aguardando Turma</span>
@@ -316,14 +333,12 @@
 
                   <div class="col-12 col-md-8">
                     <label class="form-label"><i class="bi bi-lock-fill text-primary me-1"></i>Professor / Servidor Responsável *</label>
-                    <input type="text" id="racProfessor" class="form-control fw-bold bg-light" readonly>
+                    <input type="text" id="racProfessor" class="form-control fw-bold bg-light text-dark" readonly>
                   </div>
 
                   <div class="col-12 col-md-5">
                     <label class="form-label">Selecionar Série / Turma *</label>
-                    <select id="racSerie" class="form-select fw-bold" required onchange="aoMudarSerieRac()">
-                      <option value="">Carregando séries...</option>
-                    </select>
+                    <select id="racSerie" class="form-select fw-bold" required onchange="aoSelecionarSerieRac()"></select>
                   </div>
 
                   <div class="col-12 col-md-7">
@@ -335,14 +350,12 @@
 
                   <div class="col-12">
                     <label class="form-label">Tipo de Ocorrência (Catálogo RAC) *</label>
-                    <select id="racTipoOcorrencia" class="form-select fw-bold" required onchange="aoSelecionarTipoOcorrencia()">
-                      <option value="">Carregando tipos de ocorrência...</option>
-                    </select>
+                    <select id="racTipoOcorrencia" class="form-select fw-bold" required onchange="aoSelecionarTipoOcorrenciaRac()"></select>
                   </div>
 
                   <div class="col-12 col-md-4">
                     <label class="form-label">Gravidade (Preenchimento Automático)</label>
-                    <input type="text" id="racGravidade" class="form-control fw-bold bg-light" value="Automático" readonly>
+                    <input type="text" id="racGravidade" class="form-control fw-bold bg-light text-danger" readonly value="Automático">
                   </div>
 
                   <div class="col-12 col-md-8">
@@ -350,12 +363,12 @@
                     <textarea id="racObs" class="form-control" rows="2" placeholder="Descreva os detalhes adicionais da ocorrência (Opcional)..."></textarea>
                   </div>
 
-                  <div class="col-12 text-end mt-4 d-flex justify-content-end gap-2">
+                  <div class="col-12 d-flex justify-content-end gap-2 mt-3">
                     <button type="button" class="btn btn-outline-secondary fw-bold px-4" onclick="limparFormularioRac()">
                       Cancelar / Limpar
                     </button>
                     <button type="submit" class="btn btn-principal px-4 shadow-sm" id="btnSalvarRac">
-                      <i class="bi bi-cloud-arrow-up-fill me-2"></i>Registrar Ocorrência
+                      <i class="bi bi-exclamation-triangle-fill me-2"></i>Registrar Ocorrência
                     </button>
                   </div>
                 </div>
@@ -366,40 +379,51 @@
       </div>
 
       <!-- ========================================================= -->
-      <!-- ABA 2: CONSULTAR / EDITAR / EXCLUIR OCORRÊNCIAS           -->
+      <!-- ABA 2: CONSULTAR / EDITAR / EXCLUIR (APENAS DO PROFESSOR) -->
       <!-- ========================================================= -->
       <div class="tab-pane fade" id="abaConsultarRac" role="tabpanel">
         <div class="card p-4">
           <div class="card-header-custom">
             <div>
               <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
-                <i class="bi bi-search me-2"></i>Consultar Ocorrências Registradas (Aba REGISTRO RAC)
+                <i class="bi bi-person-check-fill me-2"></i>Minhas Ocorrências Registradas (<span id="lblNomeProfAba2">PROFESSOR</span>)
               </h5>
-              <small class="text-muted">Filtre por Turma, Nome do Aluno ou Data para visualizar, editar, excluir ou gerar PDF.</small>
+              <small class="text-muted">Exibe exclusivamente as ocorrências lançadas por você para consulta, edição ou exclusão.</small>
             </div>
-            <button class="btn btn-danger btn-sm fw-bold" onclick="exportarPdfOcorrencias()">
-              <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF
-            </button>
+
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <div class="form-check form-switch me-2 d-none" id="boxSwitchVerTodosRacAdmin">
+                <input class="form-check-input" type="checkbox" id="chkVerTodosRacAdmin" onchange="carregarMinhasOcorrenciasRegistradas(true)">
+                <label class="form-check-label small fw-bold text-secondary" for="chkVerTodosRacAdmin">Ver de todos os professores (Gestão/Admin)</label>
+              </div>
+              <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarMinhasOcorrenciasRegistradas(true)">
+                <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+              </button>
+              <button type="button" class="btn btn-danger btn-sm fw-bold px-3" onclick="exportarPdfOcorrencias()">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Exportar PDF
+              </button>
+            </div>
           </div>
 
-          <div class="row g-2 align-items-end mb-3 p-3 bg-light rounded border">
+          <!-- Filtros Rápidos da Aba 2 -->
+          <div class="row g-2 mb-3 align-items-end">
             <div class="col-6 col-md-3">
-              <label class="form-label">Filtrar Série / Turma</label>
-              <select id="buscaRacSerie" class="form-select form-select-sm fw-bold" onchange="executarBuscaOcorrencias()">
+              <label class="form-label">Filtrar por Turma</label>
+              <select id="filtroConsultaSerie" class="form-select form-select-sm fw-bold" onchange="filtrarTabelaMinhasOcorrencias()">
                 <option value="">Todas as Turmas...</option>
               </select>
             </div>
-            <div class="col-6 col-md-4">
-              <label class="form-label">Pesquisar Nome do(a) Aluno(a)</label>
-              <input type="text" id="buscaRacAluno" class="form-control form-control-sm text-uppercase fw-bold" placeholder="Digite parte do nome..." onkeydown="if(event.key==='Enter') executarBuscaOcorrencias()">
-            </div>
             <div class="col-6 col-md-3">
               <label class="form-label">Filtrar por Data</label>
-              <input type="date" id="buscaRacData" class="form-control form-control-sm fw-bold" onchange="executarBuscaOcorrencias()">
+              <input type="date" id="filtroConsultaData" class="form-control form-control-sm fw-bold" onchange="filtrarTabelaMinhasOcorrencias()">
             </div>
-            <div class="col-6 col-md-2 d-grid">
-              <button class="btn btn-principal btn-sm py-2" onclick="executarBuscaOcorrencias()">
-                <i class="bi bi-search me-1"></i>Pesquisar
+            <div class="col-12 col-md-4">
+              <label class="form-label">Pesquisar Aluno ou Ocorrência</label>
+              <input type="text" id="filtroConsultaTexto" class="form-control form-control-sm text-uppercase" placeholder="Digite o nome do aluno..." oninput="filtrarTabelaMinhasOcorrencias()">
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+              <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="limparFiltrosConsultaRac()">
+                <i class="bi bi-eraser me-1"></i>Limpar Filtros
               </button>
             </div>
           </div>
@@ -409,16 +433,16 @@
               <thead>
                 <tr>
                   <th style="width: 12%;">Data / Hora</th>
-                  <th style="width: 10%;" class="text-center">Série</th>
-                  <th style="width: 22%;">Aluno(a)</th>
-                  <th style="width: 24%;">Ocorrência / Gravidade</th>
-                  <th style="width: 13%;">Obs.</th>
-                  <th style="width: 11%;">Servidor</th>
-                  <th style="width: 8%;" class="text-center">Ações</th>
+                  <th style="width: 9%;" class="text-center">Turma</th>
+                  <th style="width: 21%;">Aluno(a)</th>
+                  <th style="width: 23%;">Ocorrência Registrada</th>
+                  <th style="width: 12%;" class="text-center">Gravidade</th>
+                  <th style="width: 13%;">Observações</th>
+                  <th style="width: 10%;" class="text-center">Ações</th>
                 </tr>
               </thead>
-              <tbody id="tbodyConsultaRac">
-                <tr><td colspan="7" class="text-center py-4 text-muted">Clique na aba ou em Pesquisar para carregar os registros...</td></tr>
+              <tbody id="tbodyMinhasOcorrencias">
+                <tr><td colspan="7" class="text-center py-4 text-muted">Clique na aba para carregar os seus registros...</td></tr>
               </tbody>
             </table>
           </div>
@@ -428,322 +452,673 @@
   </div>
 
   <footer class="footer-custom">
-    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Registro de Ocorrências (RAC).
+    <strong>&copy; <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Registro de Ocorrências.
   </footer>
 
   <script>
-    const _fetchOriginal = window.fetch;
-    window.fetch = function(url, options) {
-      if (options && options.method === 'POST' && typeof options.body === 'string') {
-        try {
-          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
-          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
-          let bodyObj = JSON.parse(options.body);
-          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
-          options.body = JSON.stringify(bodyObj);
-        } catch (e) {}
-      }
-      return _fetchOriginal(url, options);
-    };
-
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
-    document.getElementById('racData').value = new Date().toISOString().slice(0, 10);
 
-    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "ADMINISTRADOR").trim().toUpperCase();
+    const hojeIso = new Date().toISOString().slice(0, 10);
+    document.getElementById('racData').value = hojeIso;
+
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "PROFESSOR").trim().toUpperCase();
     const perfilUser = String((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role)) || "Professor").trim().toUpperCase();
     const isAdminOuGestao = perfilUser.includes("ADMIN") || perfilUser.includes("DIRE") || perfilUser.includes("COORD");
 
     document.getElementById('lblNomeUsuario').innerText = nomeUser;
-    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Servidor";
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Professor";
     document.getElementById('racProfessor').value = nomeUser;
+    document.getElementById('lblNomeProfAba2').innerText = nomeUser;
+
+    if (isAdminOuGestao) {
+      document.getElementById('boxSwitchVerTodosRacAdmin').classList.remove('d-none');
+    }
 
     const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
 
-    let listaAlunosGlobal = [];
-    let catalogoOcorrenciasGlobal = [];
+    // Chaves de Cache Offline Leves (Sem fotos Base64 pesadas para NUNCA estourar os 5MB do localStorage!)
+    const KEY_SERIES_RAC = "cache_rac_series_v3";
+    const KEY_ALUNOS_LEVE_RAC = "cache_rac_alunos_leve_v3";
+    const KEY_CATALOGO_RAC = "cache_rac_catalogo_v3";
+    const KEY_MINHAS_OCO_RAC = "cache_rac_minhas_oco_" + nomeUser.replace(/\s+/g, '_');
+    const KEY_FILA_OFFLINE_RAC = "fila_offline_rac_eemti_v1";
+
+    // Catálogo padrão embutido para funcionar 100% mesmo no primeiro acesso offline
+    const CATALOGO_RAC_PADRAO = [
+      { descricao: "[LEVE] CONVERSOU ASSUNTOS INADEQUADOS DURANTE A AULA", gravidade: "GRAU I (INFRAÇÕES LEVES)" },
+      { descricao: "[LEVE] DORMIU NA HORA DA AULA", gravidade: "GRAU I (INFRAÇÕES LEVES)" },
+      { descricao: "[LEVE] CHEGOU ATRASADO(A) NA SALA DE AULA APÓS O TOQUE", gravidade: "GRAU I (INFRAÇÕES LEVES)" },
+      { descricao: "[LEVE] VEIO SEM CALÇA DA FARDA OU SEM FARDAMENTO COMPLETO", gravidade: "GRAU I (INFRAÇÕES LEVES)" },
+      { descricao: "[LEVE] VEIO SEM CALÇADO FECHADO ADEQUADO", gravidade: "GRAU I (INFRAÇÕES LEVES)" },
+      { descricao: "[LEVE] NÃO TROUXE O MATERIAL DIDÁTICO NECESSÁRIO", gravidade: "GRAU I (INFRAÇÕES LEVES)" },
+      { descricao: "[LEVE] NÃO REALIZOU AS ATIVIDADES PROPOSTAS EM SALA", gravidade: "GRAU I (INFRAÇÕES LEVES)" },
+      { descricao: "[MÉDIA] UTILIZOU APARELHO CELULAR OU FONE DE OUVIDO EM SALA SEM AUTORIZAÇÃO", gravidade: "GRAU II (INFRAÇÕES MÉDIAS)" },
+      { descricao: "[MÉDIA] SAIU DA SALA DE AULA SEM PERMISSÃO DO PROFESSOR", gravidade: "GRAU II (INFRAÇÕES MÉDIAS)" },
+      { descricao: "[MÉDIA] PERTURBOU O BOM ANDAMENTO DA AULA DE FORMA REITERADA", gravidade: "GRAU II (INFRAÇÕES MÉDIAS)" },
+      { descricao: "[GRAVE] DESRESPEITOU UM SERVIDOR PÚBLICO OU PROFESSOR", gravidade: "GRAU III (INFRAÇÕES MAIS GRAVES)" },
+      { descricao: "[GRAVE] PRATICOU AGRESSÃO VERBAL OU BULLYING CONTRA COLEGA", gravidade: "GRAU III (INFRAÇÕES MAIS GRAVES)" },
+      { descricao: "[GRAVÍSSIMA] PRATICOU AGRESSÃO FÍSICA OU DANO AO PATRIMÔNIO PÚBLICO", gravidade: "GRAU IV (INFRAÇÕES GRAVÍSSIMAS)" }
+    ];
+
+    let seriesListaRac = JSON.parse(localStorage.getItem(KEY_SERIES_RAC) || 'null') || [
+      "1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C", "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C", "3ª SÉRIE A", "3ª SÉRIE B"
+    ];
+
+    // Lê o cache leve de alunos do RAC ou aproveita o cache leve já salvo pela página de Atividades!
+    let alunosListaLeveRac = JSON.parse(
+      localStorage.getItem(KEY_ALUNOS_LEVE_RAC) ||
+      localStorage.getItem("cache_ativ_rapido_v3_alunos") ||
+      localStorage.getItem("cache_ativ_rapido_v2_alunos") ||
+      '[]'
+    );
+
+    let catalogoTiposRac = JSON.parse(localStorage.getItem(KEY_CATALOGO_RAC) || 'null') || CATALOGO_RAC_PADRAO;
+    let mapaFotosSessaoMemoria = {}; // Fotos ficam apenas na RAM da sessão para não travar o localStorage
+    let minhasOcorrenciasBanco = JSON.parse(localStorage.getItem(KEY_MINHAS_OCO_RAC) || '[]');
     let resultadosConsultaCache = [];
+
+    function normalizarSeriePadrao(s) {
+      let str = String(s || "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+      const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)\s*([A-Z0-9].*)$/i);
+      return m ? `${m[1]}ª SÉRIE ${m[2].trim()}` : str;
+    }
 
     async function chamarAPI(payload) {
       try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        if (nomeUser && !payload.usuarioLogado) payload.usuarioLogado = nomeUser;
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
         return await res.json();
       } catch (e) {
         return null;
       }
     }
 
-    window.onload = async function() {
-      const [resFiltros, resSer] = await Promise.all([
-        chamarAPI({ action: 'getFiltrosOcorrencias' }),
-        chamarAPI({ action: 'listarConfig', tipo: 'SERIE' })
-      ]);
+    // =========================================================
+    // MOTOR OFFLINE DE OCORRÊNCIAS (RAC) + SINCRONIZAÇÃO AUTOMÁTICA
+    // =========================================================
+    function atualizarIndicadoresOfflineRac() {
+      const badgeTopo = document.getElementById('badgeConexaoRac');
+      const banner = document.getElementById('bannerFilaOfflineRac');
+      const texto = document.getElementById('textoFilaOfflineRac');
+      const fila = JSON.parse(localStorage.getItem(KEY_FILA_OFFLINE_RAC) || '[]');
 
-      let seriesSet = new Set();
-      if (resSer && Array.isArray(resSer.lista)) {
-        resSer.lista.forEach(s => {
-          let ns = String(s.col2 || s.col1 || "").replace(/["']/g, "").trim().toUpperCase();
-          if (ns && ns !== "SÉRIE" && ns !== "TRANSFERIDO") seriesSet.add(ns);
+      if (!navigator.onLine) {
+        badgeTopo.className = "badge bg-danger text-white";
+        badgeTopo.innerHTML = `<i class="bi bi-wifi-off me-1"></i>Modo Offline`;
+      } else {
+        badgeTopo.className = "badge bg-success-subtle text-success border border-success-subtle";
+        badgeTopo.innerHTML = `<i class="bi bi-wifi me-1"></i>Online`;
+      }
+
+      if (fila.length > 0) {
+        banner.classList.remove('d-none');
+        texto.innerHTML = `<i class="bi bi-cloud-slash-fill text-danger me-2"></i>Você possui <b>${fila.length} ocorrência(s)</b> registrada(s) em Modo Offline aguardando sincronização.`;
+      } else {
+        banner.classList.add('d-none');
+      }
+    }
+
+    function adicionarOcorrenciaNaFilaOffline(dadosOco) {
+      const fila = JSON.parse(localStorage.getItem(KEY_FILA_OFFLINE_RAC) || '[]');
+      const idTemp = "OFFLINE_" + Date.now();
+      fila.push({
+        idTemp: idTemp,
+        dados: dadosOco,
+        resumo: `<b>${dadosOco.aluno}</b> (${dadosOco.serie} em ${dadosOco.data}) — <i>${dadosOco.ocorrencia}</i>`
+      });
+      localStorage.setItem(KEY_FILA_OFFLINE_RAC, JSON.stringify(fila));
+      atualizarIndicadoresOfflineRac();
+      filtrarTabelaMinhasOcorrencias();
+    }
+
+    async function sincronizarFilaOfflineRac() {
+      if (!navigator.onLine) return;
+      const fila = JSON.parse(localStorage.getItem(KEY_FILA_OFFLINE_RAC) || '[]');
+      if (fila.length === 0) return;
+
+      Swal.fire({
+        title: 'Conexão Restaurada!',
+        html: `Sincronizando <b>${fila.length}</b> ocorrência(s) lançada(s) no Modo Offline...`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const sincronizadasHtml = [];
+      const restantes = [];
+
+      for (const item of fila) {
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'salvarOcorrencia',
+              usuarioLogado: nomeUser,
+              dados: item.dados
+            })
+          }).then(r => r.json());
+
+          if (res && res.success) {
+            sincronizadasHtml.push(`<li>${item.resumo}</li>`);
+          } else {
+            restantes.push(item);
+          }
+        } catch (err) {
+          restantes.push(item);
+        }
+      }
+
+      localStorage.setItem(KEY_FILA_OFFLINE_RAC, JSON.stringify(restantes));
+      atualizarIndicadoresOfflineRac();
+
+      if (sincronizadasHtml.length > 0) {
+        await carregarMinhasOcorrenciasRegistradas(false);
+        Swal.fire({
+          title: 'Ocorrências Offline Sincronizadas!',
+          html: `
+            <p class="small text-muted mb-2">A internet retornou e os seguintes registros foram salvos na aba REGISTRO RAC:</p>
+            <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 220px; overflow-y: auto;">
+              ${sincronizadasHtml.join('')}
+            </ul>
+          `,
+          icon: 'success',
+          confirmButtonColor: '#15438c'
         });
       }
-      if (resFiltros && Array.isArray(resFiltros.series)) {
-        resFiltros.series.forEach(s => seriesSet.add(String(s).replace(/["']/g, "").trim().toUpperCase()));
-      }
-      const seriesOrdenadas = Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+    }
 
-      let htmlSeries = '<option value="">Selecione a série/turma...</option>';
-      let htmlBuscaSeries = '<option value="">Todas as Turmas...</option>';
-      seriesOrdenadas.forEach(s => {
-        htmlSeries += `<option value="${s}">${s}</option>`;
-        htmlBuscaSeries += `<option value="${s}">${s}</option>`;
+    window.addEventListener('online', () => {
+      atualizarIndicadoresOfflineRac();
+      sincronizarFilaOfflineRac();
+    });
+    window.addEventListener('offline', atualizarIndicadoresOfflineRac);
+
+    // =========================================================
+    // INICIALIZAÇÃO INSTANTÂNEA (FUNCIONA ONLINE E OFFLINE)
+    // =========================================================
+    function popularCamposIniciaisRacNaTela() {
+      // 1. Popula Séries na Aba 1 e na Aba 2
+      const selSerie = document.getElementById('racSerie');
+      const selFiltroSerie = document.getElementById('filtroConsultaSerie');
+      const serieAnt = selSerie.value;
+
+      let htmlSer = '<option value="">Selecione a turma...</option>';
+      let htmlFiltroSer = '<option value="">Todas as Turmas...</option>';
+      seriesListaRac.forEach(s => {
+        htmlSer += `<option value="${s}">${s}</option>`;
+        htmlFiltroSer += `<option value="${s}">${s}</option>`;
       });
-      document.getElementById('racSerie').innerHTML = htmlSeries;
-      document.getElementById('buscaRacSerie').innerHTML = htmlBuscaSeries;
-
-      if (resFiltros) {
-        listaAlunosGlobal = resFiltros.alunos || [];
-        catalogoOcorrenciasGlobal = resFiltros.ocorrencias || [];
+      selSerie.innerHTML = htmlSer;
+      selFiltroSerie.innerHTML = htmlFiltroSer;
+      if (serieAnt && seriesListaRac.includes(serieAnt)) {
+        selSerie.value = serieAnt;
+        aoSelecionarSerieRac();
       }
 
-      let htmlOc = '<option value="">Selecione a ocorrência...</option>';
-      catalogoOcorrenciasGlobal.forEach((oc, idx) => {
-        const desc = String(oc.descricao || "").trim();
-        const grav = String(oc.gravidade || "GRAU I (INFRAÇÕES LEVES)").trim();
-        htmlOc += `<option value="${desc}" data-gravidade="${grav}">${desc}</option>`;
+      // 2. Popula Catálogo de Tipos de Ocorrência RAC
+      const selTipo = document.getElementById('racTipoOcorrencia');
+      const tipoAnt = selTipo.value;
+      let htmlTipos = '<option value="">Selecione o tipo de ocorrência...</option>';
+      catalogoTiposRac.forEach((item, idx) => {
+        htmlTipos += `<option value="${item.descricao}" data-grav="${item.gravidade || 'GRAU I (INFRAÇÕES LEVES)'}">${item.descricao}</option>`;
       });
-      document.getElementById('racTipoOcorrencia').innerHTML = htmlOc;
+      selTipo.innerHTML = htmlTipos;
+      if (tipoAnt) selTipo.value = tipoAnt;
+    }
+
+    window.onload = function() {
+      atualizarIndicadoresOfflineRac();
+      popularCamposIniciaisRacNaTela();
+      filtrarTabelaMinhasOcorrencias();
+
+      if (navigator.onLine) {
+        setTimeout(sincronizarFilaOfflineRac, 1200);
+        sincronizarDadosEmSegundoPlanoRac();
+      }
     };
 
-    function aoMudarSerieRac(alunoPreSelecionado = "") {
-      const serieSel = document.getElementById('racSerie').value;
-      const selAluno = document.getElementById('racAluno');
-      document.getElementById('badgeTurmaFotoRac').innerText = serieSel || "Aguardando Turma";
+    async function sincronizarDadosEmSegundoPlanoRac() {
+      // Busca Series, Alunos e Catálogo de Ocorrências
+      const resFiltros = await chamarAPI({ action: 'getFiltrosOcorrencias' });
+      if (resFiltros && resFiltros.success) {
+        if (Array.isArray(resFiltros.series) && resFiltros.series.length > 0) {
+          seriesListaRac = resFiltros.series.map(s => normalizarSeriePadrao(s)).filter(Boolean);
+          try { localStorage.setItem(KEY_SERIES_RAC, JSON.stringify(seriesListaRac)); } catch (e) {}
+        }
 
-      if (!serieSel) {
+        if (Array.isArray(resFiltros.alunos) && resFiltros.alunos.length > 0) {
+          // Guarda as fotos apenas na memória RAM e salva no localStorage SOMENTE Nome + Série (super leve, nunca falha!)
+          const listaApenasNomes = [];
+          resFiltros.alunos.forEach(a => {
+            const nomeLimpo = String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
+            const serieLimpa = normalizarSeriePadrao(a.serie);
+            if (nomeLimpo && serieLimpa) {
+              listaApenasNomes.push({ nome: nomeLimpo, serie: serieLimpa });
+              if (a.foto && String(a.foto).startsWith('data:image')) {
+                mapaFotosSessaoMemoria[nomeLimpo] = a.foto;
+              }
+            }
+          });
+          alunosListaLeveRac = listaApenasNomes;
+          try {
+            localStorage.setItem(KEY_ALUNOS_LEVE_RAC, JSON.stringify(alunosListaLeveRac));
+          } catch (errQuota) {
+            // Se o localStorage estiver cheio com caches antigos, limpa chaves antigas e salva os alunos!
+            Object.keys(localStorage).forEach(k => {
+              if (k.startsWith('cache_api_eemti_') || k.startsWith('cache_acervo_bib_')) localStorage.removeItem(k);
+            });
+            try { localStorage.setItem(KEY_ALUNOS_LEVE_RAC, JSON.stringify(alunosListaLeveRac)); } catch (e2) {}
+          }
+        }
+
+        if (Array.isArray(resFiltros.ocorrencias) && resFiltros.ocorrencias.length > 0) {
+          catalogoTiposRac = resFiltros.ocorrencias.map(o => ({
+            descricao: String(o.descricao || "").trim(),
+            gravidade: String(o.gravidade || "GRAU I (INFRAÇÕES LEVES)").trim().toUpperCase()
+          })).filter(o => o.descricao);
+          try { localStorage.setItem(KEY_CATALOGO_RAC, JSON.stringify(catalogoTiposRac)); } catch (e) {}
+        }
+
+        popularCamposIniciaisRacNaTela();
+      }
+
+      // Carrega em segundo plano as ocorrências do professor logado
+      carregarMinhasOcorrenciasRegistradas(false);
+    }
+
+    // =========================================================
+    // INTERAÇÕES DA ABA 1 (SELECIONAR TURMA, ALUNO, FOTO E GRAVIDADE)
+    // =========================================================
+    async function aoSelecionarSerieRac() {
+      const serie = document.getElementById('racSerie').value;
+      const selAluno = document.getElementById('racAluno');
+      const badgeTurma = document.getElementById('badgeTurmaFotoRac');
+
+      document.getElementById('molduraFotoRac').innerHTML = '<i class="bi bi-person-fill fs-1 text-secondary"></i>';
+      document.getElementById('molduraFotoRac').classList.remove('com-foto');
+
+      if (!serie) {
+        badgeTurma.innerText = "Aguardando Turma";
         selAluno.innerHTML = '<option value="">Selecione a turma primeiro...</option>';
-        document.getElementById('boxFotoAlunoRac').innerHTML = '<i class="bi bi-person-fill fs-1 text-secondary"></i>';
         return;
       }
 
-      const alunosDaTurma = listaAlunosGlobal
-        .filter(a => String(a.serie || "").replace(/["']/g, "").trim().toUpperCase() === serieSel)
+      badgeTurma.innerText = serie;
+
+      // Filtra imediatamente pelo cache leve de alunos (funciona 100% Offline!)
+      let alunosDaTurma = alunosListaLeveRac
+        .filter(a => a.serie === serie)
         .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-      let html = `<option value="">Selecione o(a) aluno(a) (${alunosDaTurma.length})...</option>`;
-      alunosDaTurma.forEach(a => {
-        html += `<option value="${a.nome}" ${a.nome === alunoPreSelecionado ? 'selected' : ''}>${a.nome}</option>`;
-      });
-      selAluno.innerHTML = html;
-
-      if (alunoPreSelecionado) {
-        aoSelecionarAlunoRac();
-      } else {
-        document.getElementById('boxFotoAlunoRac').innerHTML = '<i class="bi bi-person-fill fs-1 text-secondary"></i>';
+      // Se por acaso o cache ainda estava vazio e há internet, busca na hora via getAlunosParaEdicao
+      if (alunosDaTurma.length === 0 && navigator.onLine) {
+        selAluno.innerHTML = '<option value="">Carregando alunos da turma...</option>';
+        const resAlTurma = await chamarAPI({ action: 'getAlunosParaEdicao', dados: { serie: serie } });
+        if (Array.isArray(resAlTurma) && resAlTurma.length > 0) {
+          resAlTurma.forEach(al => {
+            const n = String(al.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
+            const s = normalizarSeriePadrao(al.serie || serie);
+            if (n) {
+              if (!alunosListaLeveRac.some(x => x.nome === n && x.serie === s)) {
+                alunosListaLeveRac.push({ nome: n, serie: s });
+              }
+              if (al.foto && String(al.foto).startsWith('data:image')) {
+                mapaFotosSessaoMemoria[n] = al.foto;
+              }
+            }
+          });
+          try { localStorage.setItem(KEY_ALUNOS_LEVE_RAC, JSON.stringify(alunosListaLeveRac)); } catch (e) {}
+          alunosDaTurma = alunosListaLeveRac
+            .filter(a => a.serie === serie)
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        }
       }
+
+      if (alunosDaTurma.length === 0) {
+        selAluno.innerHTML = '<option value="">Nenhum aluno encontrado nesta turma</option>';
+        return;
+      }
+
+      let htmlAl = `<option value="">Selecione o(a) aluno(a) (${alunosDaTurma.length})...</option>`;
+      alunosDaTurma.forEach(a => {
+        htmlAl += `<option value="${a.nome}">${a.nome}</option>`;
+      });
+      selAluno.innerHTML = htmlAl;
     }
 
     async function aoSelecionarAlunoRac() {
       const nomeAl = document.getElementById('racAluno').value;
-      const boxFoto = document.getElementById('boxFotoAlunoRac');
+      const moldura = document.getElementById('molduraFotoRac');
+
       if (!nomeAl) {
-        boxFoto.innerHTML = '<i class="bi bi-person-fill fs-1 text-secondary"></i>';
+        moldura.innerHTML = '<i class="bi bi-person-fill fs-1 text-secondary"></i>';
+        moldura.classList.remove('com-foto');
         return;
       }
 
-      const alunoCache = listaAlunosGlobal.find(a => a.nome === nomeAl);
-      if (alunoCache && alunoCache.foto && alunoCache.foto.startsWith('data:image')) {
-        boxFoto.innerHTML = `<img src="${alunoCache.foto}" alt="3x4">`;
+      if (mapaFotosSessaoMemoria[nomeAl]) {
+        moldura.innerHTML = `<img src="${mapaFotosSessaoMemoria[nomeAl]}" alt="3x4">`;
+        moldura.classList.add('com-foto');
         return;
       }
 
-      boxFoto.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div>';
-      const resFoto = await chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: nomeAl });
-      if (resFoto && resFoto.success && resFoto.foto && resFoto.foto.startsWith('data:image')) {
-        boxFoto.innerHTML = `<img src="${resFoto.foto}" alt="3x4">`;
+      if (!navigator.onLine) {
+        moldura.innerHTML = '<i class="bi bi-person-check-fill fs-1 text-primary"></i><small class="text-muted" style="font-size:0.65rem;">Modo Offline</small>';
+        return;
+      }
+
+      moldura.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div>';
+      const rFoto = await chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: nomeAl });
+      if (rFoto && rFoto.success && rFoto.foto && rFoto.foto.startsWith('data:image')) {
+        mapaFotosSessaoMemoria[nomeAl] = rFoto.foto;
+        moldura.innerHTML = `<img src="${rFoto.foto}" alt="3x4">`;
+        moldura.classList.add('com-foto');
       } else {
-        boxFoto.innerHTML = '<i class="bi bi-person-circle fs-1 text-primary"></i>';
+        moldura.innerHTML = '<i class="bi bi-person-bounding-box fs-1 text-primary"></i>';
       }
     }
 
-    function aoSelecionarTipoOcorrencia() {
+    function aoSelecionarTipoOcorrenciaRac() {
       const sel = document.getElementById('racTipoOcorrencia');
       const opt = sel.options[sel.selectedIndex];
       const inpGrav = document.getElementById('racGravidade');
-      if (opt && opt.value) {
-        inpGrav.value = opt.dataset.gravidade || "GRAU I (INFRAÇÕES LEVES)";
-      } else {
+
+      if (!opt || !opt.value) {
         inpGrav.value = "Automático";
+        return;
       }
+
+      let grav = opt.getAttribute('data-grav') || "";
+      if (!grav) {
+        const txt = opt.value.toUpperCase();
+        if (txt.includes("GRAVÍSSIMA") || txt.includes("GRAVISSIMA")) grav = "GRAU IV (INFRAÇÕES GRAVÍSSIMAS)";
+        else if (txt.includes("[GRAVE]")) grav = "GRAU III (INFRAÇÕES MAIS GRAVES)";
+        else if (txt.includes("[MÉDIA]") || txt.includes("[MEDIA]")) grav = "GRAU II (INFRAÇÕES MÉDIAS)";
+        else if (txt.includes("GRAU 0")) grav = "GRAU 0 (ACOMPANHAMENTO)";
+        else grav = "GRAU I (INFRAÇÕES LEVES)";
+      }
+      inpGrav.value = grav;
     }
 
     function limparFormularioRac() {
-      document.getElementById('racIdEdit').value = "";
-      document.getElementById('racData').value = new Date().toISOString().slice(0, 10);
-      document.getElementById('racProfessor').value = nomeUser;
+      document.getElementById('racIdEdicao').value = "";
+      document.getElementById('racData').value = hojeIso;
       document.getElementById('racSerie').value = "";
       document.getElementById('racAluno').innerHTML = '<option value="">Selecione a turma primeiro...</option>';
       document.getElementById('racTipoOcorrencia').value = "";
       document.getElementById('racGravidade').value = "Automático";
       document.getElementById('racObs').value = "";
-      document.getElementById('boxFotoAlunoRac').innerHTML = '<i class="bi bi-person-fill fs-1 text-secondary"></i>';
+      document.getElementById('molduraFotoRac').innerHTML = '<i class="bi bi-person-fill fs-1 text-secondary"></i>';
+      document.getElementById('molduraFotoRac').classList.remove('com-foto');
       document.getElementById('badgeTurmaFotoRac').innerText = "Aguardando Turma";
-      document.getElementById('badgeEdicaoRac').classList.add('d-none');
-      document.getElementById('lblAbaFormRac').innerText = "Lançar Ocorrência (RAC)";
-      document.getElementById('btnSalvarRac').innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-2"></i>Registrar Ocorrência';
+      document.getElementById('badgeModoEdicaoRac').classList.add('d-none');
+      document.getElementById('lblTituloFormRac').innerHTML = '<i class="bi bi-person-exclamation me-2"></i>Nova Ocorrência Disciplinar (Aba REGISTRO RAC)';
+      document.getElementById('btnSalvarRac').innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Registrar Ocorrência';
     }
 
-    async function salvarRegistroOcorrencia() {
-      const idEdit = document.getElementById('racIdEdit').value;
+    async function salvarOcorrenciaRac() {
+      const idEdicao = document.getElementById('racIdEdicao').value;
       const dataIso = document.getElementById('racData').value;
       const serie = document.getElementById('racSerie').value;
       const aluno = document.getElementById('racAluno').value;
       const ocorrencia = document.getElementById('racTipoOcorrencia').value;
       const gravidade = document.getElementById('racGravidade').value;
       const obs = document.getElementById('racObs').value.trim();
-      const professor = document.getElementById('racProfessor').value.trim().toUpperCase();
 
       if (!dataIso || !serie || !aluno || !ocorrencia) {
-        return Swal.fire('Atenção', 'Preencha a Data, a Série/Turma, o(a) Aluno(a) e o Tipo de Ocorrência.', 'warning');
+        return Swal.fire('Atenção', 'Preencha a Data, a Turma, o(a) Aluno(a) e o Tipo de Ocorrência.', 'warning');
       }
 
       const p = dataIso.split('-');
-      const agora = new Date();
-      const horaStr = agora.toTimeString().slice(0, 8);
-      const dataFormatadaPlanilha = `${p[2]}/${p[1]}/${p[0]} ${horaStr}`;
+      const dataBr = `${p[2]}/${p[1]}/${p[0]}`;
 
-      const dadosEnvio = {
-        id: idEdit,
+      const dadosOco = {
+        id: idEdicao || "",
+        data: dataBr,
         serie: serie,
         aluno: aluno,
-        data: dataFormatadaPlanilha,
-        professor: professor,
+        professor: nomeUser,
         ocorrencia: ocorrencia,
-        obs: obs,
-        gravidade: (gravidade === "Automático" || !gravidade) ? "GRAU I (INFRAÇÕES LEVES)" : gravidade
+        gravidade: gravidade === "Automático" ? "GRAU I (INFRAÇÕES LEVES)" : gravidade,
+        obs: obs
       };
+
+      // Se estiver OFFLINE, salva na fila local do aparelho imediatamente!
+      if (!navigator.onLine) {
+        adicionarOcorrenciaNaFilaOffline(dadosOco);
+        limparFormularioRac();
+        return Swal.fire({
+          title: 'Registrada em Modo Offline!',
+          html: `Você está sem internet no momento.<br><br>A ocorrência de <b>${aluno}</b> (${serie}) foi salva no aparelho e será sincronizada automaticamente assim que a conexão voltar!`,
+          icon: 'info',
+          confirmButtonColor: '#15438c'
+        });
+      }
 
       const btn = document.getElementById('btnSalvarRac');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Gravando na Planilha...';
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando no Banco...';
 
       const res = await chamarAPI({
         action: 'salvarOcorrencia',
-        dados: dadosEnvio
+        dados: dadosOco
       });
 
       btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-2"></i>Registrar Ocorrência';
+      btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Registrar Ocorrência';
 
       if (res && res.success) {
-        await Swal.fire({
-          title: 'Ocorrência Salva!',
-          text: res.msg || 'Registro gravado com sucesso na aba REGISTRO CRO!',
-          icon: 'success',
-          confirmButtonColor: '#15438c'
+        Swal.fire({
+          title: res.offline ? 'Salva em Modo Offline!' : 'Ocorrência Registrada!',
+          text: res.msg,
+          icon: res.offline ? 'info' : 'success',
+          confirmButtonColor: '#15438c',
+          timer: 1700,
+          showConfirmButton: false
         });
         limparFormularioRac();
+        await carregarMinhasOcorrenciasRegistradas(false);
+      } else if (!res) {
+        adicionarOcorrenciaNaFilaOffline(dadosOco);
+        limparFormularioRac();
+        Swal.fire({
+          title: 'Conexão Instável — Salva Offline!',
+          html: `A conexão oscilou, mas a ocorrência de <b>${aluno}</b> foi guardada no Modo Offline e será enviada automaticamente quando a internet estabilizar!`,
+          icon: 'info',
+          confirmButtonColor: '#15438c'
+        });
       } else {
-        Swal.fire('Erro ao Salvar', (res && res.error) || 'Não foi possível salvar a ocorrência. Verifique a implantação do script.', 'error');
+        Swal.fire('Erro', res.error || 'Não foi possível salvar a ocorrência.', 'error');
       }
     }
 
     // =========================================================
-    // ABA 2: CONSULTAR, EDITAR E EXCLUIR OCORRÊNCIAS
+    // ABA 2: CONSULTAR, EDITAR E EXCLUIR (APENAS DO PROFESSOR LOGADO)
     // =========================================================
-    async function executarBuscaOcorrencias() {
-      const serieF = document.getElementById('buscaRacSerie').value;
-      const alunoF = document.getElementById('buscaRacAluno').value.trim().toUpperCase();
-      const dataIso = document.getElementById('buscaRacData').value;
-      let dataBr = "";
+    async function carregarMinhasOcorrenciasRegistradas(mostrarSpinner) {
+      const verTodosAdmin = isAdminOuGestao && document.getElementById('chkVerTodosRacAdmin').checked;
+      document.getElementById('lblNomeProfAba2').innerText = verTodosAdmin ? "TODOS OS PROFESSORES" : nomeUser;
+
+      if (navigator.onLine) {
+        if (mostrarSpinner) {
+          document.getElementById('tbodyMinhasOcorrencias').innerHTML =
+            '<tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Buscando registros...</td></tr>';
+        }
+
+        const res = await chamarAPI({
+          action: 'buscarOcorrencias',
+          filtros: {
+            professorLogado: nomeUser,
+            ignorarRestricao: verTodosAdmin
+          }
+        });
+
+        if (Array.isArray(res)) {
+          // Garante que se o switch não estiver marcado, mostra ESTRITAMENTE apenas as ocorrências do professor logado
+          minhasOcorrenciasBanco = res.filter(r => {
+            if (verTodosAdmin) return true;
+            const profReg = String(r.professor || "").trim().toUpperCase();
+            return profReg === nomeUser || profReg.includes(nomeUser) || nomeUser.includes(profReg);
+          });
+          try {
+            localStorage.setItem(KEY_MINHAS_OCO_RAC, JSON.stringify(minhasOcorrenciasBanco.slice(0, 250)));
+          } catch (e) {}
+        }
+      }
+
+      filtrarTabelaMinhasOcorrencias();
+    }
+
+    function limparFiltrosConsultaRac() {
+      document.getElementById('filtroConsultaSerie').value = "";
+      document.getElementById('filtroConsultaData').value = "";
+      document.getElementById('filtroConsultaTexto').value = "";
+      filtrarTabelaMinhasOcorrencias();
+    }
+
+    function filtrarTabelaMinhasOcorrencias() {
+      const serieFiltro = document.getElementById('filtroConsultaSerie').value;
+      const dataIso = document.getElementById('filtroConsultaData').value;
+      const textoFiltro = document.getElementById('filtroConsultaTexto').value.trim().toUpperCase();
+
+      let dataBrFiltro = "";
       if (dataIso) {
         const p = dataIso.split('-');
-        dataBr = `${p[2]}/${p[1]}/${p[0]}`;
+        dataBrFiltro = `${p[2]}/${p[1]}/${p[0]}`;
       }
 
-      const tbody = document.getElementById('tbodyConsultaRac');
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Consultando aba REGISTRO CRO...</td></tr>';
+      // Junta os itens pendentes na fila offline do professor no topo da tabela para ele ver mesmo sem internet!
+      const filaOffline = JSON.parse(localStorage.getItem(KEY_FILA_OFFLINE_RAC) || '[]');
+      const itensOfflineFormatados = filaOffline.map((f, idxFila) => ({
+        id: f.idTemp,
+        idxFilaOffline: idxFila,
+        isOfflinePending: true,
+        data: f.dados.data + " (Offline)",
+        serie: f.dados.serie,
+        aluno: f.dados.aluno,
+        professor: f.dados.professor || nomeUser,
+        ocorrencia: f.dados.ocorrencia,
+        gravidade: f.dados.gravidade,
+        obs: f.dados.obs || ""
+      }));
 
-      const lista = await chamarAPI({
-        action: 'buscarOcorrencias',
-        filtros: {
-          aluno: alunoF,
-          professorLogado: nomeUser,
-          ignorarRestricao: true
-        }
+      const listaCombinada = [...itensOfflineFormatados, ...minhasOcorrenciasBanco];
+
+      resultadosConsultaCache = listaCombinada.filter(r => {
+        const bateSerie = !serieFiltro || normalizarSeriePadrao(r.serie) === serieFiltro;
+        const bateData = !dataBrFiltro || String(r.data || "").startsWith(dataBrFiltro);
+        const bateTexto = !textoFiltro ||
+          String(r.aluno || "").toUpperCase().includes(textoFiltro) ||
+          String(r.ocorrencia || "").toUpperCase().includes(textoFiltro) ||
+          String(r.obs || "").toUpperCase().includes(textoFiltro);
+        return bateSerie && bateData && bateTexto;
       });
 
-      let arr = Array.isArray(lista) ? lista : [];
-      if (serieF) {
-        arr = arr.filter(x => String(x.serie || "").replace(/["']/g, "").trim().toUpperCase() === serieF);
-      }
-      if (dataBr) {
-        arr = arr.filter(x => String(x.data || "").startsWith(dataBr));
-      }
+      document.getElementById('badgeQtdMinhasOco').innerText = resultadosConsultaCache.length;
 
-      resultadosConsultaCache = arr;
-
+      const tbody = document.getElementById('tbodyMinhasOcorrencias');
       if (resultadosConsultaCache.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhuma ocorrência encontrada para os filtros informados.</td></tr>';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="bi bi-journal-x fs-3 d-block mb-2"></i>
+              Nenhuma ocorrência encontrada registrada por <b>${nomeUser}</b> para os filtros selecionados.
+            </td>
+          </tr>`;
         return;
       }
 
       let html = '';
-      resultadosConsultaCache.slice(0, 150).forEach((item, idx) => {
-        const podeModificar = isAdminOuGestao || String(item.professor || "").toUpperCase() === nomeUser;
+      resultadosConsultaCache.forEach((r, idx) => {
+        const tagOffline = r.isOfflinePending
+          ? `<span class="badge bg-warning text-dark ms-1"><i class="bi bi-wifi-off me-1"></i>Pendente Offline</span>`
+          : '';
+
         html += `
-          <tr>
-            <td class="small fw-bold text-secondary">${item.data || '-'}</td>
-            <td class="text-center"><span class="badge bg-secondary">${String(item.serie || '-').replace(/["']/g, '')}</span></td>
-            <td class="fw-bold text-dark">${item.aluno}</td>
-            <td>
-              <div class="fw-bold text-danger small">${item.ocorrencia}</div>
-              <span class="badge bg-light text-dark border mt-1" style="font-size: 0.65rem;">${item.gravidade || '-'}</span>
-            </td>
-            <td class="small text-muted">${item.obs || '-'}</td>
-            <td class="small fw-semibold">${item.professor || '-'}</td>
+          <tr class="${r.isOfflinePending ? 'table-warning' : ''}">
+            <td class="small fw-bold text-dark">${r.data}${tagOffline}</td>
+            <td class="text-center"><span class="badge bg-secondary">${normalizarSeriePadrao(r.serie)}</span></td>
+            <td class="fw-bold text-dark">${r.aluno}</td>
+            <td class="fw-bold text-danger small">${r.ocorrencia}</td>
+            <td class="text-center"><span class="badge bg-danger-subtle text-danger border">${r.gravidade || 'LEVE'}</span></td>
+            <td class="small text-muted">${r.obs || '-'}</td>
             <td class="text-center text-nowrap">
-              ${podeModificar ? `
-                <button class="btn btn-sm btn-outline-primary py-0 px-2 me-1" title="Editar" onclick="iniciarEdicaoRac(${idx})">
-                  <i class="bi bi-pencil-square"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-2" title="Excluir" onclick="excluirRegistroRac('${item.id}')">
+              ${r.isOfflinePending ? `
+                <button class="btn btn-sm btn-outline-danger py-1 px-2" title="Remover da Fila Offline" onclick="removerItemFilaOfflineRac(${r.idxFilaOffline})">
                   <i class="bi bi-trash3"></i>
                 </button>
-              ` : '<span class="text-muted small">-</span>'}
+              ` : `
+                <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" title="Editar Ocorrência" onclick="iniciarEdicaoOcorrenciaRac(${idx})">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger py-1 px-2" title="Excluir Ocorrência" onclick="excluirOcorrenciaRac('${r.id}', '${r.aluno.replace(/'/g, "\\'")}')">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              `}
             </td>
           </tr>`;
       });
+
       tbody.innerHTML = html;
     }
 
-    function iniciarEdicaoRac(idx) {
-      const item = resultadosConsultaCache[idx];
-      if (!item) return;
-
-      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-lancar-rac-btn')).show();
-      document.getElementById('racIdEdit').value = item.id;
-      document.getElementById('badgeEdicaoRac').classList.remove('d-none');
-      document.getElementById('lblAbaFormRac').innerText = "Editando Ocorrência";
-      document.getElementById('btnSalvarRac').innerHTML = '<i class="bi bi-check2-circle me-2"></i>Salvar Alterações';
-
-      const dataApenas = String(item.data || "").split(' ')[0];
-      if (dataApenas.includes('/')) {
-        const p = dataApenas.split('/');
-        document.getElementById('racData').value = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
-      }
-
-      const serieLimpa = String(item.serie || "").replace(/["']/g, "").trim().toUpperCase();
-      document.getElementById('racSerie').value = serieLimpa;
-      aoMudarSerieRac(item.aluno);
-
-      document.getElementById('racTipoOcorrencia').value = item.ocorrencia;
-      document.getElementById('racGravidade').value = item.gravidade || "GRAU I (INFRAÇÕES LEVES)";
-      document.getElementById('racObs').value = item.obs || "";
+    function removerItemFilaOfflineRac(idxFila) {
+      const fila = JSON.parse(localStorage.getItem(KEY_FILA_OFFLINE_RAC) || '[]');
+      fila.splice(idxFila, 1);
+      localStorage.setItem(KEY_FILA_OFFLINE_RAC, JSON.stringify(fila));
+      atualizarIndicadoresOfflineRac();
+      filtrarTabelaMinhasOcorrencias();
     }
 
-    async function excluirRegistroRac(id) {
+    async function iniciarEdicaoOcorrenciaRac(idx) {
+      const r = resultadosConsultaCache[idx];
+      if (!r || r.isOfflinePending) return;
+
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-lancar-rac-btn')).show();
+
+      document.getElementById('racIdEdicao').value = r.id;
+      document.getElementById('badgeModoEdicaoRac').classList.remove('d-none');
+      document.getElementById('lblTituloFormRac').innerHTML = `<i class="bi bi-pencil-square me-2"></i>Editando Ocorrência (${r.aluno})`;
+      document.getElementById('btnSalvarRac').innerHTML = '<i class="bi bi-check2-circle me-2"></i>Salvar Alterações';
+
+      const dataApenas = String(r.data || "").split(' ')[0];
+      if (dataApenas.includes('/')) {
+        const p = dataApenas.split('/');
+        document.getElementById('racData').value = `${p[2]}-${p[1]}-${p[0]}`;
+      }
+
+      const serieNorm = normalizarSeriePadrao(r.serie);
+      document.getElementById('racSerie').value = serieNorm;
+      await aoSelecionarSerieRac();
+
+      const selAl = document.getElementById('racAluno');
+      if (!Array.from(selAl.options).some(o => o.value === r.aluno)) {
+        selAl.innerHTML += `<option value="${r.aluno}">${r.aluno}</option>`;
+      }
+      selAl.value = r.aluno;
+      aoSelecionarAlunoRac();
+
+      const selTipo = document.getElementById('racTipoOcorrencia');
+      if (!Array.from(selTipo.options).some(o => o.value === r.ocorrencia)) {
+        selTipo.innerHTML += `<option value="${r.ocorrencia}" data-grav="${r.gravidade || ''}">${r.ocorrencia}</option>`;
+      }
+      selTipo.value = r.ocorrencia;
+      document.getElementById('racGravidade').value = r.gravidade || "GRAU I (INFRAÇÕES LEVES)";
+      document.getElementById('racObs').value = r.obs || "";
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function excluirOcorrenciaRac(idOco, nomeAl) {
+      if (!navigator.onLine) {
+        return Swal.fire('Modo Offline', 'Conecte-se à internet para excluir um registro que já está salvo na planilha.', 'warning');
+      }
+
       const conf = await Swal.fire({
         title: 'Excluir Ocorrência?',
-        text: 'Deseja realmente excluir este registro da aba REGISTRO CRO?',
+        text: `Deseja realmente excluir este registro disciplinar de ${nomeAl}?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
@@ -752,51 +1127,63 @@
       });
       if (!conf.isConfirmed) return;
 
-      Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      const res = await chamarAPI({ action: 'excluirOcorrencia', id: id });
+      Swal.fire({ title: 'Excluindo registro...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({ action: 'excluirOcorrencia', id: idOco });
       Swal.close();
 
       if (res && res.success) {
         Swal.fire({ title: 'Excluído!', text: res.msg, icon: 'success', timer: 1400, showConfirmButton: false });
-        executarBuscaOcorrencias();
+        await carregarMinhasOcorrenciasRegistradas(false);
       } else {
         Swal.fire('Erro', (res && res.error) || 'Não foi possível excluir.', 'error');
       }
     }
 
     async function exportarPdfOcorrencias() {
-  if (resultadosConsultaCache.length === 0) {
-    return Swal.fire('Atenção', 'Pesquise os registros antes de gerar o PDF.', 'warning');
-  }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('landscape', 'mm', 'a4');
+      if (resultadosConsultaCache.length === 0) {
+        return Swal.fire('Atenção', 'Não há registros listados para gerar o PDF.', 'warning');
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
 
-  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
-    tituloDocumento: "RELATÓRIO GERAL DE OCORRÊNCIAS DISCIPLINARES (RAC)",
-    subtitulo1: `Total de Registros Listados: ${resultadosConsultaCache.length}`,
-    subtitulo2: `Emitido por: ${nomeUser} em ${new Date().toLocaleDateString('pt-BR')}`
-  });
+      let startY = 26;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: "RELATÓRIO DE OCORRÊNCIAS DISCIPLINARES REGISTRADAS (RAC)",
+          subtitulo1: `Professor(a) / Servidor(a): ${nomeUser}   |   Total de Registros: ${resultadosConsultaCache.length}`,
+          subtitulo2: `Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+        });
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(21, 67, 140);
+        doc.text("RELATÓRIO DE OCORRÊNCIAS DISCIPLINARES (RAC) — EEMTI DR. JOSÉ EUCLIDES", 14, 15);
+        doc.setFontSize(9);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Professor(a): ${nomeUser}   |   Total de Registros: ${resultadosConsultaCache.length}`, 14, 21);
+      }
 
-  const rows = resultadosConsultaCache.slice(0, 200).map(r => [
-    r.data || '-',
-    String(r.serie || '-').replace(/["']/g, ''),
-    r.aluno || '-',
-    r.ocorrencia || '-',
-    r.gravidade || '-',
-    r.obs || '-',
-    r.professor || '-'
-  ]);
+      const rows = resultadosConsultaCache.map(r => [
+        r.data || '-',
+        normalizarSeriePadrao(r.serie),
+        r.aluno || '-',
+        r.ocorrencia || '-',
+        r.gravidade || '-',
+        r.obs || '-',
+        r.professor || '-'
+      ]);
 
-  doc.autoTable({
-    startY: startY,
-    head: [['Data / Hora', 'Turma', 'Aluno(a)', 'Ocorrência', 'Gravidade', 'Observações', 'Servidor']],
-    body: rows,
-    styles: { fontSize: 7.8, cellPadding: 2 },
-    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
-  });
+      doc.autoTable({
+        startY: startY,
+        head: [['Data / Hora', 'Turma', 'Aluno(a)', 'Ocorrência', 'Gravidade', 'Observações', 'Professor(a)']],
+        body: rows,
+        styles: { fontSize: 7.8, cellPadding: 2 },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
 
-  doc.save('Relatorio_Ocorrencias_RAC.pdf');
-}
+      doc.save(`Ocorrencias_RAC_${nomeUser.replace(/\s+/g, '_')}.pdf`);
+    }
   </script>
 </body>
 </html>
