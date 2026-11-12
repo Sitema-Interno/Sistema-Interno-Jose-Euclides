@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro e Gestão de Disciplinas - EEMTI Dr. José Euclides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="portal-core.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1180px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 20px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .tabela-enquadrada {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .tabela-enquadrada th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      padding: 11px 12px;
+    }
+
+    .tabela-enquadrada td {
+      vertical-align: middle;
+      font-size: 0.86rem;
+      padding: 10px 12px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
+
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
+      </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Administrador</span>
+      
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- CARD 1: CADASTRAR / EDITAR DISCIPLINA -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="lblTituloFormDisciplina">
+            <i class="bi bi-journal-plus me-2"></i>Cadastrar Nova Disciplina
+          </h5>
+          <small class="text-muted">Grava diretamente em <b>DISCIPLINAS</b>.</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="badge bg-warning text-dark d-none" id="badgeModoEdicaoDisc">Editando Disciplina</span>
+          <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="btnCancelarEdicaoDisc" onclick="cancelarEdicaoDisciplina()">
+            Cancelar Edição
+          </button>
+        </div>
+      </div>
+
+      <form id="formDisciplina" onsubmit="event.preventDefault(); salvarDisciplinaExclusiva();">
+        <input type="hidden" id="discLinhaEdit" value="">
+
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-9">
+            <label class="form-label">Nome da Disciplina *</label>
+            <input type="text" id="inputNomeDisciplina" class="form-control fw-bold" placeholder="Ex: Arte, Biologia, Educação Física, Estudo Orientado..." required>
+          </div>
+
+          <div class="col-12 col-md-3 d-grid">
+            <button type="submit" class="btn btn-principal py-2 shadow-sm" id="btnSalvarDisciplina">
+              <i class="bi bi-check2-circle me-2"></i>Salvar Disciplina
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- CARD 2: LISTAGEM DE DISCIPLINAS -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-book-half me-2"></i>Disciplinas Cadastradas (<span id="badgeTotalDisciplinas">0</span>)
+          </h5>
+          <small class="text-muted">Gerencie os componentes curriculares disponíveis para envio de atividades e acompanhamento.</small>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <div class="input-group input-group-sm" style="width: 250px;">
+            <span class="input-group-text bg-light"><i class="bi bi-search text-primary"></i></span>
+            <input type="text" id="inputBuscaDisciplina" class="form-control fw-semibold" placeholder="Pesquisar disciplina..." oninput="renderizarTabelaDisciplinas()">
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarDisciplinasDaPlanilha(true)">
+            <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+          </button>
+          <button type="button" class="btn btn-danger btn-sm fw-bold px-3" onclick="gerarPdfDisciplinasCadastradas()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="w-100">
+        <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
+          <thead>
+            <tr>
+              <th style="width: 10%;" class="text-center">Nº</th>
+              <th style="width: 74%;">DISCIPLINA</th>
+              <th style="width: 16%;" class="text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyDisciplinas"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Gestão de Disciplinas.
+  </footer>
+
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "USUÁRIO").trim().toUpperCase();
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Administrador";
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    const KEY_CACHE_ABA_DISCIPLINAS = "cache_aba_exclusiva_disciplinas_v2";
+    const KEY_CACHE_ATIV_DISC = "cache_ativ_rapido_v3_disc";
+
+    const DISCIPLINAS_PADRAO_PLANILHA = [
+      { linha: 2, nome: "Arte" },
+      { linha: 3, nome: "Biologia" },
+      { linha: 4, nome: "Educação Física" },
+      { linha: 5, nome: "Filosofia" },
+      { linha: 6, nome: "Física" },
+      { linha: 7, nome: "Geografia" },
+      { linha: 8, nome: "História" },
+      { linha: 9, nome: "Língua espanhola" },
+      { linha: 10, nome: "Língua inglesa" },
+      { linha: 11, nome: "Língua portuguesa" },
+      { linha: 12, nome: "Matemática" },
+      { linha: 13, nome: "Química" },
+      { linha: 14, nome: "Redação" },
+      { linha: 15, nome: "Sociologia" },
+      { linha: 16, nome: "Eletiva 1ª série" },
+      { linha: 17, nome: "Eletiva 2ª série" },
+      { linha: 18, nome: "Eletiva 3ª série" },
+      { linha: 19, nome: "Aprofundamento em Matemática" },
+      { linha: 20, nome: "Aprofundamento em Português" },
+      { linha: 21, nome: "Estudo Orientado" }
+    ];
+
+    let listaDisciplinasAba = JSON.parse(localStorage.getItem(KEY_CACHE_ABA_DISCIPLINAS) || 'null') || DISCIPLINAS_PADRAO_PLANILHA;
+    let listaDisciplinasFiltrada = [];
+
+    async function chamarAPI(payload) {
+      try {
+        if (nomeUser && !payload.usuarioLogado) payload.usuarioLogado = nomeUser;
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    window.onload = function() {
+      renderizarTabelaDisciplinas();
+      if (navigator.onLine) {
+        carregarDisciplinasDaPlanilha(false);
+      }
+    };
+
+    async function carregarDisciplinasDaPlanilha(mostrarSpinner) {
+      if (mostrarSpinner) {
+        Swal.fire({ title: 'Atualizando disciplinas...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      }
+
+      const res = await chamarAPI({ action: 'listarDisciplinasCadastradas' });
+
+      if (mostrarSpinner) Swal.close();
+
+      if (res && res.success) {
+        if (Array.isArray(res.listaDetalhada) && res.listaDetalhada.length > 0) {
+          listaDisciplinasAba = res.listaDetalhada;
+        } else if (Array.isArray(res.disciplinas) && res.disciplinas.length > 0) {
+          listaDisciplinasAba = res.disciplinas.map((nome, idx) => ({
+            linha: idx + 2,
+            nome: nome
+          }));
+        }
+        salvarCacheDisciplinasLocal();
+        renderizarTabelaDisciplinas();
+      }
+    }
+
+    function salvarCacheDisciplinasLocal() {
+      try {
+        localStorage.setItem(KEY_CACHE_ABA_DISCIPLINAS, JSON.stringify(listaDisciplinasAba));
+        const nomesUpper = listaDisciplinasAba.map(d => String(d.nome || "").trim().toUpperCase()).filter(Boolean);
+        localStorage.setItem(KEY_CACHE_ATIV_DISC, JSON.stringify(nomesUpper));
+      } catch (e) {}
+    }
+
+    function renderizarTabelaDisciplinas() {
+      const termo = document.getElementById('inputBuscaDisciplina').value.trim().toUpperCase();
+
+      listaDisciplinasFiltrada = listaDisciplinasAba.filter(d =>
+        !termo || String(d.nome || "").toUpperCase().includes(termo)
+      );
+
+      document.getElementById('badgeTotalDisciplinas').innerText = listaDisciplinasFiltrada.length;
+
+      const tbody = document.getElementById('tbodyDisciplinas');
+      if (listaDisciplinasFiltrada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">Nenhuma disciplina encontrada.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaDisciplinasFiltrada.forEach((item, idx) => {
+        const nomeEsc = String(item.nome || "").replace(/'/g, "\\'");
+        html += `
+          <tr>
+            <td class="text-center fw-bold text-muted">${idx + 1}</td>
+            <td>
+              <span class="fw-bold text-dark" style="font-size: 0.92rem;">
+                <i class="bi bi-journal-bookmark-fill text-primary me-2"></i>${item.nome}
+              </span>
+            </td>
+            <td class="text-center text-nowrap">
+              <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 me-1" title="Editar Disciplina" onclick="iniciarEdicaoDisciplina(${item.linha}, '${nomeEsc}')">
+                <i class="bi bi-pencil-square"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2" title="Excluir Disciplina" onclick="excluirDisciplinaExclusiva(${item.linha}, '${nomeEsc}')">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function iniciarEdicaoDisciplina(linha, nomeAtual) {
+      document.getElementById('discLinhaEdit').value = linha;
+      document.getElementById('inputNomeDisciplina').value = nomeAtual;
+      document.getElementById('badgeModoEdicaoDisc').classList.remove('d-none');
+      document.getElementById('btnCancelarEdicaoDisc').classList.remove('d-none');
+      document.getElementById('lblTituloFormDisciplina').innerHTML = `<i class="bi bi-pencil-square me-2"></i>Editando Disciplina`;
+      document.getElementById('btnSalvarDisciplina').innerHTML = `<i class="bi bi-check2-circle me-2"></i>Salvar Disciplina`;
+      document.getElementById('inputNomeDisciplina').focus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoDisciplina() {
+      document.getElementById('discLinhaEdit').value = "";
+      document.getElementById('inputNomeDisciplina').value = "";
+      document.getElementById('badgeModoEdicaoDisc').classList.add('d-none');
+      document.getElementById('btnCancelarEdicaoDisc').classList.add('d-none');
+      document.getElementById('lblTituloFormDisciplina').innerHTML = `<i class="bi bi-journal-plus me-2"></i>Cadastrar Nova Disciplina`;
+      document.getElementById('btnSalvarDisciplina').innerHTML = `<i class="bi bi-check2-circle me-2"></i>Salvar Disciplina`;
+    }
+
+    async function salvarDisciplinaExclusiva() {
+      const linhaEdit = document.getElementById('discLinhaEdit').value;
+      const nomeNovo = document.getElementById('inputNomeDisciplina').value.trim();
+
+      if (!nomeNovo) {
+        return Swal.fire('Atenção', 'Digite o nome da disciplina.', 'warning');
+      }
+
+      const btn = document.getElementById('btnSalvarDisciplina');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando...';
+
+      const res = await chamarAPI({
+        action: 'salvarDisciplinaCadastro',
+        dados: {
+          linha: linhaEdit ? Number(linhaEdit) : null,
+          nome: nomeNovo
+        }
+      });
+
+      btn.disabled = false;
+      cancelarEdicaoDisciplina();
+
+      if (res && res.success) {
+        Swal.fire({
+          title: 'Salvo!',
+          text: res.msg,
+          icon: 'success',
+          confirmButtonColor: '#15438c',
+          timer: 1500,
+          showConfirmButton: false
+        });
+        await carregarDisciplinasDaPlanilha(false);
+      } else {
+        Swal.fire('Atenção', (res && res.error) || 'Não foi possível salvar a disciplina.', 'warning');
+      }
+    }
+
+    async function excluirDisciplinaExclusiva(linha, nomeDisc) {
+      const conf = await Swal.fire({
+        title: 'Excluir Disciplina?',
+        html: `Deseja excluir a disciplina <b>"${nomeDisc}"</b>?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, Excluir',
+        cancelButtonText: 'Cancelar'
+      });
+      if (!conf.isConfirmed) return;
+
+      Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await chamarAPI({
+        action: 'excluirDisciplinaCadastro',
+        linha: Number(linha)
+      });
+      Swal.close();
+
+      if (res && res.success) {
+        if (String(document.getElementById('discLinhaEdit').value) === String(linha)) {
+          cancelarEdicaoDisciplina();
+        }
+        Swal.fire({ title: 'Excluída!', text: res.msg, icon: 'success', timer: 1400, showConfirmButton: false });
+        await carregarDisciplinasDaPlanilha(false);
+      } else {
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível excluir.', 'error');
+      }
+    }
+
+    async function gerarPdfDisciplinasCadastradas() {
+      if (listaDisciplinasFiltrada.length === 0) {
+        return Swal.fire('Atenção', 'Não há disciplinas listadas para gerar o PDF.', 'warning');
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+
+      let startY = 36;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: "CATÁLOGO OFICIAL DE DISCIPLINAS CADASTRADAS",
+          subtitulo1: `Total de Disciplinas Listadas: ${listaDisciplinasFiltrada.length}`,
+          subtitulo2: `Emitido por: ${nomeUser} em ${new Date().toLocaleDateString('pt-BR')}`
+        });
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(21, 67, 140);
+        doc.text("EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`CATÁLOGO DE DISCIPLINAS (${listaDisciplinasFiltrada.length} registros)`, 14, 22);
+        startY = 27;
+      }
+
+      const rowsPdf = listaDisciplinasFiltrada.map((item, idx) => [
+        idx + 1,
+        item.nome,
+        'ATIVA'
+      ]);
+
+      doc.autoTable({
+        startY: startY,
+        head: [['Nº', 'DISCIPLINA', 'Status']],
+        body: rowsPdf,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2.5, valign: 'middle' },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 136, halign: 'left', fontStyle: 'bold' },
+          2: { cellWidth: 26, halign: 'center' }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+
+      doc.save(`Relatorio_Disciplinas_EEMTI_${new Date().toISOString().slice(0, 10)}.pdf`);
+    }
+  </script>
+</body>
+</html>
