@@ -574,58 +574,11 @@
       filtrarTabelaMinhasOcorrencias();
     }
 
-    async function sincronizarFilaOfflineRac() {
-      if (!navigator.onLine) return;
-      const fila = JSON.parse(localStorage.getItem(KEY_FILA_OFFLINE_RAC) || '[]');
-      if (fila.length === 0) return;
-
-      Swal.fire({
-        title: 'Conexão Restaurada!',
-        html: `Sincronizando <b>${fila.length}</b> ocorrência(s) lançada(s) no Modo Offline...`,
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-      });
-
-      const sincronizadasHtml = [];
-      const restantes = [];
-
-      for (const item of fila) {
-        try {
-          const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'salvarOcorrencia',
-              usuarioLogado: nomeUser,
-              dados: item.dados
-            })
-          }).then(r => r.json());
-
-          if (res && res.success) {
-            sincronizadasHtml.push(`<li>${item.resumo}</li>`);
-          } else {
-            restantes.push(item);
-          }
-        } catch (err) {
-          restantes.push(item);
-        }
-      }
-
-      localStorage.setItem(KEY_FILA_OFFLINE_RAC, JSON.stringify(restantes));
-      atualizarIndicadoresOfflineRac();
-
-      if (sincronizadasHtml.length > 0) {
+   async function sincronizarFilaOfflineRac() {
+      if (window.sincronizarFilaOfflineGlobal) {
+        await window.sincronizarFilaOfflineGlobal();
+        atualizarIndicadoresOfflineRac();
         await carregarMinhasOcorrenciasRegistradas(false);
-        Swal.fire({
-          title: 'Ocorrências Offline Sincronizadas!',
-          html: `
-            <p class="small text-muted mb-2">A internet retornou e os seguintes registros foram salvos na aba REGISTRO RAC:</p>
-            <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 220px; overflow-y: auto;">
-              ${sincronizadasHtml.join('')}
-            </ul>
-          `,
-          icon: 'success',
-          confirmButtonColor: '#15438c'
-        });
       }
     }
 
