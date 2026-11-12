@@ -1,12 +1,14 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO 2º PLANO (NON-BLOCKING)
-// - SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM TRAVAR A TELA DO PROFESSOR)
-// - SUPORTE A BACKGROUND SYNC COM O APP FECHADO (VIA INDEXEDDB + SW.JS)
-// - EXIBE O AVISO DOS DADOS SINCRONIZADOS APENAS AO FINALIZAR
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO COMPLETA COM PRE-FETCH
+// 1. PRÉ-CARREGAMENTO NO LOGIN (ALUNOS, DISCIPLINAS, ELETIVAS, MATRÍCULAS E OCORRÊNCIAS)
+// 2. ATUALIZAÇÃO AUTOMÁTICA EM NOVOS CADASTROS, EDIÇÕES OU EXCLUSÕES (INCLUINDO OCORRÊNCIAS RAC)
+// 3. SINCRONIZAÇÃO OFFLINE EM 2º PLANO (SEM TRAVAR A TELA) + BACKGROUND SYNC
+// 4. CABEÇALHO INSTITUCIONAL PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
   const LOG_SINCRONIZADOS_KEY = 'log_recem_sincronizados_eemti_v1';
+  const TIMESTAMP_PREFETCH_KEY = 'ultimo_prefetch_completo_eemti_ts';
   const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
   const API_PADRAO_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
 
@@ -16,9 +18,14 @@
     'fila_offline_mapeamento_v1'
   ];
 
+  // Chaves universais compartilhadas entre todas as páginas offline
   window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
   window.KEY_SERIES_UNIVERSAL_EEMTI = 'cache_rac_series_v3';
+  const KEY_MATRICULAS_ELETIVAS_OFFLINE = 'cache_matriculas_eletivas_global_v1';
+  const KEY_CATALOGO_ELETIVAS_OFFLINE = 'cache_catalogo_eletivas_global_v1';
+  const KEY_TODAS_OCORRENCIAS_OFFLINE = 'cache_rac_todas_ocorrencias_v1';
 
+  // Ações que podem ser lançadas Offline pelos professores
   const ACOES_GRAVACAO_OFFLINE = {
     'salvarOcorrencia': 'Ocorrência Disciplinar (RAC)',
     'salvarAtividadeDisciplinas': 'Atividade Contínua (Disciplina/Eletiva)',
@@ -28,10 +35,331 @@
     'salvarMapeamentoSala': 'Mapeamento de Sala de Aula'
   };
 
+  // Ações de cadastro, edição ou exclusão (incluindo Ocorrências RAC, Atividades, Alunos, Matrículas e Disciplinas)
+  // que disparam a atualização imediata das listas offline!
+  const ACOES_MUTACAO_CADASTROS = [
+    'salvarOcorrencia', 'excluirOcorrencia',
+    'salvarAtividadeDisciplinas', 'salvarAtividadeEletivas',
+    'salvarFrequenciaSecretaria', 'salvarFrequencia', 'excluirFrequencia',
+    'salvarAtendimentoAluno', 'salvarSuspensaoManual',
+    'salvarAlunoIndividual', 'salvarAlunosLote', 'atualizarAluno', 'editarAluno',
+    'excluirAluno', 'migrarAlunosSelecionados', 'salvarMatricula', 'cadastrarEletiva',
+    'atualizarEletiva', 'editarEletiva', 'excluirEletiva', 'salvarDisciplinaCadastro',
+    'excluirDisciplinaCadastro', 'salvarConfig', 'excluirConfig', 'salvarPDT', 'excluirPDT',
+    'salvarMapeamentoSala'
+  ];
+
   let sincronizacaoEmAndamento = false;
+  let prefetchEmAndamento = false;
+
+  function obterNomeUsuarioLogadoCore() {
+    try {
+      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+      return String(uLog.nome || uLog.usuario?.nome || uLog.col1 || "").trim().toUpperCase();
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function normalizarSeriePadraoCore(s) {
+    let str = String(s || "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+    const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)\s*([A-Z0-9].*)$/i);
+    return m ? `${m[1]}ª SÉRIE ${m[2].trim()}` : str;
+  }
+
+  function extrairCodigoEletivaCore(nome) {
+    const str = String(nome || "").trim().toUpperCase();
+    const m = str.match(/^([A-Z]{2,4}\d{2,4})\s*[-|]/);
+    return m ? m[1] : str;
+  }
+
+  function liberarEspacoStorageAntigo() {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('cache_api_eemti_') || k.startsWith('cache_acervo_bib_')) {
+        localStorage.removeItem(k);
+      }
+    });
+  }
+
+  function salvarNoLocalStorageSeguro(chave, valorObj) {
+    try {
+      localStorage.setItem(chave, JSON.stringify(valorObj));
+    } catch (e) {
+      liberarEspacoStorageAntigo();
+      try { localStorage.setItem(chave, JSON.stringify(valorObj)); } catch (e2) {}
+    }
+  }
 
   // =========================================================================
-  // 1. PONTE INDEXEDDB (COMPARTILHADA COM O SERVICE WORKER EM 2º PLANO)
+  // 1. MOTOR DE PRÉ-CARREGAMENTO TOTAL NO LOGIN / INÍCIO (PRE-FETCH OFFLINE)
+  // Baixa Alunos, Séries, Disciplinas, Eletivas, Matrículas e Ocorrências RAC!
+  // =========================================================================
+  window.executarPreCarregamentoTotalOffline = async function(forcarImediato = false) {
+    if (!navigator.onLine || prefetchEmAndamento) return;
+
+    const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!uLog) return;
+    const nomeProfLogado = obterNomeUsuarioLogadoCore();
+
+    const agora = Date.now();
+    const ultimoTs = Number(localStorage.getItem(TIMESTAMP_PREFETCH_KEY) || 0);
+    const jaTemAlunos = Boolean(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI));
+    const jaTemEletivas = Boolean(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE));
+
+    if (!forcarImediato && jaTemAlunos && jaTemEletivas && (agora - ultimoTs < 600000)) {
+      return;
+    }
+
+    prefetchEmAndamento = true;
+
+    try {
+      const [resFreqSec, resFiltrosRac, resDisc, resMatElet, resBim, resOcoRac] = await Promise.all([
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarFrequenciaSecretaria' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDisciplinasCadastradas' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getDadosMatricula' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null)
+      ]);
+
+      // A) Salva Alunos Detalhados, Séries, Dias Letivos e Frequências da Secretaria
+      if (resFreqSec && resFreqSec.success) {
+        if (Array.isArray(resFreqSec.series) && resFreqSec.series.length > 0) {
+          const seriesNorm = resFreqSec.series.map(s => normalizarSeriePadraoCore(s)).filter(Boolean);
+          salvarNoLocalStorageSeguro(window.KEY_SERIES_UNIVERSAL_EEMTI, seriesNorm);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_ser', seriesNorm);
+        }
+        if (Array.isArray(resFreqSec.alunosDetalhados) && resFreqSec.alunosDetalhados.length > 0) {
+          const alunosNorm = resFreqSec.alunosDetalhados.map(a => ({
+            ano: a.ano || "2026",
+            nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+            serie: normalizarSeriePadraoCore(a.serie),
+            bolsaFamilia: String(a.bolsaFamilia || "NÃO").trim().toUpperCase(),
+            peDeMeia: String(a.peDeMeia || "NÃO").trim().toUpperCase(),
+            sexo: String(a.sexo || "-").trim().toUpperCase()
+          })).filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO");
+
+          salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alunosNorm);
+          salvarNoLocalStorageSeguro('cache_freq_sec_alunos_det_v4', alunosNorm);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_alunos', alunosNorm);
+        }
+        if (resFreqSec.diasLetivosMes) {
+          salvarNoLocalStorageSeguro('cache_freq_sec_dias_letivos_v4', resFreqSec.diasLetivosMes);
+        }
+        if (Array.isArray(resFreqSec.frequencias)) {
+          salvarNoLocalStorageSeguro('cache_freq_sec_lancamentos_v4', resFreqSec.frequencias.slice(-2000));
+        }
+      }
+
+      // B) Salva Catálogo de Ocorrências RAC
+      if (resFiltrosRac && resFiltrosRac.success) {
+        if (Array.isArray(resFiltrosRac.ocorrencias) && resFiltrosRac.ocorrencias.length > 0) {
+          const catRac = resFiltrosRac.ocorrencias.map(o => ({
+            descricao: String(o.descricao || "").trim(),
+            gravidade: String(o.gravidade || "GRAU I (INFRAÇÕES LEVES)").trim().toUpperCase()
+          })).filter(o => o.descricao);
+          salvarNoLocalStorageSeguro('cache_rac_catalogo_v3', catRac);
+        }
+        if (Array.isArray(resFiltrosRac.alunos) && resFiltrosRac.alunos.length > 0 && (!resFreqSec || !resFreqSec.alunosDetalhados)) {
+          const alLeve = resFiltrosRac.alunos.map(a => ({
+            nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+            serie: normalizarSeriePadraoCore(a.serie)
+          })).filter(x => x.nome && x.serie);
+          salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alLeve);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_alunos', alLeve);
+        }
+      }
+
+      // C) Salva Ocorrências Registradas (Geral + Específicas do Professor Logado para Consulta/Edição/Exclusão)
+      if (Array.isArray(resOcoRac)) {
+        salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resOcoRac.slice(0, 800));
+        if (nomeProfLogado) {
+          const minhasOco = resOcoRac.filter(r => {
+            const p = String(r.professor || "").trim().toUpperCase();
+            return p === nomeProfLogado || p.includes(nomeProfLogado) || nomeProfLogado.includes(p);
+          });
+          salvarNoLocalStorageSeguro('cache_rac_minhas_oco_' + nomeProfLogado.replace(/\s+/g, '_'), minhasOco.slice(0, 250));
+        }
+      }
+
+      // D) Salva Disciplinas Curriculares (Aba DISCIPLINAS)
+      if (resDisc && resDisc.success && Array.isArray(resDisc.disciplinas) && resDisc.disciplinas.length > 0) {
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_disc', resDisc.disciplinas);
+        if (Array.isArray(resDisc.listaDetalhada)) {
+          salvarNoLocalStorageSeguro('cache_aba_exclusiva_disciplinas_v2', resDisc.listaDetalhada);
+        }
+      }
+
+      // E) Salva Bimestres (Aba BIMESTRE)
+      if (resBim && Array.isArray(resBim.lista)) {
+        const bimFormatados = resBim.lista.map(b => ({
+          nome: String(b.col1 || "").trim(),
+          inicioIso: String(b.col2 || "").includes('-') ? String(b.col2).trim() : "",
+          fimIso: String(b.col3 || "").includes('-') ? String(b.col3).trim() : ""
+        })).filter(b => b.nome);
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_bim', bimFormatados);
+      }
+
+      // F) Salva Catálogo de Eletivas e TODAS as Matrículas dos Alunos em Eletivas!
+      if (resMatElet && resMatElet.success) {
+        const catalogoNorm = (resMatElet.catalogo || []).map(c => ({
+          id: c.id || "",
+          semestre: String(c.ano || c.semestre || "").trim(),
+          ano: String(c.ano || c.semestre || "").trim(),
+          dia: String(c.dia || "").trim().toUpperCase(),
+          turma: normalizarSeriePadraoCore(c.turma || ""),
+          serieBase: String(c.serieBase || "").trim().toUpperCase(),
+          tempoEletivo: String(c.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase(),
+          eletiva: String(c.nome || c.eletiva || "").trim(),
+          nome: String(c.nome || c.eletiva || "").trim(),
+          professor: String(c.professor || "").trim().toUpperCase()
+        }));
+
+        const anosSet = new Set();
+        const profsSet = new Set();
+        catalogoNorm.forEach(c => {
+          if (c.ano) anosSet.add(c.ano);
+          if (c.professor) profsSet.add(c.professor);
+        });
+
+        const pacoteFiltrosFrequenciaEletiva = {
+          success: true,
+          anos: Array.from(anosSet).sort().reverse(),
+          professores: Array.from(profsSet).sort(),
+          catalogo: catalogoNorm
+        };
+
+        salvarNoLocalStorageSeguro(KEY_CATALOGO_ELETIVAS_OFFLINE, pacoteFiltrosFrequenciaEletiva);
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_elet', catalogoNorm);
+
+        if (Array.isArray(resMatElet.historico)) {
+          const matriculasLeves = resMatElet.historico.map(m => ({
+            ano: String(m.ano || "").trim(),
+            eletiva: String(m.eletiva || "").trim().toUpperCase(),
+            codigo: extrairCodigoEletivaCore(m.eletiva),
+            aluno: String(m.aluno || "").replace(/\s+/g, " ").trim().toUpperCase(),
+            serie: normalizarSeriePadraoCore(m.serie || m.serieBase || ""),
+            serieBase: String(m.serieBase || "").trim().toUpperCase(),
+            tempoEletivo: String(m.tempoEletivo || "").trim().toUpperCase()
+          })).filter(m => m.aluno && m.eletiva);
+
+          salvarNoLocalStorageSeguro(KEY_MATRICULAS_ELETIVAS_OFFLINE, matriculasLeves);
+
+          const mapaPorEletivaAtiv = {};
+          matriculasLeves.forEach(m => {
+            const ch = `${m.ano}|${m.eletiva}`;
+            if (!mapaPorEletivaAtiv[ch]) mapaPorEletivaAtiv[ch] = [];
+            if (!mapaPorEletivaAtiv[ch].some(x => x.nome === m.aluno)) {
+              mapaPorEletivaAtiv[ch].push({ nome: m.aluno, serie: m.serie });
+            }
+          });
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_al_elet', mapaPorEletivaAtiv);
+        }
+      }
+
+      localStorage.setItem(TIMESTAMP_PREFETCH_KEY, String(Date.now()));
+    } catch (errPrefetch) {
+      // Silencioso em segundo plano
+    } finally {
+      prefetchEmAndamento = false;
+    }
+  };
+
+  // Reconstrói a resposta offline para qualquer página (incluindo buscarOcorrencias!)
+  function construirRespostaOfflineInteligente(action, bodyObj) {
+    if (action === 'buscarOcorrencias') {
+      const f = bodyObj.filtros || {};
+      const serieB = normalizarSeriePadraoCore(f.serie || "");
+      const alunoB = String(f.aluno || "").trim().toUpperCase();
+      const profB = String(f.professorLogado || "").trim().toUpperCase();
+      const ignorarProf = f.ignorarRestricao === true;
+
+      const todasSalvas = JSON.parse(localStorage.getItem(KEY_TODAS_OCORRENCIAS_OFFLINE) || '[]');
+      const filtradas = todasSalvas.filter(r => {
+        const bateSerie = !serieB || normalizarSeriePadraoCore(r.serie) === serieB;
+        const bateAluno = !alunoB || String(r.aluno || "").toUpperCase().includes(alunoB);
+        const bateProf = ignorarProf || !profB || String(r.professor || "").toUpperCase().includes(profB);
+        return bateSerie && bateAluno && bateProf;
+      });
+      return JSON.stringify(filtradas);
+    }
+
+    if (action === 'getFiltrosFrequencia' || action === 'getFiltrosIniciais') {
+      const catSalvo = JSON.parse(localStorage.getItem(KEY_CATALOGO_ELETIVAS_OFFLINE) || 'null');
+      if (catSalvo) return JSON.stringify(catSalvo);
+    }
+
+    if (action === 'getEletivasProfessor') {
+      const catSalvo = JSON.parse(localStorage.getItem(KEY_CATALOGO_ELETIVAS_OFFLINE) || 'null');
+      if (catSalvo && Array.isArray(catSalvo.catalogo)) {
+        const anoB = String(bodyObj.ano || "").trim();
+        const profB = String(bodyObj.professor || "").trim().toUpperCase();
+        const filtradas = catSalvo.catalogo
+          .filter(c => (!anoB || c.ano === anoB) && (!profB || c.professor.includes(profB) || profB.includes(c.professor)))
+          .map(c => c.nome);
+        return JSON.stringify(Array.from(new Set(filtradas)).sort());
+      }
+    }
+
+    if (action === 'getAlunosFrequencia' || action === 'buscarAlunos') {
+      const matSalvas = JSON.parse(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE) || '[]');
+      const anoB = String(bodyObj.ano || "").trim();
+      const eletB = String(bodyObj.eletiva || "").trim().toUpperCase();
+      const codB = extrairCodigoEletivaCore(eletB);
+
+      const encontradosMap = {};
+      matSalvas.forEach(m => {
+        const bateAno = !anoB || m.ano === anoB;
+        const bateElet = !eletB || m.eletiva === eletB || m.eletiva.includes(eletB) || (codB && m.codigo === codB);
+        if (bateAno && bateElet) {
+          encontradosMap[m.aluno] = {
+            nome: m.aluno,
+            aluno: m.aluno,
+            turma: m.serie,
+            serieTurma: m.serie,
+            serieBase: m.serieBase,
+            tempoEletivo: m.tempoEletivo,
+            semestre: m.ano,
+            eletiva: m.eletiva
+          };
+        }
+      });
+      const listaFinal = Object.values(encontradosMap).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      return JSON.stringify(listaFinal);
+    }
+
+    if (action === 'getFiltrosOcorrencias') {
+      const series = JSON.parse(localStorage.getItem(window.KEY_SERIES_UNIVERSAL_EEMTI) || '[]');
+      const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      const ocorrencias = JSON.parse(localStorage.getItem('cache_rac_catalogo_v3') || '[]');
+      return JSON.stringify({ success: true, series: series, alunos: alunos, ocorrencias: ocorrencias });
+    }
+
+    if (action === 'listarFrequenciaSecretaria') {
+      const series = JSON.parse(localStorage.getItem(window.KEY_SERIES_UNIVERSAL_EEMTI) || '[]');
+      const alunos = JSON.parse(localStorage.getItem('cache_freq_sec_alunos_det_v4') || localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      const frequencias = JSON.parse(localStorage.getItem('cache_freq_sec_lancamentos_v4') || '[]');
+      const diasLetivos = JSON.parse(localStorage.getItem('cache_freq_sec_dias_letivos_v4') || 'null');
+      return JSON.stringify({
+        success: true,
+        series: series,
+        alunosDetalhados: alunos,
+        frequencias: frequencias,
+        diasLetivosMes: diasLetivos
+      });
+    }
+
+    if (action === 'listarDisciplinasCadastradas') {
+      const disc = JSON.parse(localStorage.getItem('cache_ativ_rapido_v3_disc') || '[]');
+      const det = JSON.parse(localStorage.getItem('cache_aba_exclusiva_disciplinas_v2') || '[]');
+      return JSON.stringify({ success: true, disciplinas: disc, listaDetalhada: det });
+    }
+
+    return null;
+  }
+
+  // =========================================================================
+  // 2. PONTE INDEXEDDB E BACKGROUND SYNC (COM O APP FECHADO)
   // =========================================================================
   function abrirBancoSyncIDB() {
     return new Promise(resolve => {
@@ -57,7 +385,6 @@
       (filaArray || []).forEach(item => store.put(item));
     } catch (e) {}
 
-    // Registra o gatilho de Background Sync do Sistema Operacional (para sincronizar mesmo com o app fechado!)
     if ('serviceWorker' in navigator && 'SyncManager' in window) {
       try {
         const reg = await navigator.serviceWorker.ready;
@@ -68,7 +395,6 @@
     }
   }
 
-  // Verifica se o Service Worker sincronizou itens enquanto o aplicativo estava fechado!
   async function verificarSincronizacoesFeitasComAppFechado() {
     const db = await abrirBancoSyncIDB();
     let itensDoBackground = [];
@@ -86,7 +412,6 @@
           tx.oncomplete = () => {
             if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
               itensDoBackground = reqRel.result.map(r => r.resumoHtml || r);
-              // Limpa o relatório do IDB e atualiza a fila do localStorage
               const txClear = db.transaction('relatorio_concluido', 'readwrite');
               txClear.objectStore('relatorio_concluido').clear();
 
@@ -102,7 +427,6 @@
       });
     }
 
-    // Também verifica se alguma sincronização em 2º plano terminou milissegundos antes de o professor trocar de página
     const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
     if (logLocal.length > 0) {
       itensDoBackground = itensDoBackground.concat(logLocal);
@@ -112,12 +436,11 @@
     if (itensDoBackground.length > 0) {
       window.atualizarBadgeStatusConexaoGlobal();
       exibirAvisoFinalDeDadosSincronizados(itensDoBackground);
+      // Atualiza o cache local após sincronizar itens do background
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 600);
     }
   }
 
-  // =========================================================================
-  // 2. REGISTRO DO SERVICE WORKER E ESCUTA DE MENSAGENS EM 2º PLANO
-  // =========================================================================
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -141,7 +464,7 @@
   }
 
   // =========================================================================
-  // 3. UNIFICAÇÃO DE FILAS E RESUMO LEGÍVEL DOS DADOS
+  // 3. UNIFICAÇÃO DE FILAS E INTERCEPTADOR INTELIGENTE DE FETCH
   // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
@@ -201,65 +524,74 @@
     return `<li><b>${ACOES_GRAVACAO_OFFLINE[act] || act}:</b> Sincronizado com sucesso</li>`;
   }
 
-  function atualizarCacheLeveAlunosUniversal(listaAlunosBruta, listaSeriesBruta) {
-    try {
-      if (Array.isArray(listaSeriesBruta) && listaSeriesBruta.length > 0) {
-        const seriesLimpas = listaSeriesBruta.map(s => String(s || "").replace(/["']/g, "").trim().toUpperCase()).filter(Boolean);
-        localStorage.setItem(window.KEY_SERIES_UNIVERSAL_EEMTI, JSON.stringify(seriesLimpas));
-      }
-      if (Array.isArray(listaAlunosBruta) && listaAlunosBruta.length > 0) {
-        const alunosLeves = listaAlunosBruta.map(a => ({
-          nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
-          serie: String(a.serie || "").replace(/["']/g, "").trim().toUpperCase(),
-          bolsaFamilia: String(a.bolsaFamilia || "NÃO").trim().toUpperCase(),
-          peDeMeia: String(a.peDeMeia || "NÃO").trim().toUpperCase(),
-          sexo: String(a.sexo || "-").trim().toUpperCase()
-        })).filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO");
-
-        if (alunosLeves.length > 0) {
-          localStorage.setItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI, JSON.stringify(alunosLeves));
-        }
-      }
-    } catch (e) {}
-  }
-
-  // =========================================================================
-  // 4. INTERCEPTADOR DE REQUISIÇÕES E ENFILEIRAMENTO OFFLINE
-  // =========================================================================
   const _fetchNativo = window.fetch;
   window.fetch = async function(url, options) {
     if (options && options.method === 'POST' && typeof options.body === 'string' && String(url).includes('script.google.com')) {
       let bodyObj = {};
       try {
         bodyObj = JSON.parse(options.body);
-        const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
-        const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+        const nomeAutor = obterNomeUsuarioLogadoCore();
         if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
         options.body = JSON.stringify(bodyObj);
       } catch (e) {}
 
       const action = bodyObj.action || '';
 
-      if (!navigator.onLine && ACOES_GRAVACAO_OFFLINE[action]) {
-        window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
-        return new Response(JSON.stringify({
-          success: true,
-          offline: true,
-          msg: 'Salvo no Modo Offline! A sincronização ocorrerá automaticamente em segundo plano assim que houver internet.'
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      // 1. Se estiver OFFLINE:
+      if (!navigator.onLine) {
+        if (ACOES_GRAVACAO_OFFLINE[action]) {
+          window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
+          return new Response(JSON.stringify({
+            success: true,
+            offline: true,
+            msg: 'Salvo no Modo Offline! A sincronização ocorrerá automaticamente em segundo plano assim que houver internet.'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        const respostaPreCarregada = construirRespostaOfflineInteligente(action, bodyObj);
+        if (respostaPreCarregada) {
+          return new Response(respostaPreCarregada, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
       }
 
+      // 2. Se estiver ONLINE:
       try {
         const response = await _fetchNativo(url, options);
         const clone = response.clone();
 
-        if (action === 'getFiltrosOcorrencias' || action === 'listarFrequenciaSecretaria') {
-          clone.json().then(data => {
-            if (data && data.success) {
-              atualizarCacheLeveAlunosUniversal(data.alunos || data.alunosDetalhados, data.series);
+        // Se consultou ocorrências online, já aproveita para atualizar o cache local de ocorrências
+        if (action === 'buscarOcorrencias') {
+          clone.json().then(listaOco => {
+            if (Array.isArray(listaOco)) {
+              const f = bodyObj.filtros || {};
+              if (f.ignorarRestricao === true && !f.serie && !f.aluno) {
+                salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, listaOco.slice(0, 800));
+              }
+              const nomeProf = obterNomeUsuarioLogadoCore();
+              if (nomeProf) {
+                const minhas = listaOco.filter(r => {
+                  const p = String(r.professor || "").trim().toUpperCase();
+                  return p === nomeProf || p.includes(nomeProf) || nomeProf.includes(p);
+                });
+                if (minhas.length > 0 || !f.ignorarRestricao) {
+                  salvarNoLocalStorageSeguro('cache_rac_minhas_oco_' + nomeProf.replace(/\s+/g, '_'), minhas.slice(0, 250));
+                }
+              }
             }
           }).catch(() => {});
         }
+
+        // Sempre que houver Login ou qualquer Cadastro, Edição ou Exclusão (incluindo salvarOcorrencia e excluirOcorrencia):
+        // Atualiza automaticamente as listas offline em segundo plano!
+        if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
+          clone.json().then(resJson => {
+            if (resJson && (resJson.success || resJson.msg)) {
+              localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
+              setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
+            }
+          }).catch(() => {});
+        }
+
         return response;
       } catch (errRede) {
         if (ACOES_GRAVACAO_OFFLINE[action]) {
@@ -269,6 +601,11 @@
             offline: true,
             msg: 'Conexão instável! Salvo na fila e será sincronizado em segundo plano sem interromper seu uso.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        const fallbackPreCarregado = construirRespostaOfflineInteligente(action, bodyObj);
+        if (fallbackPreCarregado) {
+          return new Response(fallbackPreCarregado, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         throw errRede;
       }
@@ -295,7 +632,7 @@
   };
 
   // =========================================================================
-  // 5. SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM CONGESTIONAR OU TRAVAR A TELA!)
+  // 4. SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM TRAVAR A TELA DO PROFESSOR)
   // =========================================================================
   function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
@@ -326,11 +663,8 @@
 
     sincronizacaoEmAndamento = true;
     const totalParaEnviar = filaInicial.length;
-    let enviadosAgora = 0;
     const sincronizadosHtml = [];
 
-    // NÃO abre Swal.fire de loading! O professor continua mexendo normalmente na tela
-    // enquanto atualizamos apenas o pequeno badge no canto inferior direito:
     window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (0/${totalParaEnviar})...`);
 
     for (let i = 0; i < filaInicial.length; i++) {
@@ -347,27 +681,23 @@
 
         if (json && (json.success || json.msg)) {
           sincronizadosHtml.push(item.resumoHtml);
-          enviadosAgora++;
-
-          // Remove imediatamente da fila no localStorage o item que acabou de ser sincronizado
-          // (para que se o professor mudar de página no meio da sincronização, não envie duplicado!)
           const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
             .filter(f => f.idFila !== item.idFila);
           localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaAtual));
           espelharFilaParaIndexedDB(filaAtual);
         }
-      } catch (e) {
-        // Se falhou por oscilação de rede, mantém na fila para a próxima tentativa
-      }
+      } catch (e) {}
     }
 
     sincronizacaoEmAndamento = false;
     window.atualizarBadgeStatusConexaoGlobal();
 
     if (sincronizadosHtml.length > 0) {
-      window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
+      // Atualiza imediatamente a lista de ocorrências/atividades/frequências no cache local após sincronizar!
+      localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
 
-      // Se a página estiver visível, mostra o aviso imediatamente; se o usuário estiver trocando de aba, guarda no log para mostrar ao abrir
+      window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
       if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
         exibirAvisoFinalDeDadosSincronizados(sincronizadosHtml);
       } else {
@@ -415,6 +745,7 @@
   window.addEventListener('online', () => {
     window.atualizarBadgeStatusConexaoGlobal();
     window.sincronizarFilaOfflineGlobal();
+    window.executarPreCarregamentoTotalOffline(false);
   });
   window.addEventListener('offline', () => {
     window.atualizarBadgeStatusConexaoGlobal();
@@ -424,17 +755,16 @@
     unificarFilasOfflineNoStorage();
     window.atualizarBadgeStatusConexaoGlobal();
 
-    // 1º Verifica se o Service Worker já sincronizou itens enquanto o app estava fechado!
     await verificarSincronizacoesFeitasComAppFechado();
 
-    // 2º Se ainda houver itens na fila e tiver internet, sincroniza em 2º plano sem travar a tela!
     if (navigator.onLine) {
       setTimeout(window.sincronizarFilaOfflineGlobal, 400);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 900);
     }
   });
 
   // =========================================================================
-  // 6. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
+  // 5. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
