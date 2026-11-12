@@ -899,6 +899,8 @@
                   <option value="3">3 Dias Letivos</option>
                   <option value="4">4 Dias Letivos</option>
                   <option value="5">5 Dias Letivos</option>
+                  <option value="6">6 Dias Letivos</option>
+                  <option value="7">7 Dias Letivos</option>
                 </select>
               </div>
             </div>
@@ -934,7 +936,6 @@
 
       if (!configTermo) return;
 
-      // Sincroniza o input da linha com a data escolhida pelo professor
       if (inpLinha) inpLinha.value = configTermo.dtIni;
 
       await gerarDocumentoPdfTermoSuspensao(item, configTermo);
@@ -952,7 +953,6 @@
     async function gerarDocumentoPdfTermoSuspensao(item, cfg) {
       Swal.fire({ title: 'Gerando Termo de Suspensão...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-      // Busca a foto 3x4 e filiação do aluno se estiver online
       let fotoB64 = mapaFotosMemoria[item.aluno] || "";
       if (!fotoB64 && navigator.onLine) {
         const rFoto = await chamarAPI({ action: 'obterFotoAlunoIndividual', aluno: item.aluno });
@@ -969,35 +969,38 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('portrait', 'mm', 'a4');
 
+      // Subtítulo organizado para nunca encostar na moldura da Foto 3x4 à direita!
       const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
-        tituloDocumento: "TERMO OFICIAL DE SUSPENSÃO DISCIPLINAR E CONVOCAÇÃO FAMILIAR",
-        subtitulo1: `Aluno(a): ${item.aluno}   |   Série / Turma: ${item.serie}`,
-        subtitulo2: `Professor Diretor de Turma (PDT): ${pdtDaTurma}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')}`,
+        tituloDocumento: "TERMO OFICIAL DE SUSPENSÃO DISCIPLINAR E CONVOCAÇÃO",
+        subtitulo1: `Aluno(a): ${item.aluno}  |  Turma: ${item.serie}  |  Emissão: ${new Date().toLocaleDateString('pt-BR')}`,
+        subtitulo2: `Professor Diretor de Turma (PDT): ${pdtDaTurma}`,
         exibirMolduraFoto: true,
         fotoAlunoBase64: fotoB64
       });
 
       let y = startY + 2;
 
-      // Quadro de Identificação e Período de Suspensão
+      // Quadro de Identificação e Período de Suspensão (Com espaçamento amplo entre as 3 colunas!)
       doc.setFillColor(254, 242, 242);
       doc.setDrawColor(220, 38, 38);
       doc.setLineWidth(0.4);
       doc.roundedRect(14, y, 182, 28, 2, 2, 'FD');
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
       doc.setTextColor(185, 28, 28);
-      doc.text("DADOS DA MEDIDA DISCIPLINAR DE SUSPENSÃO (REGIMENTO ESCOLAR / RAC)", 18, y + 6.5);
+      doc.text("DADOS DA MEDIDA DISCIPLINAR DE SUSPENSÃO (REGIMENTO ESCOLAR)", 18, y + 6.5);
 
-      doc.setFontSize(9);
+      // As 3 colunas distribuídas perfeitamente sem sobreposição:
+      // Coluna 1 (X = 18) | Coluna 2 (X = 76) | Coluna 3 (X = 142)
+      doc.setFontSize(8.6);
       doc.setTextColor(15, 23, 42);
       doc.text(`• INÍCIO DA SUSPENSÃO: ${dataIniBr}`, 18, y + 13.5);
-      doc.text(`• TEMPO DE SUSPENSÃO: ${cfg.qtdDias} dia(s) letivo(s)`, 86, y + 13.5);
-      doc.text(`• DATA DE RETORNO: ${dataRetBr}`, 144, y + 13.5);
+      doc.text(`• TEMPO DE SUSPENSÃO: ${cfg.qtdDias} dia(s) letivo(s)`, 76, y + 13.5);
+      doc.text(`• DATA DE RETORNO: ${dataRetBr}`, 142, y + 13.5);
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.2);
+      doc.setFontSize(8.1);
       doc.setTextColor(21, 67, 140);
       doc.text(
         "OBSERVAÇÃO IMPORTANTE: O(a) aluno(a), acompanhado(a) de seu responsável legal, poderá comparecer à escola",
@@ -1047,7 +1050,7 @@
       doc.setFontSize(8.8);
       doc.setTextColor(30, 41, 59);
       const textoDeclaracao =
-        `Comunicamos ao responsável legal pelo(a) estudante ${item.aluno}, matriculado(a) na turma ${item.serie}, que em virtude do descumprimento das normas de convivência previstas no Regimento Escolar (RAC), foi aplicada medida disciplinar de suspensão por ${cfg.qtdDias} dia(s) letivo(s), com início em ${dataIniBr} e retorno previsto em ${dataRetBr}.\n\n` +
+        `Comunicamos ao responsável legal pelo(a) estudante ${item.aluno}, matriculado(a) na turma ${item.serie}, que em virtude do descumprimento das normas de convivência previstas no Regimento Escolar, foi aplicada medida disciplinar de suspensão por ${cfg.qtdDias} dia(s) letivo(s), com início em ${dataIniBr} e retorno previsto em ${dataRetBr}.\n\n` +
         `Ressaltamos que o(a) estudante e seu responsável legal podem comparecer à instituição de ensino a qualquer momento durante o período de suspensão para realização do atendimento presencial junto ao Professor Diretor de Turma (PDT) ou núcleo gestor, sendo indispensável a presença do responsável para o retorno regular às atividades escolares.`;
 
       const linhasDeclaracao = doc.splitTextToSize(textoDeclaracao, 182);
@@ -1055,7 +1058,6 @@
 
       y += (linhasDeclaracao.length * 4.5) + 22;
 
-      // Linhas de Assinatura: PDT / Gestão e Responsável Legal pelo Aluno
       if (y > 255) {
         doc.addPage();
         y = 40;
@@ -1089,7 +1091,6 @@
       Swal.close();
       doc.save(`Termo_Suspensao_${item.aluno.replace(/\s+/g, '_')}.pdf`);
     }
-
     // =========================================================
     // 5. ABA 1: ATENDER RESPONSÁVEL E RESOLVER A SUSPENSÃO ATIVA
     // =========================================================
