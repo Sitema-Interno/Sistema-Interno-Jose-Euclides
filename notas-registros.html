@@ -270,7 +270,7 @@
       <div class="card-header-custom">
         <div>
           <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
-            <i class="bi bi-funnel-fill me-2"></i>Notas e Registros Disciplinares da Turma (RAC por Bimestre)
+            <i class="bi bi-funnel-fill me-2"></i>Notas Bimestrais dos Registros Disciplinares da Turma 
           </h5>
           <small class="text-muted">Consulte o quadro consolidado das notas do 1º ao 4º Bimestre de todos os alunos da turma e gere o PDF com o nome do PDT.</small>
         </div>
@@ -688,7 +688,7 @@
       let startY = 38;
       if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
         startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
-          tituloDocumento: `QUADRO DE NOTAS E REGISTROS DISCIPLINARES DA TURMA (RAC)`,
+          tituloDocumento: `QUADRO DE NOTAS E REGISTROS DISCIPLINARES DA TURMA`,
           subtitulo1: `SÉRIE / TURMA: ${serie}   |   ANO LETIVO: ${ano}   |   TOTAL DE ALUNOS: ${linhasCalculadasParaPdf.length}`,
           subtitulo2: `PROFESSOR DIRETOR DE TURMA (PDT): ${pdt}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
         });
