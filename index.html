@@ -174,7 +174,7 @@
     }
 
     .hex-node svg.hex-border-svg polygon {
-      fill: rgba(255, 255, 255, 0.78);
+      fill: rgba(255, 255, 255, 0.86);
       stroke: var(--azul-primario);
       stroke-width: 3.4;
       stroke-linejoin: round;
@@ -216,13 +216,13 @@
     }
 
     .hex-label {
-      font-size: 0.65rem;
+      font-size: 0.63rem;
       font-weight: 800;
       color: var(--azul-escuro);
       text-transform: uppercase;
       letter-spacing: 0.4px;
-      line-height: 1.12;
-      max-width: 92px;
+      line-height: 1.1;
+      max-width: 96px;
     }
 
     .hex-node:hover {
@@ -356,112 +356,99 @@
     }
 
     /* ========================================================================= */
-    /* MODO CELULAR (COLMEIA DE 2 COLUNAS ENCAIXADAS COM PEQUENA DISTÂNCIA)      */
+    /* MODO CELULAR: COLMEIA DIAMANTE 3 COLUNAS (3 - 4 - 3) IGUAL À IMAGEM        */
     /* ========================================================================= */
     @media (max-width: 768px) {
       .top-header {
         justify-content: center;
-        padding: 14px 14px 6px 14px;
+        padding: 14px 12px 6px 12px;
       }
 
       .brand-escola img {
-        height: 76px;
+        height: 74px;
       }
 
       .brand-titulo-principal {
-        font-size: 1.65rem;
+        font-size: 1.62rem;
       }
 
-      /* Transforma o wrapper em uma Colmeia de 2 Colunas (5 pares = 10 hexágonos) */
+      .honeycomb-stage {
+        padding: 8px 6px 32px 6px;
+      }
+
+      /* Container de 3 Colunas (Esquerda: 3 | Centro: 4 | Direita: 3) */
       .honeycomb-wrapper {
-        --m-hex-w: 148px;
-        --m-hex-h: 128px;
-        --m-row-gap: 8px; /* Pequena distância vertical igual ao computador */
-        display: grid !important;
-        grid-template-columns: var(--m-hex-w) var(--m-hex-w) !important;
-        row-gap: var(--m-row-gap) !important;
-        column-gap: 0px !important;
+        --m-w: 124px;
+        --m-h: 107px;
+        --m-gap-y: 4px;
+        --m-overlap-x: -13px; /* Encaixa perfeitamente as diagonais das 3 colunas com 4px de respiro */
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: flex-start !important;
         justify-content: center !important;
-        align-items: center !important;
-        padding: 10px 0 85px 0 !important;
+        padding: 10px 4px 20px 4px !important;
         margin: 0 auto !important;
-        /* Compensa o recuo horizontal da 2ª coluna para deixar a colmeia 100% centralizada na tela */
-        transform: translateX(14px);
       }
 
-      /* Desfaz as caixas .hex-col no celular para que todos os 10 .hex-node fiquem livres no Grid 2x5 sem sobrepor! */
-      .hex-col {
-        display: contents !important;
+      /* Desfaz as 7 colunas antigas do desktop quando a colmeia 3-4-3 mobile estiver montada */
+      .honeycomb-wrapper > .hex-col {
+        display: none !important;
       }
 
-      .hex-node {
-        width: var(--m-hex-w) !important;
-        height: var(--m-hex-h) !important;
+      .honeycomb-wrapper > .hex-col-mobile-343 {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: var(--m-gap-y) !important;
+        margin: 0 var(--m-overlap-x) !important;
+        position: relative;
+      }
+
+      /* As colunas laterais (1ª e 3ª, com 3 hexágonos) descem metade de 1 hexágono para encaixar nos 4 do centro! */
+      .honeycomb-wrapper > .hex-col-mobile-343.col-lateral {
+        margin-top: calc((var(--m-h) + var(--m-gap-y)) / 2) !important;
+      }
+
+      .honeycomb-wrapper .hex-node {
+        width: var(--m-w) !important;
+        height: var(--m-h) !important;
         margin: 0 !important;
       }
 
-      /* Coluna da Esquerda (Ímpares: 1º Biblioteca, 3º Reservas, 5º Diretor de Turma, 7º Ocorrência, 9º Eletiva) */
-      .honeycomb-wrapper .hex-node:nth-of-type(odd) {
-        transform: translate(0, 0);
-      }
-
-      /* Coluna da Direita Encaixada (Pares: 2º Gestão, 4º Frequência, 6º Gráficos, 8º Atividade, 10º Alunos)
-         Recua para a esquerda encaixando na diagonal (-28px) e desce metade da altura (+68px) mantendo a mesma pequena distância! */
-      .honeycomb-wrapper .hex-node:nth-of-type(even) {
-        transform: translate(-28px, 68px);
-      }
-
-      /* Mantém o efeito de destaque ao tocar no hexágono no celular sem perder a posição da colmeia */
-      .honeycomb-wrapper .hex-node:nth-of-type(odd):hover,
-      .honeycomb-wrapper .hex-node:nth-of-type(odd).ativo {
-        transform: translate(0, 0) scale(1.06);
-      }
-
-      .honeycomb-wrapper .hex-node:nth-of-type(even):hover,
-      .honeycomb-wrapper .hex-node:nth-of-type(even).ativo {
-        transform: translate(-28px, 68px) scale(1.06);
-      }
-
-      /* Ícone e Texto bem visíveis e proporcionais dentro do hexágono no celular */
       .hex-svg-modern {
-        width: 44px !important;
-        height: 44px !important;
-        margin-bottom: 5px !important;
+        width: 34px !important;
+        height: 34px !important;
+        margin-bottom: 4px !important;
       }
 
       .hex-label {
-        font-size: 0.66rem !important;
+        font-size: 0.54rem !important;
         font-weight: 800 !important;
-        line-height: 1.12 !important;
-        max-width: 96px !important;
+        line-height: 1.08 !important;
+        max-width: 78px !important;
       }
 
       .drawer-topico {
-        padding: 18px 16px;
-        margin-top: 10px;
+        padding: 18px 14px;
+        margin-top: 14px;
       }
     }
 
-    /* Ajuste automático para telas de celulares mais estreitas (ex: 360px) */
-    @media (max-width: 375px) {
+    /* Ajuste automático para celulares com tela menor (ex: 360px de largura) */
+    @media (max-width: 380px) {
       .honeycomb-wrapper {
-        --m-hex-w: 136px;
-        --m-hex-h: 118px;
-        transform: translateX(12px);
-      }
-      .honeycomb-wrapper .hex-node:nth-of-type(even) {
-        transform: translate(-25px, 63px);
-      }
-      .honeycomb-wrapper .hex-node:nth-of-type(even):hover,
-      .honeycomb-wrapper .hex-node:nth-of-type(even).ativo {
-        transform: translate(-25px, 63px) scale(1.06);
+        --m-w: 112px;
+        --m-h: 97px;
+        --m-gap-y: 4px;
+        --m-overlap-x: -12px;
       }
       .hex-svg-modern {
-        width: 40px !important;
-        height: 40px !important;
+        width: 30px !important;
+        height: 30px !important;
       }
       .hex-label {
-        font-size: 0.61rem !important;
+        font-size: 0.5rem !important;
+        max-width: 70px !important;
       }
     }
   </style>
@@ -497,8 +484,8 @@
   </header>
 
   <main class="honeycomb-stage">
-    <div class="honeycomb-wrapper">
-      <!-- COLUNA 1: BIBLIOTECA -->
+    <div class="honeycomb-wrapper" id="wrapperColmeiaPrincipal">
+      <!-- COLUNA 1 (DESKTOP): BIBLIOTECA -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'BIBLIOTECA')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -512,7 +499,7 @@
         </div>
       </div>
 
-      <!-- COLUNA 2: GESTÃO + RESERVAS -->
+      <!-- COLUNA 2 (DESKTOP): GESTÃO + RESERVAS -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'GESTAO')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -539,7 +526,7 @@
         </div>
       </div>
 
-      <!-- COLUNA 3: FREQUÊNCIA -->
+      <!-- COLUNA 3 (DESKTOP): FREQUÊNCIA -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'FREQUENCIA')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -554,7 +541,7 @@
         </div>
       </div>
 
-      <!-- COLUNA 4: DIRETOR DE TURMA + GRÁFICOS -->
+      <!-- COLUNA 4 (DESKTOP): DIRETOR DE TURMA + GRÁFICOS -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'DIRETOR_TURMA')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -582,7 +569,7 @@
         </div>
       </div>
 
-      <!-- COLUNA 5: OCORRÊNCIA -->
+      <!-- COLUNA 5 (DESKTOP): OCORRÊNCIA -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'OCORRENCIA')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -597,7 +584,7 @@
         </div>
       </div>
 
-      <!-- COLUNA 6: ATIVIDADE + ELETIVA -->
+      <!-- COLUNA 6 (DESKTOP): ATIVIDADE + ELETIVA -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'ATIVIDADE')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -627,7 +614,7 @@
         </div>
       </div>
 
-      <!-- COLUNA 7: ALUNOS -->
+      <!-- COLUNA 7 (DESKTOP): ALUNOS -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'ALUNOS')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -663,6 +650,45 @@
 
   <script>
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    // Monta automaticamente as 3 colunas mobile (3 - 4 - 3) idênticas à imagem enviada!
+    (function configurarColmeia343Mobile() {
+      const wrapper = document.getElementById('wrapperColmeiaPrincipal');
+      if (!wrapper) return;
+
+      // Clona os 10 hexágonos em 3 colunas exclusivas para celular:
+      // Coluna Esquerda (3): GESTÃO, FREQUÊNCIA, OCORRÊNCIA
+      // Coluna Central (4): BIBLIOTECA (Topo), DIRETOR DE TURMA, ATIVIDADE, ALUNOS (Base)
+      // Coluna Direita (3): RESERVAS, GRÁFICOS, ELETIVA
+      const todosNodes = Array.from(wrapper.querySelectorAll('.hex-col > .hex-node'));
+      if (todosNodes.length !== 10) return;
+
+      const mapaPorChave = {};
+      todosNodes.forEach(node => {
+        const attr = node.getAttribute('onclick') || '';
+        const m = attr.match(/'([^']+)'/);
+        if (m && m[1]) mapaPorChave[m[1]] = node;
+      });
+
+      const ordemColEsquerda = ['GESTAO', 'FREQUENCIA', 'OCORRENCIA'];
+      const ordemColCentro   = ['BIBLIOTECA', 'DIRETOR_TURMA', 'ATIVIDADE', 'ALUNOS'];
+      const ordemColDireita  = ['RESERVAS', 'GRAFICOS', 'ELETIVA'];
+
+      function criarColunaMobile(listaChaves, isLateral) {
+        const col = document.createElement('div');
+        col.className = 'hex-col-mobile-343 d-md-none' + (isLateral ? ' col-lateral' : '');
+        listaChaves.forEach(ch => {
+          if (mapaPorChave[ch]) {
+            col.appendChild(mapaPorChave[ch].cloneNode(true));
+          }
+        });
+        return col;
+      }
+
+      wrapper.appendChild(criarColunaMobile(ordemColEsquerda, true));
+      wrapper.appendChild(criarColunaMobile(ordemColCentro, false));
+      wrapper.appendChild(criarColunaMobile(ordemColDireita, true));
+    })();
 
     let perfilLogadoUpper = "PROFESSOR";
     if (usuarioLogado) {
