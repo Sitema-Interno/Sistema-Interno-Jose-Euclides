@@ -748,5 +748,126 @@
       document.querySelectorAll('.hex-node').forEach(el => el.classList.remove('ativo'));
     }
   </script>
+  <!-- ========================================================================= -->
+<!-- LAYOUT COLMEIA CONECTADA (2 COLUNAS ENCAIXADAS) EXCLUSIVO PARA CELULAR    -->
+<!-- ========================================================================= -->
+<style id="estiloColmeiaMobileEEMTI">
+  @media (max-width: 768px) {
+    /* Ajusta o cabeçalho no celular para ficar bem enquadrado */
+    .top-header {
+      justify-content: center !important;
+      text-align: left;
+      padding: 12px 12px 6px 12px !important;
+    }
+
+    /* Container da Colmeia de 2 Colunas Conectadas no Celular */
+    .colmeia-mobile-ativa {
+      --larg-hex: 146px;
+      --alt-hex: 126px; /* Proporção geométrica exata do hexágono flat-top */
+      display: grid !important;
+      grid-template-columns: var(--larg-hex) var(--larg-hex) !important;
+      column-gap: 0px !important;
+      row-gap: 0px !important;
+      justify-content: center !important;
+      align-items: start !important;
+      width: calc(var(--larg-hex) * 1.75) !important;
+      margin: 15px auto 95px auto !important;
+      padding: 0 !important;
+      padding-left: calc(var(--larg-hex) * 0.25) !important;
+    }
+
+    /* Remove margens/paddings extras das colunas do Bootstrap se houver */
+    .colmeia-mobile-ativa > .item-hex-mobile {
+      width: var(--larg-hex) !important;
+      height: var(--alt-hex) !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      position: relative !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin-bottom: -2px !important; /* Cola a linha superior na inferior */
+    }
+
+    /* Coluna da Esquerda (1º, 3º, 5º, 7º, 9º hexágono) */
+    .colmeia-mobile-ativa > .item-hex-mobile:nth-child(odd) {
+      transform: translate(0, 0) !important;
+      z-index: 2;
+    }
+
+    /* Coluna da Direita Encaixada (2º, 4º, 6º, 8º, 10º hexágono):
+       Puxa 25% para a esquerda e desce 50% da altura para encaixar os lados! */
+    .colmeia-mobile-ativa > .item-hex-mobile:nth-child(even) {
+      transform: translate(calc(var(--larg-hex) * -0.25 + 1px), calc(var(--alt-hex) * 0.5 - 1px)) !important;
+      z-index: 3;
+    }
+
+    /* Garante que o próprio botão/card hexagonal ocupe 100% do slot da colmeia */
+    .colmeia-mobile-ativa > .item-hex-mobile > a,
+    .colmeia-mobile-ativa > .item-hex-mobile > div,
+    .colmeia-mobile-ativa > .item-hex-mobile > button,
+    .colmeia-mobile-ativa > a.item-hex-mobile,
+    .colmeia-mobile-ativa > div.item-hex-mobile {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      margin: 0 !important;
+    }
+  }
+
+  /* Ajuste fino para telas de celulares menores (ex: 360px de largura) */
+  @media (max-width: 380px) {
+    .colmeia-mobile-ativa {
+      --larg-hex: 132px;
+      --alt-hex: 114px;
+    }
+  }
+</style>
+
+<script>
+  (function ativarColmeiaMobileAutomatica() {
+    function aplicarClassesColmeia() {
+      // Localiza o container onde estão os hexágonos da tela inicial (Biblioteca, Gestão, Reservas, etc.)
+      const textosChave = ['BIBLIOTECA', 'GESTÃO', 'RESERVAS', 'FREQUÊNCIA', 'ELETIVA'];
+      let containerHexagonos = null;
+
+      // Procura pelos elementos que contêm os nomes dos módulos
+      const candidatos = document.querySelectorAll('a, button, .hex, .hexagon, .hex-card, .hex-item, [onclick]');
+      for (const el of candidatos) {
+        const txt = (el.innerText || '').trim().toUpperCase();
+        if (textosChave.includes(txt)) {
+          // Sobe até achar o container pai que agrupa todos os hexágonos (>= 6 filhos)
+          let pai = el.parentElement;
+          while (pai && pai !== document.body) {
+            const filhosVisiveis = Array.from(pai.children).filter(c =>
+              c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && getComputedStyle(c).display !== 'none'
+            );
+            if (filhosVisiveis.length >= 6 && filhosVisiveis.length <= 15) {
+              containerHexagonos = pai;
+              break;
+            }
+            pai = pai.parentElement;
+          }
+          if (containerHexagonos) break;
+        }
+      }
+
+      if (!containerHexagonos) return;
+
+      containerHexagonos.classList.add('colmeia-mobile-ativa');
+
+      // Numera apenas os hexágonos visíveis (caso algum esteja oculto por permissão) para não quebrar o par/ímpar da colmeia!
+      Array.from(containerHexagonos.children).forEach(filho => {
+        if (filho.tagName === 'SCRIPT' || filho.tagName === 'STYLE') return;
+        filho.classList.add('item-hex-mobile');
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', aplicarClassesColmeia);
+    window.addEventListener('load', aplicarClassesColmeia);
+    setTimeout(aplicarClassesColmeia, 300);
+  })();
+</script>
 </body>
 </html>
