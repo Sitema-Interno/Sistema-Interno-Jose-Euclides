@@ -1,18 +1,21 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS):
-// - FILA OFFLINE GLOBAL (SINCRONIZA AO ABRIR QUALQUER PÁGINA COM INTERNET)
-// - CACHE LEVE UNIVERSAL DE ALUNOS E SÉRIES (PARA FUNCIONAR 100% OFFLINE)
-// - CABEÇALHO INSTITUCIONAL PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO 2º PLANO (NON-BLOCKING)
+// - SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM TRAVAR A TELA DO PROFESSOR)
+// - SUPORTE A BACKGROUND SYNC COM O APP FECHADO (VIA INDEXEDDB + SW.JS)
+// - EXIBE O AVISO DOS DADOS SINCRONIZADOS APENAS AO FINALIZAR
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
+  const LOG_SINCRONIZADOS_KEY = 'log_recem_sincronizados_eemti_v1';
+  const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
+  const API_PADRAO_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
   const FILAS_LEGADAS = [
     'fila_offline_rac_eemti_v1',
     'fila_offline_atividades_eemti_v1',
     'fila_offline_mapeamento_v1'
   ];
 
-  // Chave universal leve de alunos e séries compartilhada entre Ocorrências, Frequência Secretaria, Atividades e Mapeamento
   window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
   window.KEY_SERIES_UNIVERSAL_EEMTI = 'cache_rac_series_v3';
 
@@ -25,7 +28,96 @@
     'salvarMapeamentoSala': 'Mapeamento de Sala de Aula'
   };
 
-  // 1. Registra o Service Worker e atualiza automaticamente quando houver push no GitHub
+  let sincronizacaoEmAndamento = false;
+
+  // =========================================================================
+  // 1. PONTE INDEXEDDB (COMPARTILHADA COM O SERVICE WORKER EM 2º PLANO)
+  // =========================================================================
+  function abrirBancoSyncIDB() {
+    return new Promise(resolve => {
+      if (!window.indexedDB) return resolve(null);
+      const req = indexedDB.open(IDB_SYNC_NAME, 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
+        if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function espelharFilaParaIndexedDB(filaArray) {
+    const db = await abrirBancoSyncIDB();
+    if (!db) return;
+    try {
+      const tx = db.transaction('fila_pendente', 'readwrite');
+      const store = tx.objectStore('fila_pendente');
+      store.clear();
+      (filaArray || []).forEach(item => store.put(item));
+    } catch (e) {}
+
+    // Registra o gatilho de Background Sync do Sistema Operacional (para sincronizar mesmo com o app fechado!)
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        if (filaArray && filaArray.length > 0) {
+          await reg.sync.register('sync-fila-eemti');
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Verifica se o Service Worker sincronizou itens enquanto o aplicativo estava fechado!
+  async function verificarSincronizacoesFeitasComAppFechado() {
+    const db = await abrirBancoSyncIDB();
+    let itensDoBackground = [];
+
+    if (db) {
+      await new Promise(resolve => {
+        try {
+          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
+          const storeRel = tx.objectStore('relatorio_concluido');
+          const storeFila = tx.objectStore('fila_pendente');
+
+          const reqRel = storeRel.getAll();
+          const reqFila = storeFila.getAll();
+
+          tx.oncomplete = () => {
+            if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
+              itensDoBackground = reqRel.result.map(r => r.resumoHtml || r);
+              // Limpa o relatório do IDB e atualiza a fila do localStorage
+              const txClear = db.transaction('relatorio_concluido', 'readwrite');
+              txClear.objectStore('relatorio_concluido').clear();
+
+              const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
+              localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
+            }
+            resolve();
+          };
+          tx.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+
+    // Também verifica se alguma sincronização em 2º plano terminou milissegundos antes de o professor trocar de página
+    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+    if (logLocal.length > 0) {
+      itensDoBackground = itensDoBackground.concat(logLocal);
+      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
+    }
+
+    if (itensDoBackground.length > 0) {
+      window.atualizarBadgeStatusConexaoGlobal();
+      exibirAvisoFinalDeDadosSincronizados(itensDoBackground);
+    }
+  }
+
+  // =========================================================================
+  // 2. REGISTRO DO SERVICE WORKER E ESCUTA DE MENSAGENS EM 2º PLANO
+  // =========================================================================
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -39,10 +131,18 @@
           });
         });
       }).catch(() => {});
+
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'SYNC_BACKGROUND_CONCLUIDO') {
+          verificarSincronizacoesFeitasComAppFechado();
+        }
+      });
     });
   }
 
-  // 2. Migra automaticamente qualquer item que estivesse nas filas separadas para a Fila Global Única
+  // =========================================================================
+  // 3. UNIFICAÇÃO DE FILAS E RESUMO LEGÍVEL DOS DADOS
+  // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
     let alterou = false;
@@ -62,7 +162,7 @@
             filaGlobal.push({
               idFila: item.idFila || item.idTemp || item.idLocal || (Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
               dataHora: item.dataHora || new Date().toLocaleString('pt-BR'),
-              url: item.url || "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec",
+              url: item.url || API_PADRAO_URL,
               payload: payloadUnificado,
               resumoHtml: item.resumoHtml || (`<li>${item.resumo || resumirItemSincronizado(payloadUnificado)}</li>`)
             });
@@ -75,6 +175,7 @@
 
     if (alterou) {
       localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaGlobal));
+      espelharFilaParaIndexedDB(filaGlobal);
     }
     return filaGlobal;
   }
@@ -100,7 +201,6 @@
     return `<li><b>${ACOES_GRAVACAO_OFFLINE[act] || act}:</b> Sincronizado com sucesso</li>`;
   }
 
-  // Salva de forma leve os nomes/turmas/dados dos alunos sempre que qualquer página consultar o servidor
   function atualizarCacheLeveAlunosUniversal(listaAlunosBruta, listaSeriesBruta) {
     try {
       if (Array.isArray(listaSeriesBruta) && listaSeriesBruta.length > 0) {
@@ -123,7 +223,9 @@
     } catch (e) {}
   }
 
-  // 3. Interceptador Global de Fetch
+  // =========================================================================
+  // 4. INTERCEPTADOR DE REQUISIÇÕES E ENFILEIRAMENTO OFFLINE
+  // =========================================================================
   const _fetchNativo = window.fetch;
   window.fetch = async function(url, options) {
     if (options && options.method === 'POST' && typeof options.body === 'string' && String(url).includes('script.google.com')) {
@@ -138,13 +240,12 @@
 
       const action = bodyObj.action || '';
 
-      // Se estiver OFFLINE e for uma ação de gravação (Ocorrências, Atividades, Frequência Secretaria, Frequência Eletiva, Mapeamento):
       if (!navigator.onLine && ACOES_GRAVACAO_OFFLINE[action]) {
         window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
         return new Response(JSON.stringify({
           success: true,
           offline: true,
-          msg: 'Sem internet no momento! O registro foi colocado na Fila de Sincronização Offline e será enviado automaticamente assim que você acessar o aplicativo com internet.'
+          msg: 'Salvo no Modo Offline! A sincronização ocorrerá automaticamente em segundo plano assim que houver internet.'
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
 
@@ -152,7 +253,6 @@
         const response = await _fetchNativo(url, options);
         const clone = response.clone();
 
-        // Se a resposta trouxe alunos (de getFiltrosOcorrencias ou listarFrequenciaSecretaria), salva a lista leve universal para uso offline!
         if (action === 'getFiltrosOcorrencias' || action === 'listarFrequenciaSecretaria') {
           clone.json().then(data => {
             if (data && data.success) {
@@ -167,7 +267,7 @@
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Conexão instável! O lançamento foi guardado na Fila Offline e será sincronizado automaticamente quando a internet voltar.'
+            msg: 'Conexão instável! Salvo na fila e será sincronizado em segundo plano sem interromper seu uso.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         throw errRede;
@@ -181,11 +281,12 @@
     fila.push({
       idFila: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       dataHora: new Date().toLocaleString('pt-BR'),
-      url: url || "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec",
+      url: url || API_PADRAO_URL,
       payload: payload,
       resumoHtml: resumoCustomizado ? `<li>${resumoCustomizado}</li>` : resumirItemSincronizado(payload)
     });
     localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+    espelharFilaParaIndexedDB(fila);
     window.atualizarBadgeStatusConexaoGlobal();
   };
 
@@ -193,85 +294,119 @@
     return unificarFilasOfflineNoStorage();
   };
 
-  // 4. Sincroniza automaticamente a fila inteira assim que abrir o aplicativo com internet
-  window.sincronizarFilaOfflineGlobal = async function() {
-    const fila = unificarFilasOfflineNoStorage();
-    window.atualizarBadgeStatusConexaoGlobal();
-    if (!navigator.onLine || fila.length === 0) return;
+  // =========================================================================
+  // 5. SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM CONGESTIONAR OU TRAVAR A TELA!)
+  // =========================================================================
+  function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
+    if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
+    if (typeof Swal === 'undefined') return;
 
-    if (typeof Swal !== 'undefined') {
-      Swal.fire({
-        title: 'Sincronizando Fila Offline...',
-        html: `Enviando <b>${fila.length}</b> registro(s) pendente(s) na fila para o banco de dados...`,
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-      });
+    Swal.fire({
+      title: 'Dados Offline Sincronizados!',
+      html: `
+        <p class="small text-muted mb-2">A sincronização em segundo plano foi concluída! Os seguintes registros foram salvos no banco de dados:</p>
+        <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
+          ${listaHtmlSincronizados.join('')}
+        </ul>
+      `,
+      icon: 'success',
+      confirmButtonColor: '#15438c',
+      confirmButtonText: 'OK, Entendido!'
+    });
+  }
+
+  window.sincronizarFilaOfflineGlobal = async function() {
+    if (sincronizacaoEmAndamento || !navigator.onLine) return;
+
+    const filaInicial = unificarFilasOfflineNoStorage();
+    if (filaInicial.length === 0) {
+      window.atualizarBadgeStatusConexaoGlobal();
+      return;
     }
 
+    sincronizacaoEmAndamento = true;
+    const totalParaEnviar = filaInicial.length;
+    let enviadosAgora = 0;
     const sincronizadosHtml = [];
-    const restantes = [];
 
-    for (const item of fila) {
+    // NÃO abre Swal.fire de loading! O professor continua mexendo normalmente na tela
+    // enquanto atualizamos apenas o pequeno badge no canto inferior direito:
+    window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (0/${totalParaEnviar})...`);
+
+    for (let i = 0; i < filaInicial.length; i++) {
+      if (!navigator.onLine) break;
+      const item = filaInicial[i];
+      window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (${i + 1}/${totalParaEnviar})...`);
+
       try {
-        const res = await _fetchNativo(item.url, {
+        const res = await _fetchNativo(item.url || API_PADRAO_URL, {
           method: 'POST',
           body: JSON.stringify(item.payload)
         });
         const json = await res.json();
+
         if (json && (json.success || json.msg)) {
           sincronizadosHtml.push(item.resumoHtml);
-        } else {
-          restantes.push(item);
+          enviadosAgora++;
+
+          // Remove imediatamente da fila no localStorage o item que acabou de ser sincronizado
+          // (para que se o professor mudar de página no meio da sincronização, não envie duplicado!)
+          const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
+            .filter(f => f.idFila !== item.idFila);
+          localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaAtual));
+          espelharFilaParaIndexedDB(filaAtual);
         }
       } catch (e) {
-        restantes.push(item);
+        // Se falhou por oscilação de rede, mantém na fila para a próxima tentativa
       }
     }
 
-    localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(restantes));
+    sincronizacaoEmAndamento = false;
     window.atualizarBadgeStatusConexaoGlobal();
 
     if (sincronizadosHtml.length > 0) {
       window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          title: 'Dados Offline Sincronizados!',
-          html: `
-            <p class="small text-muted mb-2">Os seguintes registros que estavam na fila offline foram salvos na planilha:</p>
-            <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
-              ${sincronizadosHtml.join('')}
-            </ul>
-          `,
-          icon: 'success',
-          confirmButtonColor: '#15438c',
-          confirmButtonText: 'Concluído!'
-        });
+
+      // Se a página estiver visível, mostra o aviso imediatamente; se o usuário estiver trocando de aba, guarda no log para mostrar ao abrir
+      if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
+        exibirAvisoFinalDeDadosSincronizados(sincronizadosHtml);
+      } else {
+        const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+        localStorage.setItem(LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(sincronizadosHtml)));
       }
     }
   };
 
-  window.atualizarBadgeStatusConexaoGlobal = function() {
+  window.atualizarBadgeStatusConexaoGlobal = function(textoProgressoEmSegundoPlano) {
     let badge = document.getElementById('badgeStatusOfflineGlobal');
     const fila = unificarFilasOfflineNoStorage();
     if (!badge && document.body) {
       badge = document.createElement('div');
       badge.id = 'badgeStatusOfflineGlobal';
-      badge.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99999;padding:10px 16px;border-radius:30px;font-weight:800;font-size:0.8rem;box-shadow:0 6px 18px rgba(0,0,0,0.22);cursor:pointer;transition:all 0.2s;';
+      badge.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99999;padding:9px 15px;border-radius:30px;font-weight:800;font-size:0.78rem;box-shadow:0 6px 18px rgba(0,0,0,0.2);cursor:pointer;transition:all 0.2s;pointer-events:auto;';
       badge.onclick = () => window.sincronizarFilaOfflineGlobal();
       document.body.appendChild(badge);
     }
     if (!badge) return;
 
+    if (textoProgressoEmSegundoPlano) {
+      badge.style.display = 'block';
+      badge.style.backgroundColor = '#15438c';
+      badge.style.color = '#ffffff';
+      badge.innerHTML = `<span class="spinner-border spinner-border-sm me-2" style="width:0.85rem;height:0.85rem;"></span>${textoProgressoEmSegundoPlano}`;
+      return;
+    }
+
     if (!navigator.onLine) {
       badge.style.display = 'block';
       badge.style.backgroundColor = '#dc2626';
       badge.style.color = '#ffffff';
-      badge.innerHTML = `<i class="bi bi-wifi-off me-2"></i>Modo Offline (${fila.length} na fila para sincronizar)`;
+      badge.innerHTML = `<i class="bi bi-wifi-off me-2"></i>Modo Offline (${fila.length} na fila)`;
     } else if (fila.length > 0) {
       badge.style.display = 'block';
       badge.style.backgroundColor = '#f59e0b';
       badge.style.color = '#0f172a';
-      badge.innerHTML = `<span class="spinner-grow spinner-grow-sm me-2"></span>Na fila para sincronizar (${fila.length}) — Clique aqui`;
+      badge.innerHTML = `<i class="bi bi-cloud-arrow-up-fill me-2"></i>Na fila (${fila.length}) — Sincronizando em 2º plano...`;
     } else {
       badge.style.display = 'none';
     }
@@ -281,17 +416,25 @@
     window.atualizarBadgeStatusConexaoGlobal();
     window.sincronizarFilaOfflineGlobal();
   });
-  window.addEventListener('offline', window.atualizarBadgeStatusConexaoGlobal);
-  window.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('offline', () => {
+    window.atualizarBadgeStatusConexaoGlobal();
+  });
+
+  window.addEventListener('DOMContentLoaded', async () => {
     unificarFilasOfflineNoStorage();
     window.atualizarBadgeStatusConexaoGlobal();
+
+    // 1º Verifica se o Service Worker já sincronizou itens enquanto o app estava fechado!
+    await verificarSincronizacoesFeitasComAppFechado();
+
+    // 2º Se ainda houver itens na fila e tiver internet, sincroniza em 2º plano sem travar a tela!
     if (navigator.onLine) {
-      setTimeout(window.sincronizarFilaOfflineGlobal, 800);
+      setTimeout(window.sincronizarFilaOfflineGlobal, 400);
     }
   });
 
   // =========================================================================
-  // 5. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
+  // 6. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
