@@ -1,44 +1,237 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#15438c">
+  <link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Notas e Registros da Turma -  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
-  
+  <title>Notas e Registros da Turma (RAC) - EEMTI Dr. José Euclides</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  <!-- Bibliotecas para gerar o PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="portal-core.js"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    
-    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 50vw; max-width: 550px; opacity: 0.05; z-index: -1; pointer-events: none; }
-    
-    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
-    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
-    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
-    
-    .main-container { padding: 30px 15px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); background: rgba(255, 255, 255, 0.95); margin-bottom: 25px; }
-    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
-    
-    .btn-tema { background-color: #0f766e; color: white; border: none; transition: 0.2s; }
-    .btn-tema:hover { background-color: #0d645e; color: white; }
-    
-    .form-label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 5px; }
-    .form-control, .form-select { border-color: #e2e8f0; border-radius: 6px; padding: 10px 15px; font-size: 0.95rem; }
-    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15); }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
 
-    .nota-baixa { color: #dc3545; font-weight: bold; }
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1420px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 82px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.8rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.66rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.32rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1260px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 12px;
+      font-size: 0.86rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+    }
+
+    .btn-principal {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 9px 18px;
+    }
+
+    .btn-principal:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .tabela-notas-rac {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .tabela-notas-rac thead th {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      padding: 12px 10px;
+      border: 1px solid #1e3a8a;
+    }
+
+    .tabela-notas-rac tbody td {
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+
+    .tabela-notas-rac tbody tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    .tabela-notas-rac tbody tr:hover {
+      background-color: #eff6ff;
+    }
+
+    .nota-verde {
+      color: #15803d;
+      font-weight: 800;
+    }
+
+    .nota-amarela {
+      color: #b45309;
+      font-weight: 800;
+    }
+
+    .nota-vermelha {
+      color: #dc2626;
+      font-weight: 800;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.85);
+      position: relative;
+      z-index: 5;
+    }
   </style>
 
   <script>
@@ -47,353 +240,506 @@
   </script>
 </head>
 <body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
 
-  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
-
-  <!-- Cabeçalho -->
-  <nav class="navbar navbar-custom">
-    <div class="container-fluid">
-      <span class="navbar-brand">
-        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://placehold.co/100?text=Logo'">
-        <div>
-          Notas e Registros da Turma
-          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
-        </div>
-      </span>
-      <div class="d-flex align-items-center gap-3">
-        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
-        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3"><i class="bi bi-house-door-fill me-1"></i> Início</a>
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
       </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold small text-dark">
+        <i class="bi bi-person-circle text-primary me-1"></i>
+        Olá, <span id="lblNomeUsuario">USUÁRIO</span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilUsuario">Professor</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
     </div>
-  </nav>
+  </header>
 
   <div class="main-container">
-    
-    <!-- Filtros -->
+    <!-- CARD 1: FILTROS DE PESQUISA DA TURMA -->
     <div class="card p-4">
-      <div class="card-header-custom d-flex justify-content-between align-items-center">
-        <h4 class="m-0 text-dark fs-5 fw-bold"><i class="bi bi-filter-circle text-primary me-2"></i>Filtros de Pesquisa da Turma</h4>
-        <button class="btn btn-danger btn-sm" id="btnPdfTurma" onclick="gerarPdfTurma()" style="display:none;"><i class="bi bi-file-pdf-fill me-2"></i> Baixar PDF da Turma</button>
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-funnel-fill me-2"></i>Notas e Registros Disciplinares da Turma (RAC por Bimestre)
+          </h5>
+          <small class="text-muted">Consulte o quadro consolidado das notas do 1º ao 4º Bimestre de todos os alunos da turma e gere o PDF com o nome do PDT.</small>
+        </div>
+        <button type="button" class="btn btn-danger fw-bold px-3 shadow-sm" onclick="baixarPdfNotasDaTurma()">
+          <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF da Turma
+        </button>
       </div>
 
       <div class="row g-3 align-items-end">
-        <div class="col-md-4">
+        <div class="col-6 col-md-2">
           <label class="form-label">Ano Letivo</label>
-          <select id="filtroAno" class="form-select">
+          <select id="filtroAnoTurma" class="form-select fw-bold" onchange="gerarQuadroNotasDaTurma(false)">
             <option value="2026" selected>2026</option>
             <option value="2025">2025</option>
-            <option value="2024">2024</option>
           </select>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Série / Turma</label>
-          <select id="filtroSerie" class="form-select">
-            <option value="">A carregar turmas...</option>
-          </select>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label">Série / Turma *</label>
+          <select id="filtroSerieTurma" class="form-select fw-bold" onchange="gerarQuadroNotasDaTurma(false)"></select>
         </div>
-        <div class="col-md-2">
-          <button class="btn btn-tema w-100 fw-bold py-2" onclick="carregarNotasTurma()"><i class="bi bi-search me-1"></i> Gerar</button>
+
+        <div class="col-12 col-md-5">
+          <label class="form-label"><i class="bi bi-person-workspace text-primary me-1"></i>Professor Diretor de Turma (PDT)</label>
+          <input type="text" id="inputPdtDaTurma" class="form-control fw-bold bg-light text-primary" readonly placeholder="Vinculado na aba PDT">
+        </div>
+
+        <div class="col-12 col-md-2 d-grid">
+          <button type="button" class="btn btn-principal py-2" onclick="gerarQuadroNotasDaTurma(true)">
+            <i class="bi bi-search me-1"></i>Gerar
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Tabela de Resultados -->
-    <div class="card p-4" id="cardTabelaTurma" style="display:none;">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold text-dark m-0" id="lblTituloTurma">Relatório de Notas da Turma</h5>
-        <span class="badge bg-secondary" id="lblTotalAlunos">0 alunos</span>
+    <!-- CARD 2: QUADRO DE NOTAS DA TURMA (1º AO 4º BIMESTRE) -->
+    <div class="card p-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+          <h5 class="fw-bold m-0 text-dark" id="lblTituloTurmaQuadro">Turma: 1ª SÉRIE A (2026)</h5>
+          <small class="text-primary fw-bold" id="lblSubtituloPdtQuadro">PDT: Carregando...</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-secondary px-3 py-2" id="badgeTotalAlunosQuadro">0 alunos registados</span>
+        </div>
       </div>
 
       <div class="table-responsive">
-        <table class="table table-bordered table-striped align-middle text-center">
-          <thead class="table-dark">
+        <table class="tabela-notas-rac border">
+          <thead>
             <tr>
-              <th class="text-start" style="width: 45%;">Nome do Aluno</th>
-              <th style="width: 13%;">1º Bimestre</th>
-              <th style="width: 13%;">2º Bimestre</th>
-              <th style="width: 13%;">3º Bimestre</th>
-              <th style="width: 13%;">4º Bimestre</th>
+              <th style="width: 44%;">Nome do(a) Aluno(a)</th>
+              <th style="width: 14%;" class="text-center">1º Bimestre</th>
+              <th style="width: 14%;" class="text-center">2º Bimestre</th>
+              <th style="width: 14%;" class="text-center">3º Bimestre</th>
+              <th style="width: 14%;" class="text-center">4º Bimestre</th>
             </tr>
           </thead>
-          <tbody id="tabelaTurmaBody"></tbody>
+          <tbody id="tbodyNotasTurma">
+            <tr><td colspan="5" class="text-center py-4 text-muted">Carregando alunos da turma...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
-
   </div>
 
-  <script>
-    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
-const _fetchOriginal = window.fetch;
-window.fetch = function(url, options) {
-  if (options && options.method === 'POST' && typeof options.body === 'string') {
-    try {
-      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
-      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
-      let bodyObj = JSON.parse(options.body);
-      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
-      options.body = JSON.stringify(bodyObj);
-    } catch (e) {}
-  }
-  return _fetchOriginal(url, options);
-};
-    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
-    let dadosTurmaAtual = [];
-    let nomeTurmaSelecionada = "";
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Notas e Registros da Turma.
+  </footer>
 
-    // Funções de tempo auxiliares
-    function extrairTimestamp(dataString) {
-      if (!dataString) return 0;
-      if (typeof dataString === 'string' && dataString.includes('/')) {
-        let p = dataString.split(' ')[0].split('/');
-        if (p.length === 3) return new Date(p[2], p[1] - 1, p[0], 12, 0, 0).getTime();
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const nomeUser = String((usuarioLogado && (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1)) || "USUÁRIO").trim().toUpperCase();
+    document.getElementById('lblNomeUsuario').innerText = nomeUser;
+    document.getElementById('lblPerfilUsuario').innerText = usuarioLogado.permissao || "Professor";
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    // Chaves de Cache Local para abertura em 0ms (sem tela lenta de carregamento!)
+    const KEY_SERIES_CACHE = "cache_rac_series_v3";
+    const KEY_ALUNOS_CACHE = "cache_rac_alunos_leve_v3";
+    const KEY_PDT_CACHE = "cache_mapa_pdt_v4";
+    const KEY_BIM_CACHE = "cache_notas_turma_bim_v4";
+    const KEY_PONTOS_CACHE = "cache_notas_turma_pontos_v4";
+
+    let seriesLista = JSON.parse(
+      localStorage.getItem(KEY_SERIES_CACHE) ||
+      localStorage.getItem("cache_ativ_rapido_v3_ser") ||
+      'null'
+    ) || ["1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C", "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C", "3ª SÉRIE A", "3ª SÉRIE B"];
+
+    let todosAlunosCache = JSON.parse(
+      localStorage.getItem(KEY_ALUNOS_CACHE) ||
+      localStorage.getItem("cache_freq_sec_alunos_det_v4") ||
+      localStorage.getItem("cache_ativ_rapido_v3_alunos") ||
+      '[]'
+    );
+
+    let mapaPdtPorSerie = JSON.parse(localStorage.getItem(KEY_PDT_CACHE) || '{}');
+    let listaBimestres = JSON.parse(localStorage.getItem(KEY_BIM_CACHE) || '[]');
+    let mapaPontuacoesRac = JSON.parse(localStorage.getItem(KEY_PONTOS_CACHE) || '{}');
+    let cacheOcorrenciasPorTurma = {};
+    let linhasCalculadasParaPdf = [];
+
+    function normalizarSeriePadrao(s) {
+      let str = String(s || "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+      const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)\s*([A-Z0-9].*)$/i);
+      return m ? `${m[1]}ª SÉRIE ${m[2].trim()}` : str;
+    }
+
+    async function chamarAPI(payload) {
+      try {
+        if (nomeUser && !payload.usuarioLogado) payload.usuarioLogado = nomeUser;
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        return await res.json();
+      } catch (e) {
+        return null;
       }
-      let d = new Date(dataString);
-      if (!isNaN(d.getTime())) return d.getTime();
+    }
+
+    function extrairTimestampSeguro(dataValor) {
+      if (!dataValor) return 0;
+      if (typeof dataValor === 'number') return dataValor;
+      const str = String(dataValor).trim();
+      const mBr = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}))?/);
+      if (mBr) {
+        return new Date(
+          parseInt(mBr[3], 10),
+          parseInt(mBr[2], 10) - 1,
+          parseInt(mBr[1], 10),
+          mBr[4] ? parseInt(mBr[4], 10) : 12,
+          mBr[5] ? parseInt(mBr[5], 10) : 0,
+          0
+        ).getTime();
+      }
+      const mIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (mIso) {
+        return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 12, 0, 0).getTime();
+      }
       return 0;
     }
 
-    function parseDataBimestre(dataString, isFinal) {
-      if (!dataString) return 0;
-      if (typeof dataString === 'string' && dataString.includes('-')) {
-        let p = dataString.split('T')[0].split('-'); 
-        if (p.length === 3) {
-          if (isFinal) return new Date(p[0], p[1] - 1, p[2], 23, 59, 59).getTime();
-          return new Date(p[0], p[1] - 1, p[2], 0, 0, 0).getTime();
+    function obterDescontoDaOcorrencia(ocorrenciaObj) {
+      const grav = String(ocorrenciaObj.gravidade || "").trim().toUpperCase();
+      const desc = String(ocorrenciaObj.ocorrencia || "").trim().toUpperCase();
+
+      if (mapaPontuacoesRac && Object.keys(mapaPontuacoesRac).length > 0) {
+        if (mapaPontuacoesRac[grav] !== undefined) return Math.abs(parseFloat(mapaPontuacoesRac[grav]) || 0);
+        if (mapaPontuacoesRac[desc] !== undefined) return Math.abs(parseFloat(mapaPontuacoesRac[desc]) || 0);
+        for (const ch in mapaPontuacoesRac) {
+          const chaveUp = String(ch).trim().toUpperCase();
+          if (chaveUp && (grav.includes(chaveUp) || chaveUp.includes(grav))) {
+            return Math.abs(parseFloat(mapaPontuacoesRac[ch]) || 0);
+          }
         }
       }
-      return new Date(dataString).getTime();
+
+      if (grav.includes("GRAU 0") || grav.includes("ACOMPANHAMENTO")) return 0;
+      if (grav.includes("GRAVÍSSIMA") || grav.includes("GRAVISSIMA") || grav.includes("GRAU IV")) return 2.0;
+      if (grav.includes("GRAU III") || grav.includes("MAIS GRAVE") || desc.startsWith("[GRAVE]")) return 1.0;
+      if (grav.includes("GRAU II") || grav.includes("MÉDIA") || grav.includes("MEDIA") || desc.startsWith("[MÉDIA]")) return 0.5;
+      if (grav.includes("GRAU I") || grav.includes("LEVE") || desc.startsWith("[LEVE]")) return 0.2;
+      return 0.2;
     }
 
-    // Carregar Séries no Select ao abrir
-    window.onload = async function() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
-  if (u) {
-    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
-    const elUser = document.getElementById('nomeUsuarioUi');
-    if (elUser) {
-      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+    function formatarNotaDuasCasas(valor) {
+      return Number(valor).toFixed(2).replace('.', ',');
     }
-  }
-      try {
-        const res = await fetch(API_URL, { 
-          method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) 
-        });
-        const dados = await res.json();
-        let html = '<option value="">Selecione a Série...</option>';
-        if(dados.lista) {
-          dados.lista.sort((a, b) => a.col2.localeCompare(b.col2));
-          dados.lista.forEach(item => {
-            html += `<option value="${item.col2}">${item.col2}</option>`;
-          });
-        }
-        document.getElementById('filtroSerie').innerHTML = html;
-      } catch (e) {
-        document.getElementById('filtroSerie').innerHTML = '<option value="">Erro ao carregar turmas</option>';
+
+    function obterClasseCorNota(valor) {
+      if (valor >= 8.0) return 'nota-verde';
+      if (valor >= 6.0) return 'nota-amarela';
+      return 'nota-vermelha';
+    }
+
+    function popularSelectSeriesNaTela() {
+      const sel = document.getElementById('filtroSerieTurma');
+      const valorAnt = sel.value;
+      let html = '';
+      seriesLista.forEach(s => {
+        const sNorm = normalizarSeriePadrao(s);
+        html += `<option value="${sNorm}">${sNorm}</option>`;
+      });
+      sel.innerHTML = html;
+      if (valorAnt && seriesLista.includes(valorAnt)) {
+        sel.value = valorAnt;
+      } else if (seriesLista.length > 0) {
+        sel.value = seriesLista[0];
       }
+    }
+
+    // =========================================================
+    // INICIALIZAÇÃO INSTANTÂNEA (0 SEGUNDOS DE ESPERA!)
+    // =========================================================
+    window.onload = function() {
+      popularSelectSeriesNaTela();
+      gerarQuadroNotasDaTurma(false);
+
+      // Sincroniza silenciosamente em segundo plano PDTs, Bimestres, Pontuações e Alunos
+      sincronizarConfiguracoesEmSegundoPlano();
     };
-    
-    // Função Principal para Calcular Notas da Turma
-    async function carregarNotasTurma() {
-      const anoLetivo = document.getElementById('filtroAno').value;
-      const serie = document.getElementById('filtroSerie').value;
 
-      if (!serie) return Swal.fire('Atenção', 'Selecione uma série/turma.', 'warning');
+    async function sincronizarConfiguracoesEmSegundoPlano() {
+      if (!navigator.onLine) return;
 
-      nomeTurmaSelecionada = serie;
-      Swal.fire({ title: 'A processar notas da turma...', text: 'A calcular ocorrências e bimestres...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-      try {
-        // Chamadas simultâneas para otimizar velocidade
-        const reqAlunos = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json());
-        const reqOco = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json());
-        const reqBim = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json());
-        const reqPon = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'PONTUACAO' }) }).then(r => r.json());
-
-        const [resAlunos, resOco, resBim, resPon] = await Promise.all([reqAlunos, reqOco, reqBim, reqPon]);
-
-        // Filtrar alunos da turma selecionada
-        let todosAlunos = resAlunos.alunos || [];
-        let alunosTurma = todosAlunos.filter(a => (a.serie || "").trim().toUpperCase() === serie.toUpperCase());
-
-        // Ordenar alfabeticamente
-        alunosTurma.sort((a, b) => a.nome.localeCompare(b.nome));
-
-        if (alunosTurma.length === 0) {
-          Swal.close();
-          document.getElementById('cardTabelaTurma').style.display = 'none';
-          document.getElementById('btnPdfTurma').style.display = 'none';
-          return Swal.fire('Aviso', 'Nenhum aluno encontrado para esta turma.', 'info');
-        }
-
-        // Mapear pontuações da Coluna B
-        let mapPontuacoes = {};
-        if(resPon.lista) {
-          resPon.lista.forEach(p => {
-            let valorRaw = String(p.col2 || "0").replace(',', '.');
-            mapPontuacoes[p.col1.toUpperCase().trim()] = parseFloat(valorRaw);
-          });
-        }
-
-        // Configurar bimestres com timestamps
-        let arrayBimestres = resBim.lista || [];
-        arrayBimestres.forEach(b => {
-          b.tsIni = parseDataBimestre(b.col2, false);
-          b.tsFim = parseDataBimestre(b.col3, true);
-        });
-
-        let ocorrencias = resOco || [];
-
-        // Processar notas por aluno
-        dadosTurmaAtual = alunosTurma.map(aluno => {
-          let notasBim = {};
-          arrayBimestres.forEach(b => { notasBim[b.col1] = 10.00; });
-
-          // Filtrar ocorrências deste aluno
-          let ocoAluno = ocorrencias.filter(o => (o.aluno || "").trim().toUpperCase() === aluno.nome.toUpperCase());
-
-          ocoAluno.forEach(o => {
-            let grav = (o.gravidade || "").trim().toUpperCase();
-            let tsOco = extrairTimestamp(o.data);
-            let desconto = mapPontuacoes[grav] || 0;
-
-            let bimAlvo = arrayBimestres.find(b => tsOco >= b.tsIni && tsOco <= b.tsFim);
-            if (bimAlvo && notasBim[bimAlvo.col1] !== undefined) {
-              notasBim[bimAlvo.col1] += desconto;
-              if (notasBim[bimAlvo.col1] < 0) notasBim[bimAlvo.col1] = 0;
+      chamarAPI({ action: 'listarPDT' }).then(resPdt => {
+        if (resPdt && Array.isArray(resPdt.lista) && resPdt.lista.length > 0) {
+          const setS = new Set();
+          const novoMapaPdt = {};
+          resPdt.lista.forEach(item => {
+            const s = normalizarSeriePadrao(item.serie);
+            const p = String(item.professor || "").trim().toUpperCase();
+            if (s && s !== "SÉRIE" && s !== "SERIE") {
+              setS.add(s);
+              if (p) novoMapaPdt[s] = p;
             }
           });
-
-          return {
-            nome: aluno.nome,
-            notas: notasBim
-          };
-        });
-
-        // Montar HTML da Tabela
-        let tbodyHtml = '';
-        dadosTurmaAtual.forEach((item, index) => {
-          let colunasNotas = '';
-          // Identificar bimestres dinamicamente
-          let chavesBim = Object.keys(item.notas);
-          
-          chavesBim.forEach(bName => {
-            let val = item.notas[bName];
-            let classe = val < 6.0 ? 'nota-baixa' : 'fw-bold text-success';
-            colunasNotas += `<td class="${classe}">${val.toFixed(2).replace('.', ',')}</td>`;
-          });
-
-          tbodyHtml += `
-            <tr>
-              <td class="text-start fw-semibold">${index + 1}. ${item.nome}</td>
-              ${colunasNotas}
-            </tr>
-          `;
-        });
-
-        document.getElementById('tabelaTurmaBody').innerHTML = tbodyHtml;
-        document.getElementById('lblTituloTurma').innerText = `Turma: ${serie} (${anoLetivo})`;
-        document.getElementById('lblTotalAlunos').innerText = `${alunosTurma.length} alunos registados`;
-        
-        document.getElementById('cardTabelaTurma').style.display = 'block';
-        document.getElementById('btnPdfTurma').style.display = 'inline-block';
-
-        Swal.close();
-
-      } catch (erro) {
-        console.error(erro);
-        Swal.fire('Erro', 'Ocorreu um erro ao calcular as notas da turma.', 'error');
-      }
-    }
-
-    // Função para Gerar PDF Paisagem da Turma Inteira
-    async function gerarPdfTurma() {
-      if (dadosTurmaAtual.length === 0) return;
-
-      Swal.fire({ title: 'A gerar PDF da turma...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-      try {
-        const { jsPDF } = window.jspdf;
-        // Criar documento em orientação paisagem ('landscape') para caber as colunas
-        const doc = new jsPDF('landscape');
-
-        // 1. Logo
-        try {
-          let logoBase64 = await getBase64Image('LOGO-removebg-preview.png');
-          doc.addImage(logoBase64, 'PNG', 14, 10, 25, 25);
-        } catch (e) {
-          try {
-            const imgElement = document.querySelector('.logo-escola');
-            const canvas = document.createElement('canvas');
-            canvas.width = imgElement.naturalWidth || 100; 
-            canvas.height = imgElement.naturalHeight || 100;
-            canvas.getContext('2d').drawImage(imgElement, 0, 0);
-            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 25, 25);
-          } catch(err) {}
+          if (setS.size > 0) {
+            mapaPdtPorSerie = novoMapaPdt;
+            seriesLista = Array.from(setS).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+            try {
+              localStorage.setItem(KEY_PDT_CACHE, JSON.stringify(mapaPdtPorSerie));
+              localStorage.setItem(KEY_SERIES_CACHE, JSON.stringify(seriesLista));
+            } catch (e) {}
+            popularSelectSeriesNaTela();
+            atualizarCabecalhoTurmaEPdtNaTela();
+          }
         }
+      });
 
-        // 2. Cabeçalho Institucional
-        doc.setFontSize(12); doc.setFont("helvetica", "bold");
-        doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
-        doc.setFontSize(15); doc.text(" EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 45, 24);
-        doc.setFontSize(10); doc.setFont("helvetica", "normal");
-        doc.text("Educação Pública de Qualidade", 45, 30);
-        doc.setLineWidth(0.5); doc.line(14, 37, 283, 37);
+      chamarAPI({ action: 'listarConfig', tipo: 'BIMESTRE' }).then(resBim => {
+        if (resBim && Array.isArray(resBim.lista) && resBim.lista.length > 0) {
+          listaBimestres = resBim.lista.map(b => {
+            const tsIni = extrairTimestampSeguro(b.col2);
+            const tsFim = extrairTimestampSeguro(b.col3);
+            return {
+              nome: String(b.col1 || "").trim(),
+              inicio: tsIni > 0 ? new Date(tsIni).setHours(0, 0, 0, 0) : 0,
+              fim: tsFim > 0 ? new Date(tsFim).setHours(23, 59, 59, 999) : 0
+            };
+          }).filter(b => b.nome);
+          try { localStorage.setItem(KEY_BIM_CACHE, JSON.stringify(listaBimestres)); } catch (e) {}
+          renderizarTabelaComDadosAtuais();
+        }
+      });
 
-        doc.setFontSize(13); doc.setFont("helvetica", "bold");
-        doc.text(`RELATÓRIO GERAL DE NOTAS DISCIPLINARES - TURMA: ${nomeTurmaSelecionada}`, 148, 45, {align: 'center'});
+      chamarAPI({ action: 'listarConfig', tipo: 'PONTUACAO' }).then(resPontos => {
+        if (resPontos && Array.isArray(resPontos.lista)) {
+          resPontos.lista.forEach(item => {
+            const k = String(item.col1 || "").trim().toUpperCase();
+            const v = parseFloat(String(item.col2 || "0").replace(',', '.')) || 0;
+            if (k) mapaPontuacoesRac[k] = v;
+          });
+          try { localStorage.setItem(KEY_PONTOS_CACHE, JSON.stringify(mapaPontuacoesRac)); } catch (e) {}
+          renderizarTabelaComDadosAtuais();
+        }
+      });
 
-        // 3. Montar dados para a tabela do PDF
-        let linhasPdf = dadosTurmaAtual.map((aluno, index) => {
-          let notasArray = Object.values(aluno.notas).map(n => n.toFixed(2).replace('.', ','));
-          return [
-            index + 1,
-            aluno.nome,
-            notasArray[0] || '10,00',
-            notasArray[1] || '10,00',
-            notasArray[2] || '10,00',
-            notasArray[3] || '10,00'
-          ];
-        });
-
-        doc.autoTable({
-          startY: 52,
-          head: [['Nº', 'Nome do Aluno', '1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']],
-          body: linhasPdf,
-          headStyles: { fillColor: [15, 118, 110] },
-          styles: { fontSize: 9 },
-          columnStyles: { 
-            0: { cellWidth: 15, halign: 'center' }, 
-            1: { cellWidth: 140 },
-            2: { cellWidth: 30, halign: 'center' },
-            3: { cellWidth: 30, halign: 'center' },
-            4: { cellWidth: 30, halign: 'center' },
-            5: { cellWidth: 30, halign: 'center' }
+      if (todosAlunosCache.length === 0) {
+        chamarAPI({ action: 'getFiltrosOcorrencias' }).then(resFiltros => {
+          if (resFiltros && Array.isArray(resFiltros.alunos)) {
+            todosAlunosCache = resFiltros.alunos.map(a => ({
+              nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+              serie: normalizarSeriePadrao(a.serie)
+            })).filter(x => x.nome && x.serie);
+            try { localStorage.setItem(KEY_ALUNOS_CACHE, JSON.stringify(todosAlunosCache)); } catch (e) {}
+            renderizarTabelaComDadosAtuais();
           }
         });
-
-        doc.save(`Notas_Turma_${nomeTurmaSelecionada.replace(/\s+/g, '_')}.pdf`);
-        Swal.close();
-
-      } catch (err) {
-        console.error(err);
-        Swal.close();
-        Swal.fire('Erro', 'Falha ao gerar o PDF da turma.', 'error');
       }
     }
 
-    function getBase64Image(url) {
-      return new Promise((resolve, reject) => {
-        let xhr = new XMLHttpRequest();
-        xhr.onload = function() {
-          let reader = new FileReader();
-          reader.onloadend = function() { resolve(reader.result); }
-          reader.readAsDataURL(xhr.response);
-        };
-        xhr.onerror = function() { reject(); };
-        xhr.open('GET', url);
-        xhr.responseType = 'blob';
-        xhr.send();
+    function atualizarCabecalhoTurmaEPdtNaTela() {
+      const ano = document.getElementById('filtroAnoTurma').value;
+      const serie = normalizarSeriePadrao(document.getElementById('filtroSerieTurma').value);
+      const pdt = mapaPdtPorSerie[serie] || "NÃO ATRIBUÍDO";
+
+      document.getElementById('inputPdtDaTurma').value = pdt;
+      document.getElementById('lblTituloTurmaQuadro').innerText = `Turma: ${serie} (${ano})`;
+      document.getElementById('lblSubtituloPdtQuadro').innerHTML = `<i class="bi bi-person-workspace me-1"></i>Professor Diretor de Turma (PDT): ${pdt}`;
+    }
+
+    async function gerarQuadroNotasDaTurma(forcarRecargaServidor = false) {
+      const serie = normalizarSeriePadrao(document.getElementById('filtroSerieTurma').value);
+      if (!serie) return;
+
+      atualizarCabecalhoTurmaEPdtNaTela();
+
+      // 1. Renderiza imediatamente na tela com o que já está em memória/cache (0ms!)
+      renderizarTabelaComDadosAtuais();
+
+      // 2. Busca as ocorrências da turma no servidor (em segundo plano ou quando clicado em Gerar)
+      if (navigator.onLine && (forcarRecargaServidor || !cacheOcorrenciasPorTurma[serie])) {
+        const resOco = await chamarAPI({
+          action: 'buscarOcorrencias',
+          filtros: { serie: serie, ignorarRestricao: true }
+        });
+        if (Array.isArray(resOco)) {
+          cacheOcorrenciasPorTurma[serie] = resOco;
+          renderizarTabelaComDadosAtuais();
+        }
+      }
+    }
+
+    function identificarIndiceBimestre(tsData) {
+      if (!tsData) return -1;
+      if (listaBimestres.length >= 4) {
+        for (let b = 0; b < 4; b++) {
+          if (listaBimestres[b].inicio > 0 && listaBimestres[b].fim > 0) {
+            if (tsData >= listaBimestres[b].inicio && tsData <= listaBimestres[b].fim) {
+              return b;
+            }
+          }
+        }
+      }
+      // Fallback caso as datas da aba BIMESTRE ainda estejam sincronizando: divide pelos meses letivos
+      const mes = new Date(tsData).getMonth() + 1;
+      if (mes <= 4) return 0;
+      if (mes <= 6) return 1;
+      if (mes <= 9) return 2;
+      return 3;
+    }
+
+    function renderizarTabelaComDadosAtuais() {
+      const serie = normalizarSeriePadrao(document.getElementById('filtroSerieTurma').value);
+      const anoFiltro = String(document.getElementById('filtroAnoTurma').value || "").trim();
+
+      const alunosDaTurma = todosAlunosCache
+        .filter(a => normalizarSeriePadrao(a.serie) === serie)
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+      document.getElementById('badgeTotalAlunosQuadro').innerText = `${alunosDaTurma.length} alunos registados`;
+
+      const tbody = document.getElementById('tbodyNotasTurma');
+      linhasCalculadasParaPdf = [];
+
+      if (alunosDaTurma.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Sincronizando lista de alunos da turma...</td></tr>';
+        return;
+      }
+
+      const ocorrenciasTurma = cacheOcorrenciasPorTurma[serie] || [];
+
+      // Agrupa os descontos por Aluno e por Bimestre (0, 1, 2, 3)
+      const descontosPorAluno = {};
+      ocorrenciasTurma.forEach(o => {
+        const nomeAl = String(o.aluno || "").replace(/\s+/g, " ").trim().toUpperCase();
+        if (!nomeAl) return;
+
+        const ts = extrairTimestampSeguro(o.data);
+        if (anoFiltro && ts > 0 && String(new Date(ts).getFullYear()) !== anoFiltro) return;
+
+        const idxBim = identificarIndiceBimestre(ts);
+        if (idxBim >= 0 && idxBim <= 3) {
+          if (!descontosPorAluno[nomeAl]) descontosPorAluno[nomeAl] = [0, 0, 0, 0];
+          descontosPorAluno[nomeAl][idxBim] += obterDescontoDaOcorrencia(o);
+        }
       });
+
+      let html = '';
+      alunosDaTurma.forEach((al, idx) => {
+        const perdas = descontosPorAluno[al.nome] || [0, 0, 0, 0];
+        const notasBim = [
+          Math.max(0, 10 - perdas[0]),
+          Math.max(0, 10 - perdas[1]),
+          Math.max(0, 10 - perdas[2]),
+          Math.max(0, 10 - perdas[3])
+        ];
+
+        const n1Str = formatarNotaDuasCasas(notasBim[0]);
+        const n2Str = formatarNotaDuasCasas(notasBim[1]);
+        const n3Str = formatarNotaDuasCasas(notasBim[2]);
+        const n4Str = formatarNotaDuasCasas(notasBim[3]);
+
+        linhasCalculadasParaPdf.push([
+          `${idx + 1}. ${al.nome}`,
+          n1Str,
+          n2Str,
+          n3Str,
+          n4Str
+        ]);
+
+        html += `
+          <tr>
+            <td class="fw-bold text-dark">${idx + 1}. ${al.nome}</td>
+            <td class="text-center ${obterClasseCorNota(notasBim[0])}">${n1Str}</td>
+            <td class="text-center ${obterClasseCorNota(notasBim[1])}">${n2Str}</td>
+            <td class="text-center ${obterClasseCorNota(notasBim[2])}">${n3Str}</td>
+            <td class="text-center ${obterClasseCorNota(notasBim[3])}">${n4Str}</td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    // =========================================================
+    // EXPORTAÇÃO DO PDF COM CABEÇALHO PADRÃO, BRASÃO, TURMA E NOME DO PDT
+    // =========================================================
+    async function baixarPdfNotasDaTurma() {
+      if (linhasCalculadasParaPdf.length === 0) {
+        return Swal.fire('Atenção', 'Não há alunos listados na tabela para gerar o PDF.', 'warning');
+      }
+
+      const ano = document.getElementById('filtroAnoTurma').value;
+      const serie = normalizarSeriePadrao(document.getElementById('filtroSerieTurma').value);
+      const pdt = document.getElementById('inputPdtDaTurma').value || mapaPdtPorSerie[serie] || "NÃO ATRIBUÍDO";
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait', 'mm', 'a4');
+
+      let startY = 38;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: `QUADRO DE NOTAS E REGISTROS DISCIPLINARES DA TURMA (RAC)`,
+          subtitulo1: `SÉRIE / TURMA: ${serie}   |   ANO LETIVO: ${ano}   |   TOTAL DE ALUNOS: ${linhasCalculadasParaPdf.length}`,
+          subtitulo2: `PROFESSOR DIRETOR DE TURMA (PDT): ${pdt}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+        });
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(21, 67, 140);
+        doc.text("EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`NOTAS E REGISTROS DA TURMA: ${serie} (${ano}) — PDT: ${pdt}`, 14, 22);
+        startY = 27;
+      }
+
+      doc.autoTable({
+        startY: startY,
+        head: [['Nome do(a) Aluno(a)', '1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']],
+        body: linhasCalculadasParaPdf,
+        theme: 'grid',
+        styles: {
+          fontSize: 8.2,
+          cellPadding: 2.1,
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [21, 67, 140],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { cellWidth: 94, halign: 'left', fontStyle: 'bold' },
+          1: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          2: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          4: { cellWidth: 22, halign: 'center', fontStyle: 'bold' }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 14;
+      if (finalY < 280) {
+        doc.setDrawColor(100, 116, 139);
+        doc.setLineWidth(0.35);
+        doc.line(55, finalY, 155, finalY);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(30, 41, 59);
+        doc.text(`Professor Diretor de Turma (PDT): ${pdt} — Turma: ${serie}`, 105, finalY + 5, { align: "center" });
+      }
+
+      doc.save(`Notas_RAC_${serie.replace(/\s+/g, '_')}_${ano}.pdf`);
     }
   </script>
 </body>
