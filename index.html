@@ -174,7 +174,7 @@
     }
 
     .hex-node svg.hex-border-svg polygon {
-      fill: rgba(255, 255, 255, 0.68);
+      fill: rgba(255, 255, 255, 0.78);
       stroke: var(--azul-primario);
       stroke-width: 3.4;
       stroke-linejoin: round;
@@ -216,12 +216,13 @@
     }
 
     .hex-label {
-      font-size: 0.63rem;
+      font-size: 0.65rem;
       font-weight: 800;
       color: var(--azul-escuro);
       text-transform: uppercase;
       letter-spacing: 0.4px;
-      line-height: 1.1;
+      line-height: 1.12;
+      max-width: 92px;
     }
 
     .hex-node:hover {
@@ -243,7 +244,6 @@
     }
 
     .hex-node.ativo svg.hex-border-svg polygon {
-      fill: linear-gradient(135deg, #15438c, #1d4ed8);
       fill: #15438c;
       stroke: #ffffff;
       stroke-width: 4;
@@ -348,15 +348,121 @@
       z-index: 5;
     }
 
-    @media (max-width: 1100px) {
-      :root { --hex-w: 132px; --hex-h: 114px; --hex-col-overlap: -14px; }
-      .hex-svg-modern { width: 38px; height: 38px; }
-      .hex-label { font-size: 0.55rem; }
+    /* Telas intermediárias (Notebooks menores / Tablets deitados) */
+    @media (max-width: 1100px) and (min-width: 769px) {
+      :root { --hex-w: 136px; --hex-h: 118px; --hex-col-overlap: -14px; }
+      .hex-svg-modern { width: 40px; height: 40px; }
+      .hex-label { font-size: 0.58rem; }
     }
 
-    @media (max-width: 820px) {
-      .honeycomb-wrapper { flex-wrap: wrap; gap: 10px; }
-      .hex-col { margin: 0 !important; flex-direction: row; flex-wrap: wrap; gap: 10px; }
+    /* ========================================================================= */
+    /* MODO CELULAR (COLMEIA DE 2 COLUNAS ENCAIXADAS COM PEQUENA DISTÂNCIA)      */
+    /* ========================================================================= */
+    @media (max-width: 768px) {
+      .top-header {
+        justify-content: center;
+        padding: 14px 14px 6px 14px;
+      }
+
+      .brand-escola img {
+        height: 76px;
+      }
+
+      .brand-titulo-principal {
+        font-size: 1.65rem;
+      }
+
+      /* Transforma o wrapper em uma Colmeia de 2 Colunas (5 pares = 10 hexágonos) */
+      .honeycomb-wrapper {
+        --m-hex-w: 148px;
+        --m-hex-h: 128px;
+        --m-row-gap: 8px; /* Pequena distância vertical igual ao computador */
+        display: grid !important;
+        grid-template-columns: var(--m-hex-w) var(--m-hex-w) !important;
+        row-gap: var(--m-row-gap) !important;
+        column-gap: 0px !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 10px 0 85px 0 !important;
+        margin: 0 auto !important;
+        /* Compensa o recuo horizontal da 2ª coluna para deixar a colmeia 100% centralizada na tela */
+        transform: translateX(14px);
+      }
+
+      /* Desfaz as caixas .hex-col no celular para que todos os 10 .hex-node fiquem livres no Grid 2x5 sem sobrepor! */
+      .hex-col {
+        display: contents !important;
+      }
+
+      .hex-node {
+        width: var(--m-hex-w) !important;
+        height: var(--m-hex-h) !important;
+        margin: 0 !important;
+      }
+
+      /* Coluna da Esquerda (Ímpares: 1º Biblioteca, 3º Reservas, 5º Diretor de Turma, 7º Ocorrência, 9º Eletiva) */
+      .honeycomb-wrapper .hex-node:nth-of-type(odd) {
+        transform: translate(0, 0);
+      }
+
+      /* Coluna da Direita Encaixada (Pares: 2º Gestão, 4º Frequência, 6º Gráficos, 8º Atividade, 10º Alunos)
+         Recua para a esquerda encaixando na diagonal (-28px) e desce metade da altura (+68px) mantendo a mesma pequena distância! */
+      .honeycomb-wrapper .hex-node:nth-of-type(even) {
+        transform: translate(-28px, 68px);
+      }
+
+      /* Mantém o efeito de destaque ao tocar no hexágono no celular sem perder a posição da colmeia */
+      .honeycomb-wrapper .hex-node:nth-of-type(odd):hover,
+      .honeycomb-wrapper .hex-node:nth-of-type(odd).ativo {
+        transform: translate(0, 0) scale(1.06);
+      }
+
+      .honeycomb-wrapper .hex-node:nth-of-type(even):hover,
+      .honeycomb-wrapper .hex-node:nth-of-type(even).ativo {
+        transform: translate(-28px, 68px) scale(1.06);
+      }
+
+      /* Ícone e Texto bem visíveis e proporcionais dentro do hexágono no celular */
+      .hex-svg-modern {
+        width: 44px !important;
+        height: 44px !important;
+        margin-bottom: 5px !important;
+      }
+
+      .hex-label {
+        font-size: 0.66rem !important;
+        font-weight: 800 !important;
+        line-height: 1.12 !important;
+        max-width: 96px !important;
+      }
+
+      .drawer-topico {
+        padding: 18px 16px;
+        margin-top: 10px;
+      }
+    }
+
+    /* Ajuste automático para telas de celulares mais estreitas (ex: 360px) */
+    @media (max-width: 375px) {
+      .honeycomb-wrapper {
+        --m-hex-w: 136px;
+        --m-hex-h: 118px;
+        transform: translateX(12px);
+      }
+      .honeycomb-wrapper .hex-node:nth-of-type(even) {
+        transform: translate(-25px, 63px);
+      }
+      .honeycomb-wrapper .hex-node:nth-of-type(even):hover,
+      .honeycomb-wrapper .hex-node:nth-of-type(even).ativo {
+        transform: translate(-25px, 63px) scale(1.06);
+      }
+      .hex-svg-modern {
+        width: 40px !important;
+        height: 40px !important;
+      }
+      .hex-label {
+        font-size: 0.61rem !important;
+      }
     }
   </style>
 
@@ -392,7 +498,6 @@
 
   <main class="honeycomb-stage">
     <div class="honeycomb-wrapper">
-
       <!-- COLUNA 1: BIBLIOTECA -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'BIBLIOTECA')">
@@ -522,7 +627,7 @@
         </div>
       </div>
 
-      <!-- COLUNA 7: ALUNOS (SUBSTITUIU ALIMENTAÇÃO) -->
+      <!-- COLUNA 7: ALUNOS -->
       <div class="hex-col">
         <div class="hex-node" onclick="selecionarTopicoColmeia(this, 'ALUNOS')">
           <svg class="hex-border-svg" viewBox="0 0 200 173.2" preserveAspectRatio="none"><polygon points="50,3 150,3 197,86.6 150,170.2 50,170.2 3,86.6"></polygon></svg>
@@ -538,7 +643,6 @@
           </div>
         </div>
       </div>
-
     </div>
 
     <!-- PAINEL EXPANSÍVEL AO CLICAR -->
@@ -579,8 +683,7 @@
         icone: "bi-book-half",
         itens: [
           { titulo: "Cadastro de Livros", desc: "Gerenciar obras, capas e exemplares.", link: "cadastro-livros.html", icone: "bi-journal-plus" },
-          { titulo: "Reservas de Livros, Relatórios da Biblioteca", desc: "Empréstimos aos alunos, alertas de prazo e devoluções.", link: "reservas-livros.html", icone: "bi-bookmark-check-fill" },
-          //{ titulo: "Relatórios da Biblioteca", desc: "Ranking de leitores e alunos devendo livros.", link: "reservas-livros.html#relatorios", icone: "bi-bar-chart-steps" }//
+          { titulo: "Reservas de Livros, Relatórios da Biblioteca", desc: "Empréstimos aos alunos, alertas de prazo e devoluções.", link: "reservas-livros.html", icone: "bi-bookmark-check-fill" }
         ]
       },
       GESTAO: {
@@ -626,26 +729,25 @@
         ]
       },
       GRAFICOS: {
-        titulo: "Gráficos e  Indicadores Escolares ( Simulados )",
+        titulo: "Gráficos e Indicadores Escolares (Simulados)",
         icone: "bi-bar-chart-line",
         itens: [
           { titulo: "Gráficos de Ocorrências", desc: "Estatísticas disciplinares por turma e período.", link: "graficos-ocorrencias.html", icone: "bi-pie-chart-fill" },
-          { titulo: "Desempenho em Simulados", desc: " Taxa de acertos por turma e questão.", link: "simulados.html", icone: "bi-graph-up-arrow" }
+          { titulo: "Desempenho em Simulados", desc: "Taxa de acertos por turma e questão.", link: "simulados.html", icone: "bi-graph-up-arrow" }
         ]
       },
       OCORRENCIA: {
         titulo: "Ocorrências Disciplinares (CRO)",
         icone: "bi-exclamation-triangle",
         itens: [
-          { titulo: "Registrar Ocorrência", desc: "Lançamento disciplinar no CRO", link: "registro-ocorrencias.html", icone: "bi-journal-plus" },
-          //{ titulo: "Consulta Rápida do Aluno", desc: "Pesquisa individual por turma, aluno e período.", link: "consulta-ocorrencias-aluno.html", icone: "bi-search" }//
+          { titulo: "Registrar Ocorrência", desc: "Lançamento disciplinar no CRO", link: "registro-ocorrencias.html", icone: "bi-journal-plus" }
         ]
       },
       ATIVIDADE: {
         titulo: "Atividades",
         icone: "bi-journal-richtext",
         itens: [
-          { titulo: "Registrar Atividade Disciplinas  / Eletivas", desc: "Resgitro nas disciplinas curriculares e eletivas.", link: "atividade-disciplinas.html", icone: "bi-ui-checks-grid" }
+          { titulo: "Registrar Atividade Disciplinas / Eletivas", desc: "Registro nas disciplinas curriculares e eletivas.", link: "atividade-disciplinas.html", icone: "bi-ui-checks-grid" }
         ]
       },
       ELETIVA: {
@@ -672,7 +774,6 @@
     };
 
     function selecionarTopicoColmeia(elementoHex, chaveTopico) {
-      // REGRA 1: Professor visualiza o tópico GESTÃO, mas NÃO consegue acessar!
       if (chaveTopico === 'GESTAO' && perfilLogadoUpper === 'PROFESSOR') {
         Swal.fire({
           title: 'Acesso Restrito à Gestão',
@@ -701,7 +802,6 @@
 
       let html = '';
       config.itens.forEach(item => {
-        // REGRA 2: Direção não consegue acessar Acompanhamento Pedagógico e nem Auditoria
         const bloqueadoParaDirecao = (item.apenasAdmin === true && perfilLogadoUpper !== 'ADMINISTRADOR');
 
         if (bloqueadoParaDirecao) {
@@ -748,126 +848,5 @@
       document.querySelectorAll('.hex-node').forEach(el => el.classList.remove('ativo'));
     }
   </script>
-  <!-- ========================================================================= -->
-<!-- LAYOUT COLMEIA CONECTADA (2 COLUNAS ENCAIXADAS) EXCLUSIVO PARA CELULAR    -->
-<!-- ========================================================================= -->
-<style id="estiloColmeiaMobileEEMTI">
-  @media (max-width: 768px) {
-    /* Ajusta o cabeçalho no celular para ficar bem enquadrado */
-    .top-header {
-      justify-content: center !important;
-      text-align: left;
-      padding: 12px 12px 6px 12px !important;
-    }
-
-    /* Container da Colmeia de 2 Colunas Conectadas no Celular */
-    .colmeia-mobile-ativa {
-      --larg-hex: 146px;
-      --alt-hex: 126px; /* Proporção geométrica exata do hexágono flat-top */
-      display: grid !important;
-      grid-template-columns: var(--larg-hex) var(--larg-hex) !important;
-      column-gap: 0px !important;
-      row-gap: 0px !important;
-      justify-content: center !important;
-      align-items: start !important;
-      width: calc(var(--larg-hex) * 1.75) !important;
-      margin: 15px auto 95px auto !important;
-      padding: 0 !important;
-      padding-left: calc(var(--larg-hex) * 0.25) !important;
-    }
-
-    /* Remove margens/paddings extras das colunas do Bootstrap se houver */
-    .colmeia-mobile-ativa > .item-hex-mobile {
-      width: var(--larg-hex) !important;
-      height: var(--alt-hex) !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      position: relative !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      margin-bottom: -2px !important; /* Cola a linha superior na inferior */
-    }
-
-    /* Coluna da Esquerda (1º, 3º, 5º, 7º, 9º hexágono) */
-    .colmeia-mobile-ativa > .item-hex-mobile:nth-child(odd) {
-      transform: translate(0, 0) !important;
-      z-index: 2;
-    }
-
-    /* Coluna da Direita Encaixada (2º, 4º, 6º, 8º, 10º hexágono):
-       Puxa 25% para a esquerda e desce 50% da altura para encaixar os lados! */
-    .colmeia-mobile-ativa > .item-hex-mobile:nth-child(even) {
-      transform: translate(calc(var(--larg-hex) * -0.25 + 1px), calc(var(--alt-hex) * 0.5 - 1px)) !important;
-      z-index: 3;
-    }
-
-    /* Garante que o próprio botão/card hexagonal ocupe 100% do slot da colmeia */
-    .colmeia-mobile-ativa > .item-hex-mobile > a,
-    .colmeia-mobile-ativa > .item-hex-mobile > div,
-    .colmeia-mobile-ativa > .item-hex-mobile > button,
-    .colmeia-mobile-ativa > a.item-hex-mobile,
-    .colmeia-mobile-ativa > div.item-hex-mobile {
-      width: 100% !important;
-      height: 100% !important;
-      max-width: 100% !important;
-      max-height: 100% !important;
-      margin: 0 !important;
-    }
-  }
-
-  /* Ajuste fino para telas de celulares menores (ex: 360px de largura) */
-  @media (max-width: 380px) {
-    .colmeia-mobile-ativa {
-      --larg-hex: 132px;
-      --alt-hex: 114px;
-    }
-  }
-</style>
-
-<script>
-  (function ativarColmeiaMobileAutomatica() {
-    function aplicarClassesColmeia() {
-      // Localiza o container onde estão os hexágonos da tela inicial (Biblioteca, Gestão, Reservas, etc.)
-      const textosChave = ['BIBLIOTECA', 'GESTÃO', 'RESERVAS', 'FREQUÊNCIA', 'ELETIVA'];
-      let containerHexagonos = null;
-
-      // Procura pelos elementos que contêm os nomes dos módulos
-      const candidatos = document.querySelectorAll('a, button, .hex, .hexagon, .hex-card, .hex-item, [onclick]');
-      for (const el of candidatos) {
-        const txt = (el.innerText || '').trim().toUpperCase();
-        if (textosChave.includes(txt)) {
-          // Sobe até achar o container pai que agrupa todos os hexágonos (>= 6 filhos)
-          let pai = el.parentElement;
-          while (pai && pai !== document.body) {
-            const filhosVisiveis = Array.from(pai.children).filter(c =>
-              c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && getComputedStyle(c).display !== 'none'
-            );
-            if (filhosVisiveis.length >= 6 && filhosVisiveis.length <= 15) {
-              containerHexagonos = pai;
-              break;
-            }
-            pai = pai.parentElement;
-          }
-          if (containerHexagonos) break;
-        }
-      }
-
-      if (!containerHexagonos) return;
-
-      containerHexagonos.classList.add('colmeia-mobile-ativa');
-
-      // Numera apenas os hexágonos visíveis (caso algum esteja oculto por permissão) para não quebrar o par/ímpar da colmeia!
-      Array.from(containerHexagonos.children).forEach(filho => {
-        if (filho.tagName === 'SCRIPT' || filho.tagName === 'STYLE') return;
-        filho.classList.add('item-hex-mobile');
-      });
-    }
-
-    window.addEventListener('DOMContentLoaded', aplicarClassesColmeia);
-    window.addEventListener('load', aplicarClassesColmeia);
-    setTimeout(aplicarClassesColmeia, 300);
-  })();
-</script>
 </body>
 </html>
