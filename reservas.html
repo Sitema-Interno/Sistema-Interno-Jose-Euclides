@@ -834,37 +834,231 @@
     }
 
     async function gerarRelatorioPdfReservas() {
-  if (reservasFuturasExibidas.length === 0) {
-    return Swal.fire('Sem Reservas', 'Não há reservas futuras listadas para gerar o PDF.', 'info');
+  // Pega como sugestão inicial a data que já está selecionada no formulário da tela
+  const inpDataTela = document.getElementById('resData') || document.querySelector('input[type="date"]');
+  const dataSugeridaIso = (inpDataTela && inpDataTela.value)
+    ? inpDataTela.value
+    : new Date().toISOString().slice(0, 10);
+
+  // 1. Abre a caixa para selecionar a Data do Relatório PDF
+  const { value: formValues } = await Swal.fire({
+    title: '<i class="bi bi-calendar-week text-primary me-2"></i>Gerar Mapa Diário de Reservas (PDF)',
+    html: `
+      <div class="text-start mt-2">
+        <label class="form-label fw-bold small text-secondary">1. Selecione a Data das Reservas *</label>
+        <input type="date" id="swalDataPdfReserva" class="form-control fw-bold mb-3" value="${dataSugeridaIso}">
+
+        <label class="form-label fw-bold small text-secondary">2. Exibição dos Ambientes / Materiais</label>
+        <select id="swalModoAmbientesPdf" class="form-select fw-bold">
+          <option value="TODOS" selected>Listar todos os Ambientes/Materiais cadastrados</option>
+          <option value="APENAS_RESERVADOS">Listar apenas os que possuem reserva nesta data</option>
+        </select>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonColor: '#15438c',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: '<i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar PDF da Data',
+    cancelButtonText: 'Cancelar',
+    preConfirm: () => {
+      const dtIso = document.getElementById('swalDataPdfReserva').value;
+      const modo = document.getElementById('swalModoAmbientesPdf').value;
+      if (!dtIso) {
+        Swal.showValidationMessage('Por favor, selecione uma data válida.');
+        return false;
+      }
+      return { dataIso: dtIso, modo: modo };
+    }
+  });
+
+  if (!formValues) return;
+
+  const p = formValues.dataIso.split('-');
+  const dataEscolhidaBr = `${p[2]}/${p[1]}/${p[0]}`;
+
+  // Descobre o dia da semana para enriquecer o cabeçalho do PDF
+  const dtObj = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0);
+  const diasSemana = ['DOMINGO', 'SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO'];
+  const diaSemanaNome = diasSemana[dtObj.getDay()] || '';
+
+  // 2. Obtém todas as reservas carregadas na página (ou busca no servidor caso ainda esteja vazio)
+  let fonteReservas = [];
+  if (typeof todasReservasGlobal !== 'undefined' && Array.isArray(todasReservasGlobal) && todasReservasGlobal.length > 0) {
+    fonteReservas = todasReservasGlobal;
+  } else if (typeof listaReservasGlobal !== 'undefined' && Array.isArray(listaReservasGlobal) && listaReservasGlobal.length > 0) {
+    fonteReservas = listaReservasGlobal;
+  } else if (typeof reservasFuturasExibidas !== 'undefined' && Array.isArray(reservasFuturasExibidas)) {
+    fonteReservas = reservasFuturasExibidas;
   }
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('portrait', 'mm', 'a4');
-  const prof = document.getElementById('lblNomeProfMinhasReservas').innerText;
+  // Se estiver online, garante a lista atualizada da planilha
+  if (navigator.onLine && typeof chamarAPI === 'function') {
+    Swal.fire({ title: `Buscando reservas de ${dataEscolhidaBr}...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const res = await chamarAPI({ action: 'listarReservas' });
+    Swal.close();
+    if (res && Array.isArray(res.lista)) {
+      fonteReservas = res.lista;
+    }
+  }
 
-  const startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
-    tituloDocumento: "CRONOGRAMA DE RESERVAS DE AMBIENTES E MATERIAIS",
-    subtitulo1: `Professor(a): ${prof}`,
-    subtitulo2: `Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+  // Filtra todas as reservas que são exatamente da data escolhida
+  const reservasDoDia = fonteReservas.filter(r => {
+    const dtReg = String(r.data || '').trim();
+    return dtReg === dataEscolhidaBr || dtReg === formValues.dataIso;
   });
 
-  const rows = reservasFuturasExibidas.map(r => [
-    r.data,
-    r.ambiente,
-    r.aulasLista.join(', ') || '-',
-    r.professor
-  ]);
+  // 3. Obtém a lista de todos os Ambientes / Materiais cadastrados no select da página
+  const setAmbientes = new Set();
+  if (formValues.modo === 'TODOS') {
+    const selAmb = document.getElementById('resAmbiente') || document.querySelector('select');
+    if (selAmb) {
+      Array.from(selAmb.options).forEach(opt => {
+        const val = String(opt.value || '').trim().toUpperCase();
+        if (val && !val.includes('SELECIONE') && !val.includes('CARREGANDO')) {
+          setAmbientes.add(val);
+        }
+      });
+    }
+  }
+  reservasDoDia.forEach(r => {
+    const amb = String(r.ambiente || '').trim().toUpperCase();
+    if (amb) setAmbientes.add(amb);
+  });
 
+  const listaAmbientesOrdenada = Array.from(setAmbientes).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  if (listaAmbientesOrdenada.length === 0) {
+    return Swal.fire('Sem Registros', `Não há ambientes reservados na data ${dataEscolhidaBr}.`, 'info');
+  }
+
+  // 4. Monta o Mapa [Ambiente] -> [1ª Aula .. 9ª Aula] com o nome do Professor dentro da célula
+  const mapaOcupacao = {};
+  listaAmbientesOrdenada.forEach(amb => {
+    mapaOcupacao[amb] = ['', '', '', '', '', '', '', '', '']; // Índices 0 a 8 (1ª a 9ª Aula)
+  });
+
+  let totalAulasOcupadasNoDia = 0;
+
+  reservasDoDia.forEach(r => {
+    const amb = String(r.ambiente || '').trim().toUpperCase();
+    const prof = String(r.professor || '').trim().toUpperCase();
+    if (!amb || !mapaOcupacao[amb]) return;
+
+    // Lê o array de aulas (r.aulas ou r.aulasLista) e identifica o número da aula (1 a 9)
+    const arrAulas = Array.isArray(r.aulas) ? r.aulas : (Array.isArray(r.aulasLista) ? r.aulasLista : []);
+
+    arrAulas.forEach((itemAula, idxPos) => {
+      const txtAula = String(itemAula || '').trim().toUpperCase();
+      if (!txtAula) return;
+
+      // Extrai o número da aula (ex: "3ª AULA" -> índice 2) ou usa a posição da coluna
+      const matchNum = txtAula.match(/([1-9])/);
+      const indiceAula = matchNum ? (parseInt(matchNum[1], 10) - 1) : idxPos;
+
+      if (indiceAula >= 0 && indiceAula < 9) {
+        if (!mapaOcupacao[amb][indiceAula]) {
+          mapaOcupacao[amb][indiceAula] = prof;
+          totalAulasOcupadasNoDia++;
+        } else if (!mapaOcupacao[amb][indiceAula].includes(prof)) {
+          mapaOcupacao[amb][indiceAula] += ` / ${prof}`;
+        }
+      }
+    });
+  });
+
+  // 5. Gera o PDF em modo Paisagem (Landscape) com o Cabeçalho Padrão e Brasão da Escola
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+
+  const nomeEmitente = (typeof nomeUser !== 'undefined' && nomeUser)
+    ? nomeUser
+    : ((usuarioLogado && usuarioLogado.nome) ? usuarioLogado.nome.toUpperCase() : 'ADMINISTRAÇÃO');
+
+  let startY = 36;
+  if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+    startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+      tituloDocumento: `MAPA DIÁRIO DE RESERVAS DE AMBIENTES E EQUIPAMENTOS (1ª À 9ª AULA)`,
+      subtitulo1: `DATA SELECIONADA: ${dataEscolhidaBr} (${diaSemanaNome})   |   AULAS RESERVADAS NO DIA: ${totalAulasOcupadasNoDia}`,
+      subtitulo2: `Emitido por: ${nomeEmitente} em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    });
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(21, 67, 140);
+    doc.text('EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`MAPA DE RESERVAS DE AMBIENTES — DATA: ${dataEscolhidaBr} (${diaSemanaNome})`, 14, 22);
+    startY = 27;
+  }
+
+  const rowsPdf = listaAmbientesOrdenada.map(amb => {
+    const slots = mapaOcupacao[amb];
+    return [
+      amb,
+      slots[0] || '-',
+      slots[1] || '-',
+      slots[2] || '-',
+      slots[3] || '-',
+      slots[4] || '-',
+      slots[5] || '-',
+      slots[6] || '-',
+      slots[7] || '-',
+      slots[8] || '-'
+    ];
+  });
+
+  // Largura total útil no A4 Paisagem (297mm - 28mm margens = 269mm):
+  // Coluna 0 (Ambiente/Material) = 53mm | 9 Colunas de Aulas (1ª a 9ª) = 24mm cada (9 x 24 = 216mm) -> Total = 269mm exatos!
   doc.autoTable({
     startY: startY,
-    head: [['Data Agendada', 'Ambiente / Material', 'Aulas Reservadas', 'Professor(a)']],
-    body: rows,
-    styles: { fontSize: 8.8, cellPadding: 2.5 },
-    headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [248, 250, 252] }
+    head: [['Ambiente / Material', '1ª Aula', '2ª Aula', '3ª Aula', '4ª Aula', '5ª Aula', '6ª Aula', '7ª Aula', '8ª Aula', '9ª Aula']],
+    body: rowsPdf,
+    theme: 'grid',
+    styles: {
+      fontSize: 7.2,
+      cellPadding: 2,
+      valign: 'middle',
+      halign: 'center',
+      overflow: 'linebreak', // Quebra e ajusta automaticamente o nome do professor dentro da célula!
+      lineColor: [203, 213, 225],
+      lineWidth: 0.25
+    },
+    headStyles: {
+      fillColor: [21, 67, 140],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 8,
+      halign: 'center'
+    },
+    columnStyles: {
+      0: { cellWidth: 53, halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42] },
+      1: { cellWidth: 24 },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 24 },
+      4: { cellWidth: 24 },
+      5: { cellWidth: 24 },
+      6: { cellWidth: 24 },
+      7: { cellWidth: 24 },
+      8: { cellWidth: 24 },
+      9: { cellWidth: 24 }
+    },
+    didParseCell: function(data) {
+      // Destaca visualmente as células onde há professor reservado (da 1ª à 9ª aula)
+      if (data.section === 'body' && data.column.index >= 1) {
+        const txt = String(data.cell.raw || '').trim();
+        if (txt && txt !== '-') {
+          data.cell.styles.fillColor = [239, 246, 255]; // Azul bem claro institucional
+          data.cell.styles.textColor = [21, 67, 140];   // Nome do professor em azul escuro
+          data.cell.styles.fontStyle = 'bold';
+        } else {
+          data.cell.styles.textColor = [180, 190, 200]; // Traço discreto quando livre
+        }
+      }
+    }
   });
 
-  doc.save(`Reservas_Ambientes_${prof.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`Mapa_Reservas_${dataEscolhidaBr.replace(/\//g, '-')}.pdf`);
 }
   </script>
 </body>
