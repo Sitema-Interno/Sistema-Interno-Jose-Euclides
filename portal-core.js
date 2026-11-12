@@ -1,8 +1,8 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO COMPLETA COM PRE-FETCH
-// 1. PRÉ-CARREGAMENTO NO LOGIN (ALUNOS, DISCIPLINAS, ELETIVAS, MATRÍCULAS E OCORRÊNCIAS)
-// 2. ATUALIZAÇÃO AUTOMÁTICA EM NOVOS CADASTROS, EDIÇÕES OU EXCLUSÕES (INCLUINDO OCORRÊNCIAS RAC)
-// 3. SINCRONIZAÇÃO OFFLINE EM 2º PLANO (SEM TRAVAR A TELA) + BACKGROUND SYNC
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - SINCRONIZAÇÃO COM APP FECHADO
+// 1. O SERVICE WORKER (SW.JS) ENVIA OS DADOS PARA A PLANILHA MESMO COM O APP FECHADO
+// 2. AO ABRIR O APP, MOSTRA IMEDIATAMENTE O AVISO DOS DADOS JÁ ENVIADOS EM 2º PLANO
+// 3. PRÉ-CARREGAMENTO NO LOGIN + ATUALIZAÇÃO AUTOMÁTICA EM NOVOS CADASTROS
 // 4. CABEÇALHO INSTITUCIONAL PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
 // =========================================================================
 (function() {
@@ -18,14 +18,12 @@
     'fila_offline_mapeamento_v1'
   ];
 
-  // Chaves universais compartilhadas entre todas as páginas offline
   window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
   window.KEY_SERIES_UNIVERSAL_EEMTI = 'cache_rac_series_v3';
   const KEY_MATRICULAS_ELETIVAS_OFFLINE = 'cache_matriculas_eletivas_global_v1';
   const KEY_CATALOGO_ELETIVAS_OFFLINE = 'cache_catalogo_eletivas_global_v1';
   const KEY_TODAS_OCORRENCIAS_OFFLINE = 'cache_rac_todas_ocorrencias_v1';
 
-  // Ações que podem ser lançadas Offline pelos professores
   const ACOES_GRAVACAO_OFFLINE = {
     'salvarOcorrencia': 'Ocorrência Disciplinar (RAC)',
     'salvarAtividadeDisciplinas': 'Atividade Contínua (Disciplina/Eletiva)',
@@ -35,8 +33,6 @@
     'salvarMapeamentoSala': 'Mapeamento de Sala de Aula'
   };
 
-  // Ações de cadastro, edição ou exclusão (incluindo Ocorrências RAC, Atividades, Alunos, Matrículas e Disciplinas)
-  // que disparam a atualização imediata das listas offline!
   const ACOES_MUTACAO_CADASTROS = [
     'salvarOcorrencia', 'excluirOcorrencia',
     'salvarAtividadeDisciplinas', 'salvarAtividadeEletivas',
@@ -91,8 +87,135 @@
   }
 
   // =========================================================================
-  // 1. MOTOR DE PRÉ-CARREGAMENTO TOTAL NO LOGIN / INÍCIO (PRE-FETCH OFFLINE)
-  // Baixa Alunos, Séries, Disciplinas, Eletivas, Matrículas e Ocorrências RAC!
+  // 1. BANCO INDEXEDDB OFICIAL (FONTE DA VERDADE ENTRE O APP FECHADO E ABERTO)
+  // =========================================================================
+  function abrirBancoSyncIDB() {
+    return new Promise(resolve => {
+      if (!window.indexedDB) return resolve(null);
+      const req = indexedDB.open(IDB_SYNC_NAME, 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
+        if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function adicionarItemNoIndexedDB(itemObj) {
+    const db = await abrirBancoSyncIDB();
+    if (!db) return;
+    await new Promise(resolve => {
+      try {
+        const tx = db.transaction('fila_pendente', 'readwrite');
+        tx.objectStore('fila_pendente').put(itemObj);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+
+    // Registra o Background Sync no Sistema Operacional para enviar assim que tiver internet (mesmo com o app fechado!)
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        if ('SyncManager' in window) {
+          await reg.sync.register('sync-fila-eemti');
+        }
+        if ('periodicSync' in reg) {
+          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
+        }
+      } catch (e) {}
+    }
+  }
+
+  async function removerItemDoIndexedDB(idFila) {
+    const db = await abrirBancoSyncIDB();
+    if (!db) return;
+    return new Promise(resolve => {
+      try {
+        const tx = db.transaction('fila_pendente', 'readwrite');
+        tx.objectStore('fila_pendente').delete(idFila);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
+  // EXECUTADO IMEDIATAMENTE AO ABRIR O APLICATIVO:
+  // Confere se o Service Worker (sw.js) já enviou os dados enquanto o aplicativo estava fechado!
+  async function reconciliarEstadoComServiceWorkerAoAbrir() {
+    const db = await abrirBancoSyncIDB();
+    let itensEnviadosComAppFechado = [];
+    let idsJaEnviadosSet = new Set();
+
+    if (db) {
+      await new Promise(resolve => {
+        try {
+          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
+          const storeRel = tx.objectStore('relatorio_concluido');
+          const storeFila = tx.objectStore('fila_pendente');
+
+          const reqRel = storeRel.getAll();
+          const reqFila = storeFila.getAll();
+
+          tx.oncomplete = () => {
+            const relatorios = Array.isArray(reqRel.result) ? reqRel.result : [];
+            const filaNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
+
+            if (relatorios.length > 0) {
+              relatorios.forEach(r => {
+                if (r.resumoHtml) itensEnviadosComAppFechado.push(r.resumoHtml);
+                if (r.idFila) idsJaEnviadosSet.add(r.idFila);
+              });
+              // Limpa os relatórios já lidos do IDB
+              const txClear = db.transaction('relatorio_concluido', 'readwrite');
+              txClear.objectStore('relatorio_concluido').clear();
+            }
+
+            // Atualiza o localStorage removendo qualquer item que o Service Worker já enviou com o app fechado!
+            let filaLocal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
+            if (idsJaEnviadosSet.size > 0 || relatorios.length > 0) {
+              const idsAindaPendentesNoIDB = new Set(filaNoIDB.map(x => x.idFila));
+              filaLocal = filaLocal.filter(item => idsAindaPendentesNoIDB.has(item.idFila) && !idsJaEnviadosSet.has(item.idFila));
+              localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaLocal));
+            } else if (filaLocal.length > 0 && filaNoIDB.length === 0) {
+              // Se havia itens no localStorage que ainda não estavam no IDB, copia para o IDB
+              const txSync = db.transaction('fila_pendente', 'readwrite');
+              filaLocal.forEach(it => txSync.objectStore('fila_pendente').put(it));
+            }
+            resolve();
+          };
+          tx.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+
+    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+    if (logLocal.length > 0) {
+      itensEnviadosComAppFechado = itensEnviadosComAppFechado.concat(logLocal);
+      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
+    }
+
+    // Se o Service Worker já enviou com o app fechado, mostra o aviso IMEDIATAMENTE ao abrir o app!
+    if (itensEnviadosComAppFechado.length > 0) {
+      window.atualizarBadgeStatusConexaoGlobal();
+      window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
+      exibirAvisoFinalDeDadosSincronizados(itensEnviadosComAppFechado, true);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
+      return true;
+    }
+    return false;
+  }
+
+  // =========================================================================
+  // 2. PRÉ-CARREGAMENTO TOTAL NO LOGIN / INÍCIO (PRE-FETCH OFFLINE)
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarImediato = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -122,7 +245,6 @@
         _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null)
       ]);
 
-      // A) Salva Alunos Detalhados, Séries, Dias Letivos e Frequências da Secretaria
       if (resFreqSec && resFreqSec.success) {
         if (Array.isArray(resFreqSec.series) && resFreqSec.series.length > 0) {
           const seriesNorm = resFreqSec.series.map(s => normalizarSeriePadraoCore(s)).filter(Boolean);
@@ -151,7 +273,6 @@
         }
       }
 
-      // B) Salva Catálogo de Ocorrências RAC
       if (resFiltrosRac && resFiltrosRac.success) {
         if (Array.isArray(resFiltrosRac.ocorrencias) && resFiltrosRac.ocorrencias.length > 0) {
           const catRac = resFiltrosRac.ocorrencias.map(o => ({
@@ -170,7 +291,6 @@
         }
       }
 
-      // C) Salva Ocorrências Registradas (Geral + Específicas do Professor Logado para Consulta/Edição/Exclusão)
       if (Array.isArray(resOcoRac)) {
         salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resOcoRac.slice(0, 800));
         if (nomeProfLogado) {
@@ -182,7 +302,6 @@
         }
       }
 
-      // D) Salva Disciplinas Curriculares (Aba DISCIPLINAS)
       if (resDisc && resDisc.success && Array.isArray(resDisc.disciplinas) && resDisc.disciplinas.length > 0) {
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_disc', resDisc.disciplinas);
         if (Array.isArray(resDisc.listaDetalhada)) {
@@ -190,7 +309,6 @@
         }
       }
 
-      // E) Salva Bimestres (Aba BIMESTRE)
       if (resBim && Array.isArray(resBim.lista)) {
         const bimFormatados = resBim.lista.map(b => ({
           nome: String(b.col1 || "").trim(),
@@ -200,7 +318,6 @@
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_bim', bimFormatados);
       }
 
-      // F) Salva Catálogo de Eletivas e TODAS as Matrículas dos Alunos em Eletivas!
       if (resMatElet && resMatElet.success) {
         const catalogoNorm = (resMatElet.catalogo || []).map(c => ({
           id: c.id || "",
@@ -259,13 +376,12 @@
 
       localStorage.setItem(TIMESTAMP_PREFETCH_KEY, String(Date.now()));
     } catch (errPrefetch) {
-      // Silencioso em segundo plano
+      // Silencioso
     } finally {
       prefetchEmAndamento = false;
     }
   };
 
-  // Reconstrói a resposta offline para qualquer página (incluindo buscarOcorrencias!)
   function construirRespostaOfflineInteligente(action, bodyObj) {
     if (action === 'buscarOcorrencias') {
       const f = bodyObj.filtros || {};
@@ -359,88 +475,8 @@
   }
 
   // =========================================================================
-  // 2. PONTE INDEXEDDB E BACKGROUND SYNC (COM O APP FECHADO)
+  // 3. REGISTRO DO SERVICE WORKER E UNIFICAÇÃO DE FILAS
   // =========================================================================
-  function abrirBancoSyncIDB() {
-    return new Promise(resolve => {
-      if (!window.indexedDB) return resolve(null);
-      const req = indexedDB.open(IDB_SYNC_NAME, 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
-        if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
-      };
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror = () => resolve(null);
-    });
-  }
-
-  async function espelharFilaParaIndexedDB(filaArray) {
-    const db = await abrirBancoSyncIDB();
-    if (!db) return;
-    try {
-      const tx = db.transaction('fila_pendente', 'readwrite');
-      const store = tx.objectStore('fila_pendente');
-      store.clear();
-      (filaArray || []).forEach(item => store.put(item));
-    } catch (e) {}
-
-    if ('serviceWorker' in navigator && 'SyncManager' in window) {
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        if (filaArray && filaArray.length > 0) {
-          await reg.sync.register('sync-fila-eemti');
-        }
-      } catch (e) {}
-    }
-  }
-
-  async function verificarSincronizacoesFeitasComAppFechado() {
-    const db = await abrirBancoSyncIDB();
-    let itensDoBackground = [];
-
-    if (db) {
-      await new Promise(resolve => {
-        try {
-          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
-          const storeRel = tx.objectStore('relatorio_concluido');
-          const storeFila = tx.objectStore('fila_pendente');
-
-          const reqRel = storeRel.getAll();
-          const reqFila = storeFila.getAll();
-
-          tx.oncomplete = () => {
-            if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
-              itensDoBackground = reqRel.result.map(r => r.resumoHtml || r);
-              const txClear = db.transaction('relatorio_concluido', 'readwrite');
-              txClear.objectStore('relatorio_concluido').clear();
-
-              const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
-              localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
-            }
-            resolve();
-          };
-          tx.onerror = () => resolve();
-        } catch (e) {
-          resolve();
-        }
-      });
-    }
-
-    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
-    if (logLocal.length > 0) {
-      itensDoBackground = itensDoBackground.concat(logLocal);
-      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
-    }
-
-    if (itensDoBackground.length > 0) {
-      window.atualizarBadgeStatusConexaoGlobal();
-      exibirAvisoFinalDeDadosSincronizados(itensDoBackground);
-      // Atualiza o cache local após sincronizar itens do background
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 600);
-    }
-  }
-
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -457,15 +493,12 @@
 
       navigator.serviceWorker.addEventListener('message', event => {
         if (event.data && event.data.type === 'SYNC_BACKGROUND_CONCLUIDO') {
-          verificarSincronizacoesFeitasComAppFechado();
+          reconciliarEstadoComServiceWorkerAoAbrir();
         }
       });
     });
   }
 
-  // =========================================================================
-  // 3. UNIFICAÇÃO DE FILAS E INTERCEPTADOR INTELIGENTE DE FETCH
-  // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
     let alterou = false;
@@ -482,13 +515,15 @@
             payloadUnificado = { action: acaoInferida, dados: item.dados };
           }
           if (payloadUnificado) {
-            filaGlobal.push({
+            const novoItem = {
               idFila: item.idFila || item.idTemp || item.idLocal || (Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
               dataHora: item.dataHora || new Date().toLocaleString('pt-BR'),
               url: item.url || API_PADRAO_URL,
               payload: payloadUnificado,
               resumoHtml: item.resumoHtml || (`<li>${item.resumo || resumirItemSincronizado(payloadUnificado)}</li>`)
-            });
+            };
+            filaGlobal.push(novoItem);
+            adicionarItemNoIndexedDB(novoItem);
             alterou = true;
           }
         });
@@ -498,7 +533,6 @@
 
     if (alterou) {
       localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaGlobal));
-      espelharFilaParaIndexedDB(filaGlobal);
     }
     return filaGlobal;
   }
@@ -537,14 +571,13 @@
 
       const action = bodyObj.action || '';
 
-      // 1. Se estiver OFFLINE:
       if (!navigator.onLine) {
         if (ACOES_GRAVACAO_OFFLINE[action]) {
           window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Salvo no Modo Offline! A sincronização ocorrerá automaticamente em segundo plano assim que houver internet.'
+            msg: 'Salvo no Modo Offline! O envio para a planilha será feito automaticamente em segundo plano assim que o aparelho conectar à internet (mesmo com o aplicativo fechado).'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
@@ -554,12 +587,10 @@
         }
       }
 
-      // 2. Se estiver ONLINE:
       try {
         const response = await _fetchNativo(url, options);
         const clone = response.clone();
 
-        // Se consultou ocorrências online, já aproveita para atualizar o cache local de ocorrências
         if (action === 'buscarOcorrencias') {
           clone.json().then(listaOco => {
             if (Array.isArray(listaOco)) {
@@ -581,8 +612,6 @@
           }).catch(() => {});
         }
 
-        // Sempre que houver Login ou qualquer Cadastro, Edição ou Exclusão (incluindo salvarOcorrencia e excluirOcorrencia):
-        // Atualiza automaticamente as listas offline em segundo plano!
         if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
           clone.json().then(resJson => {
             if (resJson && (resJson.success || resJson.msg)) {
@@ -599,7 +628,7 @@
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Conexão instável! Salvo na fila e será sincronizado em segundo plano sem interromper seu uso.'
+            msg: 'Conexão instável! Salvo na fila e será sincronizado automaticamente em segundo plano.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
@@ -615,15 +644,16 @@
 
   window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
     const fila = unificarFilasOfflineNoStorage();
-    fila.push({
+    const novoItem = {
       idFila: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       dataHora: new Date().toLocaleString('pt-BR'),
       url: url || API_PADRAO_URL,
       payload: payload,
       resumoHtml: resumoCustomizado ? `<li>${resumoCustomizado}</li>` : resumirItemSincronizado(payload)
-    });
+    };
+    fila.push(novoItem);
     localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
-    espelharFilaParaIndexedDB(fila);
+    adicionarItemNoIndexedDB(novoItem);
     window.atualizarBadgeStatusConexaoGlobal();
   };
 
@@ -632,28 +662,36 @@
   };
 
   // =========================================================================
-  // 4. SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM TRAVAR A TELA DO PROFESSOR)
+  // 4. EXIBIÇÃO DO AVISO DE DADOS ENVIADOS E FALLBACK EM 2º PLANO
   // =========================================================================
-  function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
+  function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados, enviadoComAppFechado = false) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
     if (typeof Swal === 'undefined') return;
 
+    const subtitulo = enviadoComAppFechado
+      ? 'Enquanto o aplicativo estava fechado, a conexão retornou e as seguintes informações já foram enviadas automaticamente para a planilha:'
+      : 'A sincronização em segundo plano foi concluída! As seguintes informações foram enviadas para a planilha:';
+
     Swal.fire({
-      title: 'Dados Offline Sincronizados!',
+      title: 'Informações Sincronizadas!',
       html: `
-        <p class="small text-muted mb-2">A sincronização em segundo plano foi concluída! Os seguintes registros foram salvos no banco de dados:</p>
+        <p class="small text-muted mb-2">${subtitulo}</p>
         <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
           ${listaHtmlSincronizados.join('')}
         </ul>
       `,
       icon: 'success',
       confirmButtonColor: '#15438c',
-      confirmButtonText: 'OK, Entendido!'
+      confirmButtonText: 'Ciente, Obrigado!'
     });
   }
 
   window.sincronizarFilaOfflineGlobal = async function() {
     if (sincronizacaoEmAndamento || !navigator.onLine) return;
+
+    // Primeiro verifica se o Service Worker já enviou tudo em background!
+    const jaSincronizouNoSW = await reconciliarEstadoComServiceWorkerAoAbrir();
+    if (jaSincronizouNoSW) return;
 
     const filaInicial = unificarFilasOfflineNoStorage();
     if (filaInicial.length === 0) {
@@ -675,7 +713,9 @@
       try {
         const res = await _fetchNativo(item.url || API_PADRAO_URL, {
           method: 'POST',
-          body: JSON.stringify(item.payload)
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(item.payload),
+          redirect: 'follow'
         });
         const json = await res.json();
 
@@ -684,7 +724,7 @@
           const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
             .filter(f => f.idFila !== item.idFila);
           localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaAtual));
-          espelharFilaParaIndexedDB(filaAtual);
+          await removerItemDoIndexedDB(item.idFila);
         }
       } catch (e) {}
     }
@@ -693,13 +733,12 @@
     window.atualizarBadgeStatusConexaoGlobal();
 
     if (sincronizadosHtml.length > 0) {
-      // Atualiza imediatamente a lista de ocorrências/atividades/frequências no cache local após sincronizar!
       localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
 
       window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
       if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
-        exibirAvisoFinalDeDadosSincronizados(sincronizadosHtml);
+        exibirAvisoFinalDeDadosSincronizados(sincronizadosHtml, false);
       } else {
         const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
         localStorage.setItem(LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(sincronizadosHtml)));
@@ -751,14 +790,24 @@
     window.atualizarBadgeStatusConexaoGlobal();
   });
 
+  // Quando o professor volta para o aplicativo (ou destrava a tela do celular), confere na hora se o SW já enviou!
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      reconciliarEstadoComServiceWorkerAoAbrir();
+    }
+  });
+
   window.addEventListener('DOMContentLoaded', async () => {
     unificarFilasOfflineNoStorage();
+
+    // 1º PASSO IMEDIATO (0ms): Confere se o Service Worker já enviou tudo com o app fechado e mostra apenas o aviso de ciência!
+    const jaEnviouFechado = await reconciliarEstadoComServiceWorkerAoAbrir();
     window.atualizarBadgeStatusConexaoGlobal();
 
-    await verificarSincronizacoesFeitasComAppFechado();
-
     if (navigator.onLine) {
-      setTimeout(window.sincronizarFilaOfflineGlobal, 400);
+      if (!jaEnviouFechado) {
+        setTimeout(window.sincronizarFilaOfflineGlobal, 300);
+      }
       setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 900);
     }
   });
