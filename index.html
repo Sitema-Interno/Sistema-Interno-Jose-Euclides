@@ -356,7 +356,7 @@
     }
 
     /* ========================================================================= */
-    /* MODO CELULAR: COLMEIA DIAMANTE 3 COLUNAS (3 - 4 - 3) IGUAL À IMAGEM        */
+    /* MODO CELULAR: COLMEIA DIAMANTE 3 COLUNAS (3 - 4 - 3)                      */
     /* ========================================================================= */
     @media (max-width: 768px) {
       .top-header {
@@ -376,12 +376,11 @@
         padding: 8px 6px 32px 6px;
       }
 
-      /* Container de 3 Colunas (Esquerda: 3 | Centro: 4 | Direita: 3) */
       .honeycomb-wrapper {
         --m-w: 124px;
         --m-h: 107px;
         --m-gap-y: 4px;
-        --m-overlap-x: -13px; /* Encaixa perfeitamente as diagonais das 3 colunas com 4px de respiro */
+        --m-overlap-x: -13px;
         display: flex !important;
         flex-direction: row !important;
         align-items: flex-start !important;
@@ -390,7 +389,6 @@
         margin: 0 auto !important;
       }
 
-      /* Desfaz as 7 colunas antigas do desktop quando a colmeia 3-4-3 mobile estiver montada */
       .honeycomb-wrapper > .hex-col {
         display: none !important;
       }
@@ -404,7 +402,6 @@
         position: relative;
       }
 
-      /* As colunas laterais (1ª e 3ª, com 3 hexágonos) descem metade de 1 hexágono para encaixar nos 4 do centro! */
       .honeycomb-wrapper > .hex-col-mobile-343.col-lateral {
         margin-top: calc((var(--m-h) + var(--m-gap-y)) / 2) !important;
       }
@@ -434,7 +431,6 @@
       }
     }
 
-    /* Ajuste automático para celulares com tela menor (ex: 360px de largura) */
     @media (max-width: 380px) {
       .honeycomb-wrapper {
         --m-w: 112px;
@@ -651,15 +647,11 @@
   <script>
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
 
-    // Monta automaticamente as 3 colunas mobile (3 - 4 - 3) idênticas à imagem enviada!
+    // Monta automaticamente as 3 colunas mobile (3 - 4 - 3)
     (function configurarColmeia343Mobile() {
       const wrapper = document.getElementById('wrapperColmeiaPrincipal');
       if (!wrapper) return;
 
-      // Clona os 10 hexágonos em 3 colunas exclusivas para celular:
-      // Coluna Esquerda (3): GESTÃO, FREQUÊNCIA, OCORRÊNCIA
-      // Coluna Central (4): BIBLIOTECA (Topo), DIRETOR DE TURMA, ATIVIDADE, ALUNOS (Base)
-      // Coluna Direita (3): RESERVAS, GRÁFICOS, ELETIVA
       const todosNodes = Array.from(wrapper.querySelectorAll('.hex-col > .hex-node'));
       if (todosNodes.length !== 10) return;
 
@@ -748,7 +740,7 @@
         icone: "bi-person-workspace",
         itens: [
           { titulo: "Mapeamento de Sala", desc: "Planta das carteiras com fotos 3x4 em PDF.", link: "mapeamento-sala.html", icone: "bi-grid-3x3-gap-fill" },
-          { titulo: "Atendimento e Suspensões", desc: "Termos de suspensão e acordos com responsáveis.", link: "atendimento-alunos.html", icone: "bi-shield-exclamation" },
+          { titulo: "Atendimento e Suspensões", desc: "Termos de suspensão e acordos com responsáveis.", link: "atendimento-alunos.html", icone: "bi-shield-exclamation", apenasPdtOuGestao: true },
           { titulo: "Notas Bimestrais (CRO)", desc: "Relatório de notas bimestrais.", link: "notas-registros.html", icone: "bi-123" },
           { titulo: "Consultar Histórico Individual", desc: "Ficha disciplinar e pontuação do aluno.", link: "historico-ocorrencias.html", icone: "bi-person-lines-fill" },
           { titulo: "Relatório Registros da Turma", desc: "Consolidado de ocorrências por série.", link: "relatorio-turma-ocorrencias.html", icone: "bi-file-earmark-bar-graph" }
@@ -799,6 +791,42 @@
       }
     };
 
+    // Verifica na aba PDT se o professor logado é PDT de alguma turma
+    const API_INDEX_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+    let mapaPdtIndex = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+
+    function normalizarTextoComparacao(str) {
+      return String(str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+    }
+
+    function usuarioLogadoEhPdtCadastrado() {
+      if (perfilLogadoUpper === "ADMINISTRADOR" || perfilLogadoUpper === "DIRECAO") return true;
+      const meuNome = normalizarTextoComparacao(usuarioLogado?.nome || usuarioLogado?.usuario?.nome || "");
+      if (!meuNome) return false;
+      return Object.values(mapaPdtIndex).some(pdtNome => {
+        const pNorm = normalizarTextoComparacao(pdtNome);
+        return pNorm && (pNorm === meuNome || pNorm.includes(meuNome) || meuNome.includes(pNorm));
+      });
+    }
+
+    if (navigator.onLine) {
+      fetch(API_INDEX_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'listarPDT' })
+      }).then(r => r.json()).then(res => {
+        if (res && Array.isArray(res.lista)) {
+          const novoMapa = {};
+          res.lista.forEach(item => {
+            const s = String(item.serie || "").trim().toUpperCase();
+            const p = String(item.professor || "").trim().toUpperCase();
+            if (s && p) novoMapa[s] = p;
+          });
+          mapaPdtIndex = novoMapa;
+          try { localStorage.setItem('cache_mapa_pdt_v4', JSON.stringify(mapaPdtIndex)); } catch (e) {}
+        }
+      }).catch(() => {});
+    }
+
     function selecionarTopicoColmeia(elementoHex, chaveTopico) {
       if (chaveTopico === 'GESTAO' && perfilLogadoUpper === 'PROFESSOR') {
         Swal.fire({
@@ -827,8 +855,11 @@
       document.getElementById('tituloPainelTopico').innerHTML = `<i class="bi ${config.icone}"></i> ${config.titulo}`;
 
       let html = '';
+      const isPdtAtivo = usuarioLogadoEhPdtCadastrado();
+
       config.itens.forEach(item => {
         const bloqueadoParaDirecao = (item.apenasAdmin === true && perfilLogadoUpper !== 'ADMINISTRADOR');
+        const bloqueadoNaoPdt = (item.apenasPdtOuGestao === true && !isPdtAtivo);
 
         if (bloqueadoParaDirecao) {
           html += `
@@ -837,6 +868,17 @@
                 <div class="sub-card-icon" style="background: #64748b;"><i class="bi bi-lock-fill"></i></div>
                 <div>
                   <div class="fw-bold" style="font-size: 0.9rem;">${item.titulo} <span class="badge bg-secondary ms-1">Somente Admin</span></div>
+                  <div class="text-muted" style="font-size: 0.75rem;">${item.desc}</div>
+                </div>
+              </div>
+            </div>`;
+        } else if (bloqueadoNaoPdt) {
+          html += `
+            <div class="col-12 col-md-6">
+              <div class="sub-card-link bloqueado-card" onclick="Swal.fire('Exclusivo para PDT / Gestão', 'O módulo de Atendimento e Suspensões é restrito aos Professores Diretores de Turma (PDT) cadastrados e à Gestão Escolar.', 'warning')">
+                <div class="sub-card-icon" style="background: #64748b;"><i class="bi bi-lock-fill"></i></div>
+                <div>
+                  <div class="fw-bold" style="font-size: 0.9rem;">${item.titulo} <span class="badge bg-secondary ms-1">Exclusivo PDT</span></div>
                   <div class="text-muted" style="font-size: 0.75rem;">${item.desc}</div>
                 </div>
               </div>
