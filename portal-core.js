@@ -620,7 +620,10 @@
     const hojeIso = new Date().toISOString().slice(0, 10);
     const inicioMesIso = hojeIso.slice(0, 8) + '01';
 
-    const { value: datasEscolhidas } = await Swal.fire({
+    // Já garante as bibliotecas jsPDF e autoTable carregadas antes mesmo de confirmar!
+    garantirBibliotecasPdfCarregadas().catch(() => {});
+
+    const resultadoModal = await Swal.fire({
       title: '<span style="font-size:1.05rem;font-weight:800;color:#15438c;"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Relatório de Reservas por Período</span>',
       html: `
         <div class="text-start mt-2" style="font-size:0.85rem;">
@@ -641,8 +644,10 @@
       confirmButtonText: '<i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar PDF',
       cancelButtonText: 'Cancelar',
       preConfirm: () => {
-        const dIni = document.getElementById('swalDataIniReservaPdf').value;
-        const dFim = document.getElementById('swalDataFimReservaPdf').value;
+        const elIni = document.getElementById('swalDataIniReservaPdf');
+        const elFim = document.getElementById('swalDataFimReservaPdf');
+        const dIni = elIni ? elIni.value : '';
+        const dFim = elFim ? elFim.value : '';
         if (!dIni || !dFim) {
           Swal.showValidationMessage('Selecione a Data Inicial e a Data Final!');
           return false;
@@ -655,14 +660,22 @@
       }
     });
 
-    if (!datasEscolhidas) return;
+    if (!resultadoModal || !resultadoModal.isConfirmed || !resultadoModal.value) return;
+    const datasEscolhidas = resultadoModal.value;
 
-    const tsIni = new Date(datasEscolhidas.inicioIso + 'T00:00:00').getTime();
-    const tsFim = new Date(datasEscolhidas.fimIso + 'T23:59:59').getTime();
-    const dtIniBr = datasEscolhidas.inicioIso.split('-').reverse().join('/');
-    const dtFimBr = datasEscolhidas.fimIso.split('-').reverse().join('/');
+    const pIni = datasEscolhidas.inicioIso.split('-');
+    const pFim = datasEscolhidas.fimIso.split('-');
+    const tsIni = new Date(Number(pIni[0]), Number(pIni[1]) - 1, Number(pIni[2]), 0, 0, 0).getTime();
+    const tsFim = new Date(Number(pFim[0]), Number(pFim[1]) - 1, Number(pFim[2]), 23, 59, 59).getTime();
+    const dtIniBr = `${pIni[2]}/${pIni[1]}/${pIni[0]}`;
+    const dtFimBr = `${pFim[2]}/${pFim[1]}/${pFim[0]}`;
 
-    Swal.fire({ title: 'Gerando Relatório PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({
+      title: 'Baixando Relatório PDF...',
+      text: `Período: ${dtIniBr} até ${dtFimBr}`,
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
     try {
       await garantirBibliotecasPdfCarregadas();
@@ -712,21 +725,26 @@
           headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
         });
 
-        Swal.close();
         doc.save(`Relatorio_Biblioteca_${datasEscolhidas.inicioIso}_a_${datasEscolhidas.fimIso}.pdf`);
+        Swal.fire({ icon: 'success', title: 'PDF Gerado!', text: 'O download do relatório foi concluído.', timer: 1800, showConfirmButton: false });
         return;
       }
 
-      // Caso padrão: Reservas de Ambientes e Equipamentos (reservas.html)
-      let listaRes = cacheUltimasReservasCarregadas;
-      if (!Array.isArray(listaRes) || listaRes.length === 0) {
+      // Busca todas as reservas diretamente da planilha para garantir que reservas passadas e futuras do período saiam no PDF!
+      let listaRes = [];
+      try {
         const rApi = await _fetchNativo(API_PADRAO_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'listarReservas' }),
           redirect: 'follow'
-        }).then(r => r.json()).catch(() => ({ lista: [] }));
-        listaRes = (rApi && Array.isArray(rApi.lista)) ? rApi.lista : [];
+        }).then(r => r.json());
+        if (rApi && Array.isArray(rApi.lista)) {
+          listaRes = rApi.lista;
+          cacheUltimasReservasCarregadas = listaRes;
+        }
+      } catch (e) {
+        listaRes = cacheUltimasReservasCarregadas || [];
       }
 
       const reservasNoPeriodo = listaRes
@@ -768,10 +786,10 @@
         headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
       });
 
-      Swal.close();
       doc.save(`Relatorio_Reservas_${datasEscolhidas.inicioIso}_a_${datasEscolhidas.fimIso}.pdf`);
+      Swal.fire({ icon: 'success', title: 'PDF Baixado!', text: 'O relatório de reservas foi salvo no seu aparelho.', timer: 1800, showConfirmButton: false });
     } catch (errPdf) {
-      Swal.fire('Erro', 'Não foi possível gerar o PDF: ' + errPdf.message, 'error');
+      Swal.fire('Erro ao gerar PDF', errPdf.message || String(errPdf), 'error');
     }
   };
 
@@ -779,8 +797,14 @@
     const pathLower = window.location.pathname.toLowerCase();
     if (!pathLower.includes('reservas')) return;
 
+    // Pré-carrega o jsPDF assim que entra na página de reservas
+    garantirBibliotecasPdfCarregadas().catch(() => {});
+
     const botoesPdf = Array.from(document.querySelectorAll('button, a.btn')).filter(b => {
-      if (b.id && b.id.includes('swal')) return false;
+      // CRUCIAL: NUNCA intercepta botões que estão dentro do modal do SweetAlert2 (.swal2-container)!
+      if (b.closest('.swal2-container') || b.classList.contains('swal2-confirm') || b.classList.contains('swal2-cancel')) {
+        return false;
+      }
       const txt = (b.textContent || '').toUpperCase();
       const onc = (b.getAttribute('onclick') || '').toUpperCase();
       return txt.includes('PDF') || onc.includes('PDF');
@@ -799,147 +823,6 @@
       });
     }
   }
-
-  // =========================================================================
-  // 3. AJUSTE DO MAPEAMENTO DE SALA (PORTA/FILA 1 NA ESQUERDA E SEM DESTAQUE LARANJA)
-  // =========================================================================
-  function ajustarLayoutMapeamentoDeSala() {
-    const pathLower = window.location.pathname.toLowerCase();
-    if (!pathLower.includes('mapeamento')) return;
-
-    // 1. Remove a classe de destaque laranja da Fila 1 e padroniza o cabeçalho para "FILA 1" igual às demais filas
-    document.querySelectorAll('.fila-coluna.fila-porta-destaque').forEach(col => {
-      col.classList.remove('fila-porta-destaque');
-      const header = col.querySelector('.fila-header');
-      if (header) {
-        header.innerHTML = `<i class="bi bi-View-list me-1"></i>FILA 1`;
-      }
-    });
-
-    // 2. Sobrescreve o gerador de PDF do Mapeamento de Sala caso ele estivesse desenhando a Fila 1 na direita ou em laranja!
-    if (typeof window.desenharPlantaDeSalaNoDocumentoPdf === 'function' && !window.desenharPlantaDeSalaNoDocumentoPdf._eemtiFixed) {
-      window.desenharPlantaDeSalaNoDocumentoPdf = async function(doc, cfg, adicionarNovaPaginaAntes) {
-        if (adicionarNovaPaginaAntes) doc.addPage();
-
-        const serie = cfg.serie;
-        const pdt = cfg.pdt || "NÃO ATRIBUÍDO";
-        const cols = Math.min(8, Math.max(1, Number(cfg.colunas) || 6));
-        const rows = Math.min(8, Math.max(1, Number(cfg.linhas) || 7));
-        const pos = cfg.posicoes || {};
-        const dtStr = cfg.ultimaAtualizacao || new Date().toLocaleDateString('pt-BR');
-
-        const pageW = doc.internal.pageSize.getWidth();
-        const pageH = doc.internal.pageSize.getHeight();
-        const marginX = 8;
-
-        const yAposCabecalho = await window.desenharCabecalhoPadraoEEMTI(doc, {
-          tituloDocumento: `MAPEAMENTO OFICIAL DE SALA DE AULA — ${serie}`,
-          subtitulo1: `Professor(a) Diretor(a) de Turma (PDT): ${pdt}`,
-          subtitulo2: `Layout: ${cols} Filas x ${rows} Carteiras | Atualizado em: ${dtStr}`
-        });
-
-        // Barra de Referência Frontal: PORTA DA SALA (FILA 1) na Esquerda | QUADRO BRANCO no Centro | JANELAS na Direita
-        const refY = yAposCabecalho;
-        doc.setFillColor(255, 251, 235);
-        doc.setDrawColor(217, 119, 6);
-        doc.setLineWidth(0.35);
-        doc.roundedRect(marginX, refY, 64, 6.2, 1.2, 1.2, 'FD');
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(6.5);
-        doc.setTextColor(180, 83, 9);
-        doc.text("PORTA DA SALA (FILA 1 INICIA AQUI)", marginX + 32, refY + 4.1, { align: "center" });
-
-        doc.setFillColor(30, 41, 59);
-        doc.roundedRect((pageW / 2) - 42, refY, 84, 6.2, 1.2, 1.2, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(6.8);
-        doc.text("QUADRO BRANCO / MESA DO PROFESSOR (FRENTE)", pageW / 2, refY + 4.1, { align: "center" });
-
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(203, 213, 225);
-        doc.roundedRect(pageW - marginX - 52, refY, 52, 6.2, 1.2, 1.2, 'FD');
-        doc.setTextColor(100, 116, 139);
-        doc.setFontSize(6.2);
-        doc.text("Lado Oposto / Janelas", pageW - marginX - 26, refY + 4.1, { align: "center" });
-
-        const startY = refY + 8.2;
-        const availW = pageW - (marginX * 2);
-        const availH = pageH - startY - 6;
-        const gapX = 2.0;
-        const gapY = 1.6;
-        const headerFilaH = 4.8;
-
-        const seatW = (availW - (gapX * (cols - 1))) / cols;
-        const seatH = (availH - headerFilaH - 1.2 - (gapY * (rows - 1))) / rows;
-
-        // Desenha da Esquerda para a Direita: Fila 1 na esquerda (Porta) até Fila N na direita, todas com o mesmo azul padrão!
-        for (let c = 1; c <= cols; c++) {
-          const xCol = marginX + (c - 1) * (seatW + gapX);
-          doc.setFillColor(21, 67, 140);
-          doc.roundedRect(xCol, startY, seatW, headerFilaH, 1, 1, 'F');
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(6.5);
-          doc.setTextColor(255, 255, 255);
-          doc.text(`FILA ${c}`, xCol + (seatW / 2), startY + 3.3, { align: "center" });
-
-          for (let r = 1; r <= rows; r++) {
-            const ySeat = startY + headerFilaH + 1.2 + (r - 1) * (seatH + gapY);
-            const chave = `F${c}_C${r}`;
-            const nomeAlocado = pos[chave] || "";
-
-            doc.setFillColor(255, 255, 255);
-            doc.setDrawColor(203, 213, 225);
-            doc.setLineWidth(0.25);
-            doc.roundedRect(xCol, ySeat, seatW, seatH, 1.2, 1.2, 'FD');
-
-            doc.setFillColor(21, 67, 140);
-            doc.roundedRect(xCol + 1.2, ySeat + 1, 13, 3.2, 0.8, 0.8, 'F');
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(4.8);
-            doc.setTextColor(255, 255, 255);
-            doc.text(`${r}ª Cart.`, xCol + 7.7, ySeat + 3.2, { align: "center" });
-
-            const photoMaxH = Math.max(7, seatH - 8.8);
-            const photoW = Math.min(seatW - 6, photoMaxH * 0.75);
-            const photoH = photoW / 0.75;
-            const photoX = xCol + (seatW - photoW) / 2;
-            const photoY = ySeat + 4.6;
-
-            doc.setFillColor(248, 250, 252);
-            doc.setDrawColor(203, 213, 225);
-            doc.rect(photoX, photoY, photoW, photoH, 'FD');
-
-            if (nomeAlocado) {
-              const infoCache = obterDadosCadastraisAlunoCache(nomeAlocado);
-              const fotoSrc = infoCache.foto || "";
-              const b64Img = fotoSrc ? await window.converterImagemParaDataUrlPdf(fotoSrc, 200, 260) : null;
-              if (b64Img) {
-                try { doc.addImage(b64Img, 'JPEG', photoX + 0.2, photoY + 0.2, photoW - 0.4, photoH - 0.4); } catch (e) {}
-              } else {
-                doc.setFontSize(4.3);
-                doc.setTextColor(148, 163, 184);
-                doc.text("SEM FOTO", photoX + (photoW / 2), photoY + (photoH / 2), { align: "center" });
-              }
-
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(4.8);
-              doc.setTextColor(15, 23, 42);
-              const linhasNome = doc.splitTextToSize(nomeAlocado, seatW - 2.4);
-              const yTexto = photoY + photoH + 2.3;
-              doc.text(linhasNome.slice(0, 2), xCol + (seatW / 2), yTexto, { align: "center" });
-            } else {
-              doc.setFont("helvetica", "normal");
-              doc.setFontSize(5);
-              doc.setTextColor(180, 180, 180);
-              doc.text("Vazio", xCol + (seatW / 2), photoY + (photoH / 2) + 1, { align: "center" });
-            }
-          }
-        }
-      };
-      window.desenharPlantaDeSalaNoDocumentoPdf._eemtiFixed = true;
-    }
-  }
-
   // =========================================================================
   // 4. FUNÇÕES DE FORMATAÇÃO E FICHA DO ALUNO (SEM REPETIÇÃO DE DADOS!)
   // =========================================================================
