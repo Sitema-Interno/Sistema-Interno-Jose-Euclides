@@ -10,7 +10,6 @@ const URLS_TO_CACHE = [
   './portal-core.js',
   './LOGO-removebg-preview.png',
   './brasaoestado.png',
-  './brasaoestado.png.png',
   './icon-192.png',
   './icon-512.png',
   './acompanhamento.html',
