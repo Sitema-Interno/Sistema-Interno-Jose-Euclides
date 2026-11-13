@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v8';
+const CACHE_NAME = 'sistema-jose-euclides-v9';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 
 const URLS_TO_CACHE = [
@@ -10,25 +10,45 @@ const URLS_TO_CACHE = [
   './LOGO-removebg-preview.png',
   './ocorrencias.html',
   './registro-ocorrencias.html',
+  './consulta-ocorrencias-aluno.html',
+  './historico.html',
+  './historico-ocorrencias.html',
+  './relatorio-turma-ocorrencias.html',
+  './notas-turma.html',
+  './notas-registros.html',
+  './graficos-ocorrencias.html',
+  './simulados.html',
   './atividades.html',
   './atividade-disciplinas.html',
   './frequencia-secretaria.html',
+  './controle-frequencia-ranking.html',
   './frequencia-eletivas.html',
   './historico-eletivas.html',
-  './historico.html',
-  './historico-ocorrencias.html',
-  './notas-turma.html',
-  './notas-registros.html',
+  './monitoramento-eletivas.html',
   './mapeamento.html',
   './mapeamento-sala.html',
-  './reservas.html',
   './atendimento.html',
   './atendimento-alunos.html',
   './notas.html',
   './gestao-notas.html',
   './matricula.html',
   './matricula-eletivas.html',
+  './cadastro-alunos.html',
+  './situacao-aluno.html',
+  './busca-ativa.html',
+  './aee.html',
+  './cadastro-livros.html',
+  './reservas-livros.html',
+  './gestao-funcionarios.html',
   './cadastro-disciplinas.html',
+  './cadastro-eletivas.html',
+  './gestao-bimestre.html',
+  './gestao-serie.html',
+  './gestao-pdt.html',
+  './gestao-pontuacao.html',
+  './gestao-ambiente.html',
+  './acompanhamento.html',
+  './auditoria.html',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
@@ -42,7 +62,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async cache => {
       for (const url of URLS_TO_CACHE) {
-        try { await cache.add(url); } catch (err) {}
+        try { await cache.add(new Request(url, { cache: 'reload' })); } catch (err) {}
       }
     })
   );
@@ -58,18 +78,23 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Interceptação Network-First com atualização automática do GitHub
+// Interceptação Network-First (HTML, JS, JSON e Imagens locais sempre buscam a versão mais nova do GitHub!)
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
 
-  const isHtmlOuJsLocal = event.request.mode === 'navigate' ||
-                          event.request.url.endsWith('.html') ||
-                          event.request.url.endsWith('.js') ||
-                          event.request.url.endsWith('.json');
+  const urlLower = event.request.url.toLowerCase();
+  const isArquivoDinamicoLocal =
+    event.request.mode === 'navigate' ||
+    urlLower.endsWith('.html') ||
+    urlLower.endsWith('.js') ||
+    urlLower.endsWith('.json') ||
+    urlLower.endsWith('.png') ||
+    urlLower.endsWith('.jpg') ||
+    urlLower.endsWith('.jpeg');
 
-  const fetchReq = isHtmlOuJsLocal
+  const fetchReq = isArquivoDinamicoLocal
     ? new Request(event.request.url, { cache: 'no-store' })
     : event.request;
 
@@ -83,7 +108,7 @@ self.addEventListener('fetch', event => {
         return fetchResponse;
       })
       .catch(() => {
-        return caches.match(event.request).then(cachedResponse => {
+        return caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
           return cachedResponse || (event.request.mode === 'navigate' ? caches.match('./index.html') : null);
         });
       })
@@ -91,7 +116,7 @@ self.addEventListener('fetch', event => {
 });
 
 // =========================================================================
-// BACKGROUND SYNC: ENVIA DIRETO PARA A PLANILHA COM O APP FECHADO OU MINIMIZADO
+// BACKGROUND SYNC: ENVIA QUANDO O APP ESTIVER FECHADO OU MINIMIZADO
 // =========================================================================
 let envioSwEmAndamento = false;
 
@@ -110,6 +135,13 @@ function abrirBancoNoServiceWorker() {
 
 async function processarFilaEmSegundoPlanoSW() {
   if (envioSwEmAndamento) return;
+
+  // Se houver uma janela visível em primeiro plano, deixa o portal-core.js enviar para não duplicar!
+  // Se estiver minimizado (hidden) ou fechado (0 clientes), o Service Worker assume e envia!
+  const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const algumVisivelEmPrimeiroPlano = clientes.some(c => c.visibilityState === 'visible');
+  if (algumVisivelEmPrimeiroPlano) return;
+
   envioSwEmAndamento = true;
 
   try {
@@ -133,7 +165,6 @@ async function processarFilaEmSegundoPlanoSW() {
 
     for (const item of itensPendentes) {
       try {
-        // Segue o redirecionamento 302 do Google Apps Script mesmo com o app fechado!
         const res = await fetch(item.url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -146,7 +177,7 @@ async function processarFilaEmSegundoPlanoSW() {
         let json = null;
         try { json = JSON.parse(texto); } catch (e) {}
 
-        if ((json && (json.success || json.msg)) || (res.ok && texto.includes('"success":true'))) {
+        if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
           enviouAlgum = true;
           await new Promise(resolve => {
             const tx = db.transaction(['fila_pendente', 'relatorio_concluido'], 'readwrite');
@@ -166,8 +197,8 @@ async function processarFilaEmSegundoPlanoSW() {
     }
 
     if (enviouAlgum) {
-      const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      clientes.forEach(cliente => {
+      const todosClientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      todosClientes.forEach(cliente => {
         cliente.postMessage({ type: 'SYNC_BACKGROUND_CONCLUIDO' });
       });
     }
