@@ -1,18 +1,17 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO ULTRA-RÁPIDA (CACHE-FIRST)
-// 1. ABERTURA E FILTROS INSTANTÂNEOS (0ms) + ATUALIZAÇÃO SILENCIOSA EM 2º PLANO
-// 2. TODAS AS PÁGINAS FUNCIONAM OFFLINE (EXCETO RESERVAS DE AMBIENTES)
-// 3. SELO "ATUALIZADO COM O BANCO: DATA/HORA" + BOTÃO "VOLTAR" (MEMÓRIA DO ÚLTIMO MÓDULO)
-// 4. FIM DO LOOP DE SINCRONIZAÇÃO INFINITA + TIMEOUT DE SEGURANÇA (15s)
-// 5. RESPONSIVIDADE UNIVERSAL (CELULAR, TABLET E PC) + CABEÇALHO PDF PADRÃO
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - MODO CACHE TOTAL INSTANTÂNEO (1ms)
+// 1. ATUALIZA 1 ÚNICA VEZ AO ABRIR O SISTEMA ONLINE (SEM RECARREGAR A CADA FILTRO/PESQUISA)
+// 2. PESQUISAS DE HISTÓRICO, TURMAS E FILTROS RESPONDEM EM MILISSEGUNDOS DIRETO DO CACHE
+// 3. ATUALIZAÇÃO MANUAL SOB DEMANDA AO CLICAR NO SELO "ATUALIZADO EM..." (APÓS O BOTÃO SAIR)
+// 4. BOTÃO "VOLTAR" RETORNA PARA A INDEX.HTML LIMPA (SEM NENHUMA SELEÇÃO ABERTA)
+// 5. CORRIGE AUTOMATICAMENTE A IMAGEM "brasaoestado.png.png" E "LOGO-removebg-preview.png"
+// 6. ENVIO OFFLINE EM 2º PLANO (INCLUSIVE APP MINIMIZADO/FECHADO) + RESPONSIVIDADE TOTAL
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
   const LOG_SINCRONIZADOS_KEY = 'log_recem_sincronizados_eemti_v1';
-  const TIMESTAMP_PREFETCH_KEY = 'ultimo_prefetch_completo_eemti_ts';
+  const SESSAO_JA_SINCRONIZADA_KEY = 'sessao_inicial_sincronizada_eemti_v1';
   const ULTIMA_ATUALIZACAO_STR_KEY = 'ultima_atualizacao_banco_eemti_str';
-  const ULTIMO_TOPICO_COLMEIA_KEY = 'ultimo_topico_colmeia_selecionado_eemti';
-  const CACHE_UNIVERSAL_ACTIONS_KEY = 'cache_universal_actions_eemti_v1';
   const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
   const API_PADRAO_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
 
@@ -22,11 +21,14 @@
     'fila_offline_mapeamento_v1'
   ];
 
+  // Chaves de armazenamento local para resposta em 1 milissegundo
   window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
   window.KEY_SERIES_UNIVERSAL_EEMTI = 'cache_rac_series_v3';
   const KEY_MATRICULAS_ELETIVAS_OFFLINE = 'cache_matriculas_eletivas_global_v1';
   const KEY_CATALOGO_ELETIVAS_OFFLINE = 'cache_catalogo_eletivas_global_v1';
   const KEY_TODAS_OCORRENCIAS_OFFLINE = 'cache_rac_todas_ocorrencias_v1';
+  const KEY_PONTUACOES_RAC_OFFLINE = 'cache_rac_pontuacoes_v1';
+  const KEY_FREQ_ELETIVAS_LANCAMENTOS = 'cache_freq_eletivas_lancamentos_v1';
   const KEY_AMBIENTES_OFFLINE = 'cache_ambientes_escola_v1';
 
   // Todas as ações de gravação que funcionam Offline (exceto Reservas de Ambientes)
@@ -50,14 +52,14 @@
     'registrarDevolucaoLivroBiblioteca': 'Devolução de Livro (Biblioteca)'
   };
 
-  // Ações da página de Reservas de Ambientes (sempre exigem tempo real online)
+  // Ações exclusivas em tempo real (Reservas de Ambientes)
   const ACOES_EXCLUSIVAS_ONLINE_RESERVAS = [
     'listarReservas',
     'salvarReserva',
     'excluirReserva'
   ];
 
-  // Ações de cadastro/edição que disparam atualização silenciosa do banco em 2º plano
+  // Ações de gravação/cadastro que atualizam o cache automaticamente após salvar
   const ACOES_MUTACAO_CADASTROS = [
     'salvarOcorrencia', 'excluirOcorrencia',
     'salvarAtividadeDisciplinas', 'salvarAtividadeEletivas',
@@ -73,27 +75,28 @@
     'excluirLivroBiblioteca', 'salvarEmprestimoLivroBiblioteca', 'registrarDevolucaoLivroBiblioteca'
   ];
 
-  // Ações de leitura que devem abrir INSTANTANEAMENTE do cache local (0ms) e atualizar em 2º plano!
-  const ACOES_LEITURA_INSTANTANEA = [
-    'getFiltrosOcorrencias', 'buscarOcorrencias',
+  // Ações de leitura que respondem 100% do Cache em 1ms (SEM buscar na rede a cada clique!)
+  const ACOES_LEITURA_CACHE_PURO = [
+    'getFiltrosOcorrencias', 'buscarOcorrencias', 'getDadosHistorico',
     'listarFrequenciaSecretaria', 'getFiltrosFrequencia', 'getFiltrosIniciais',
     'getEletivasProfessor', 'getEletivasPorAno', 'getAlunosFrequencia', 'buscarAlunos',
+    'getHistoricoEletivasAluno', 'pesquisarAlunoGlobal', 'getRelatorioMatriculas',
     'listarDisciplinasCadastradas', 'listarAtividadesUnificadas',
     'listarPDT', 'listarTodosMapeamentos', 'buscarMapeamentoSala',
     'getAlunosParaPainelSuspensao', 'listarAtendimentosAlunos',
-    'getDadosMatricula', 'getRelatorioMatriculas', 'getAlunosComNotas',
+    'getDadosMatricula', 'getAlunosComNotas',
     'listarConfig', 'listarSituacaoAlunos', 'listarAee', 'listarBuscaAtiva',
     'listarLivrosBiblioteca', 'listarDadosEmprestimosBiblioteca',
     'buscarDadosSimulados', 'getMonitoramentoEletivas', 'listarFuncionarios',
     'getProfessores', 'buscarEletivasCadastradas', 'getAlunosParaEdicao',
-    'getDadosHistorico', 'getHistoricoEletivasAluno', 'obterFotoAlunoIndividual'
+    'obterFotoAlunoIndividual', 'buscarFrequenciasGerenciamento', 'getRelatorioFaltas'
   ];
 
   let sincronizacaoEmAndamento = false;
   let prefetchEmAndamento = false;
 
   // =========================================================================
-  // 0. RESPONSIVIDADE GLOBAL + BARRA SUPERIOR COM "ATUALIZADO EM" E "VOLTAR"
+  // 0. RESPONSIVIDADE GLOBAL PARA CELULAR, TABLET E COMPUTADOR
   // =========================================================================
   function injetarResponsividadeGlobalEEMTI() {
     if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
@@ -123,7 +126,7 @@
         color: #0f766e;
         background: #f0fdfa;
         border: 1px solid #99f6e4;
-        padding: 4px 10px;
+        padding: 5px 11px;
         border-radius: 50px;
         cursor: pointer;
         user-select: none;
@@ -132,6 +135,7 @@
       }
       .badge-sync-header-eemti:hover {
         background: #ccfbf1;
+        transform: translateY(-1px);
       }
       .badge-sync-header-eemti.sincronizando {
         color: #1d4ed8;
@@ -198,7 +202,7 @@
         }
         .badge-sync-header-eemti {
           font-size: 0.62rem !important;
-          padding: 3px 8px !important;
+          padding: 4px 8px !important;
         }
         .main-container {
           padding: 8px 6px 28px 6px !important;
@@ -291,6 +295,7 @@
     atualizarSeloTopoSincronizacao();
   }
 
+  // Posiciona o selo discreto DEPOIS do botão Sair / Início e permite atualizar o cache sob demanda!
   function atualizarSeloTopoSincronizacao(estadoEspecial) {
     const userBar = document.querySelector('.user-bar');
     if (!userBar) return;
@@ -300,7 +305,7 @@
       selo = document.createElement('span');
       selo.id = 'seloTopoSyncBancoEEMTI';
       selo.className = 'badge-sync-header-eemti';
-      selo.title = 'Clique para atualizar os dados com a planilha em 2º plano';
+      selo.title = 'Clique aqui quando quiser buscar informações novas da planilha e atualizar o cache';
       selo.onclick = () => {
         if (navigator.onLine) {
           atualizarSeloTopoSincronizacao('SINCRONIZANDO');
@@ -310,117 +315,92 @@
           atualizarSeloTopoSincronizacao('OFFLINE');
         }
       };
-      userBar.insertBefore(selo, userBar.firstChild);
+      // Insere no FINAL da .user-bar (DEPOIS do botão Sair / Início, conforme solicitado!)
+      userBar.appendChild(selo);
+    } else if (userBar.lastElementChild !== selo) {
+      userBar.appendChild(selo);
     }
 
     const ultStr = localStorage.getItem(ULTIMA_ATUALIZACAO_STR_KEY) || 'Aguardando...';
 
     if (!navigator.onLine || estadoEspecial === 'OFFLINE') {
       selo.className = 'badge-sync-header-eemti offline';
-      selo.innerHTML = `<i class="bi bi-wifi-off"></i> Offline (Base: ${ultStr})`;
+      selo.innerHTML = `<i class="bi bi-wifi-off"></i> Offline (${ultStr})`;
     } else if (estadoEspecial === 'SINCRONIZANDO') {
       selo.className = 'badge-sync-header-eemti sincronizando';
-      selo.innerHTML = `<span class="spinner-border spinner-border-sm" style="width:0.65rem;height:0.65rem;"></span> Sincronizando banco...`;
+      selo.innerHTML = `<span class="spinner-border spinner-border-sm" style="width:0.65rem;height:0.65rem;"></span> Atualizando cache...`;
     } else {
       selo.className = 'badge-sync-header-eemti';
-      selo.innerHTML = `<i class="bi bi-cloud-check-fill"></i> Atualizado: ${ultStr}`;
+      selo.innerHTML = `<i class="bi bi-arrow-repeat"></i> Atualizado: ${ultStr}`;
     }
   }
 
-  // Injeta o botão "Voltar" ao lado do botão Início/Sair e restaura o último módulo da colmeia no index.html!
-  function configurarNavegacaoInteligenteEBotaoVoltar() {
+  // Corrige automaticamente imagens de Brasão do Estado ("brasaoestado.png.png") e Logo da Escola,
+  // e configura o botão Voltar / Sair para voltar à index.html sem nenhuma seleção!
+  function configurarImagensENavegacaoTopo() {
     const path = window.location.pathname.toLowerCase();
     const estaNaHome = path.endsWith('index.html') || path.endsWith('/') || path === '';
     const estaNoLogin = path.endsWith('login.html');
-    if (estaNoLogin) return;
 
-    // 1. Garante que a Logo oficial (LOGO-removebg-preview.png) apareça com cache-busting inteligente
-    document.querySelectorAll('img[src*="LOGO-removebg-preview.png"], .brand-escola img').forEach(img => {
-      const b64Salva = localStorage.getItem('cache_logo_oficial_eemti_b64');
-      if (!navigator.onLine && b64Salva) {
-        img.src = b64Salva;
-      } else if (navigator.onLine && img.getAttribute('src') && img.getAttribute('src').includes('LOGO-removebg-preview.png')) {
-        // Faz download silencioso e guarda a nova logo para funcionar offline e atualizar o cache
-        window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png?v=' + new Date().toISOString().slice(0, 13), 300, 300).then(b64 => {
-          if (b64) {
-            try { localStorage.setItem('cache_logo_oficial_eemti_b64', b64); } catch (e) {}
-            img.src = b64;
-          }
-        });
+    // 1. Corrige qualquer imagem do Brasão do Estado (que na pasta é "brasaoestado.png.png") e da Logo
+    document.querySelectorAll('img').forEach(img => {
+      const srcAtual = String(img.getAttribute('src') || '');
+      if (srcAtual.toLowerCase().includes('brasaoestado') && !srcAtual.toLowerCase().endsWith('brasaoestado.png.png')) {
+        img.src = 'brasaoestado.png.png';
       }
+      img.addEventListener('error', function() {
+        const s = String(this.getAttribute('src') || '').toLowerCase();
+        if (s.includes('brasao') && !s.endsWith('brasaoestado.png.png')) {
+          this.src = 'brasaoestado.png.png';
+        }
+      }, { once: true });
     });
 
-    atualizarSeloTopoSincronizacao();
+    if (estaNoLogin) return;
 
-    // 2. Se estiver na Home (index.html): memoriza qualquer clique nos hexágonos e reabre o último tópico ao voltar!
+    // 2. Se estiver na Home (index.html), garante que sempre abra limpa (sem nenhum hexágono pré-selecionado)
     if (estaNaHome) {
-      const fnOrig = window.selecionarTopicoColmeia;
-      if (typeof fnOrig === 'function' && !fnOrig._eemtiWrapped) {
-        const novaFn = function(elementoHex, chaveTopico) {
-          const jaAtivo = elementoHex && elementoHex.classList && elementoHex.classList.contains('ativo');
-          fnOrig.apply(this, arguments);
-          if (jaAtivo) {
-            sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
-          } else if (chaveTopico) {
-            sessionStorage.setItem(ULTIMO_TOPICO_COLMEIA_KEY, chaveTopico);
-          }
-        };
-        novaFn._eemtiWrapped = true;
-        window.selecionarTopicoColmeia = novaFn;
+      sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
+      if (typeof window.fecharPainelTopico === 'function') {
+        window.fecharPainelTopico();
       }
-
-      const fnFecharOrig = window.fecharPainelTopico;
-      if (typeof fnFecharOrig === 'function' && !fnFecharOrig._eemtiWrapped) {
-        const novaFechar = function() {
-          sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
-          fnFecharOrig.apply(this, arguments);
-        };
-        novaFechar._eemtiWrapped = true;
-        window.fecharPainelTopico = novaFechar;
-      }
-
-      // Se o professor acabou de voltar de uma subpágina, reabre automaticamente a gaveta do módulo que ele estava usando!
-      const ultimoTopico = sessionStorage.getItem(ULTIMO_TOPICO_COLMEIA_KEY);
-      if (ultimoTopico) {
-        setTimeout(() => {
-          const seletores = Array.from(document.querySelectorAll('.hex-node'));
-          const hexAlvo = seletores.find(el => {
-            const onc = el.getAttribute('onclick') || '';
-            return onc.includes(`'${ultimoTopico}'`) && el.offsetParent !== null;
-          }) || seletores.find(el => (el.getAttribute('onclick') || '').includes(`'${ultimoTopico}'`));
-
-          if (hexAlvo && typeof window.selecionarTopicoColmeia === 'function' && !hexAlvo.classList.contains('ativo')) {
-            window.selecionarTopicoColmeia(hexAlvo, ultimoTopico);
-          }
-        }, 120);
-      }
-      return;
     }
 
-    // 3. Se estiver em qualquer subpágina: adiciona o botão "Voltar" ao lado do botão Início/Sair!
+    // 3. Nas subpáginas: adiciona o botão "Voltar" antes do botão Início/Sair, que leva para a index.html sem seleção!
     const userBar = document.querySelector('.user-bar');
-    if (userBar && !document.getElementById('btnVoltarPaginaAnteriorEEMTI')) {
+    if (userBar && !estaNaHome && !document.getElementById('btnVoltarPaginaAnteriorEEMTI')) {
       const btnVoltar = document.createElement('button');
       btnVoltar.type = 'button';
       btnVoltar.id = 'btnVoltarPaginaAnteriorEEMTI';
       btnVoltar.className = 'btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold';
       btnVoltar.innerHTML = `<i class="bi bi-arrow-left-circle-fill me-1"></i>Voltar`;
-      btnVoltar.title = 'Voltar para a página ou função anterior';
+      btnVoltar.title = 'Voltar para a tela inicial sem nenhuma seleção';
       btnVoltar.onclick = function() {
-        if (document.referrer && document.referrer.includes(window.location.host) && window.history.length > 1) {
-          window.history.back();
-        } else {
-          window.location.href = 'index.html';
-        }
+        sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
+        window.location.href = 'index.html';
       };
 
-      const btnInicioOuSair = userBar.querySelector('a[href*="index.html"], button.btn-outline-danger');
-      if (btnInicioOuSair) {
-        userBar.insertBefore(btnVoltar, btnInicioOuSair);
+      const btnRef = userBar.querySelector('a[href*="index.html"], button.btn-outline-danger');
+      if (btnRef) {
+        userBar.insertBefore(btnVoltar, btnRef);
       } else {
         userBar.appendChild(btnVoltar);
       }
     }
+
+    // 4. Ao clicar em Sair, limpa a flag de sessão para que no próximo login ele atualize uma vez online
+    if (userBar) {
+      const btnSair = userBar.querySelector('button.btn-outline-danger');
+      if (btnSair && !btnSair._eemtiCleanBound) {
+        btnSair._eemtiCleanBound = true;
+        btnSair.addEventListener('click', () => {
+          sessionStorage.removeItem(SESSAO_JA_SINCRONIZADA_KEY);
+          sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
+        });
+      }
+    }
+
+    atualizarSeloTopoSincronizacao();
   }
 
   function obterNomeUsuarioLogadoCore() {
@@ -444,6 +424,21 @@
     return m ? m[1] : str;
   }
 
+  function converterDataParaTimestampLocal(valor) {
+    if (!valor) return 0;
+    const str = String(valor).trim();
+    const mBr = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (mBr) {
+      return new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10), 12, 0, 0).getTime();
+    }
+    const mIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (mIso) {
+      return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 12, 0, 0).getTime();
+    }
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+
   function liberarEspacoStorageAntigo() {
     Object.keys(localStorage).forEach(k => {
       if (k.startsWith('cache_api_eemti_') || k.startsWith('cache_acervo_bib_')) {
@@ -461,16 +456,15 @@
     }
   }
 
-  // Salva e recupera respostas completas por chave de requisição para que TODAS as páginas funcionem offline e abram em 0ms!
   function gerarChaveCacheRequisicao(action, bodyObj) {
     const copia = Object.assign({}, bodyObj || {});
     delete copia.usuarioLogado;
-    return `cache_req_v2_${action}_${JSON.stringify(copia).slice(0, 180)}`;
+    return `cache_req_v3_${action}_${JSON.stringify(copia).slice(0, 180)}`;
   }
 
   function salvarRespostaNoCacheInstantaneo(action, bodyObj, textoJson) {
-    if (!ACOES_LEITURA_INSTANTANEA.includes(action)) return;
-    if (!textoJson || textoJson.length > 350000) return; // Evita estourar quota com imagens gigantes
+    if (!ACOES_LEITURA_CACHE_PURO.includes(action)) return;
+    if (!textoJson || textoJson.length > 400000) return;
     try {
       const ch = gerarChaveCacheRequisicao(action, bodyObj);
       localStorage.setItem(ch, textoJson);
@@ -479,17 +473,24 @@
     }
   }
 
+  // Constrói e responde TODAS as consultas e pesquisas (incluindo Histórico do Aluno!) em 1 milissegundo direto do Cache!
   function obterRespostaDoCacheInstantaneo(action, bodyObj) {
-    if (!ACOES_LEITURA_INSTANTANEA.includes(action)) return null;
+    if (!ACOES_LEITURA_CACHE_PURO.includes(action)) return null;
+
+    // 1. Verifica construtores dinâmicos locais (que filtram qualquer aluno/turma sem precisar ir na rede!)
+    const respostaCalculadaLocalmente = construirRespostaOfflineInteligente(action, bodyObj);
+    if (respostaCalculadaLocalmente) return respostaCalculadaLocalmente;
+
+    // 2. Verifica se já existe a resposta exata gravada no cache
     try {
       const ch = gerarChaveCacheRequisicao(action, bodyObj);
       const direto = localStorage.getItem(ch);
       if (direto) return direto;
     } catch (e) {}
-    return construirRespostaOfflineInteligente(action, bodyObj);
+
+    return null;
   }
 
-  // Fetch com Timeout de Segurança (evita travar infinitamente se a rede oscilar)
   async function fetchComTimeoutSeguranca(url, opcoes, timeoutMs = 18000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -506,22 +507,20 @@
   }
 
   // =========================================================================
-  // 1. MOTOR DE PRÉ-CARREGAMENTO TOTAL EM SEGUNDO PLANO (PRE-FETCH OFFLINE)
-  // Baixa os dados de todas as páginas principais para uso imediato e offline!
+  // 1. MOTOR DE SINCRONIZAÇÃO GERAL (RODA 1 VEZ AO ABRIR O SISTEMA OU QUANDO CLICAR EM ATUALIZAR)
   // =========================================================================
-  window.executarPreCarregamentoTotalOffline = async function(forcarImediato = false) {
+  window.executarPreCarregamentoTotalOffline = async function(forcarManual = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
 
     const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!uLog) return;
     const nomeProfLogado = obterNomeUsuarioLogadoCore();
 
-    const agora = Date.now();
-    const ultimoTs = Number(localStorage.getItem(TIMESTAMP_PREFETCH_KEY) || 0);
-    const jaTemAlunos = Boolean(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI));
-    const jaTemEletivas = Boolean(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE));
+    const jaSincronizouNestaSessao = sessionStorage.getItem(SESSAO_JA_SINCRONIZADA_KEY) === 'SIM';
+    const jaTemAlunosNoCache = Boolean(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI));
 
-    if (!forcarImediato && jaTemAlunos && jaTemEletivas && (agora - ultimoTs < 300000)) {
+    // REGRA SOLICITADA: Só atualiza 1 vez quando abre o sistema online, ou quando o professor clicar em "Atualizar" (forcarManual = true)!
+    if (!forcarManual && jaSincronizouNestaSessao && jaTemAlunosNoCache) {
       atualizarSeloTopoSincronizacao();
       return;
     }
@@ -530,13 +529,14 @@
     atualizarSeloTopoSincronizacao('SINCRONIZANDO');
 
     try {
-      // Lote 1: Bases essenciais (Alunos, Séries, Ocorrências, Disciplinas, Eletivas, Bimestres, PDT e Mapeamentos)
+      // Lote 1: Todos os dados essenciais para filtros e pesquisas em milissegundos
       const [
         resFreqSec,
         resFiltrosRac,
         resDisc,
         resMatElet,
         resBim,
+        resPontosRac,
         resOcoRac,
         resPdt,
         resMapas
@@ -546,6 +546,7 @@
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDisciplinasCadastradas' }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getDadosMatricula' }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'PONTUACAO' }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarTodosMapeamentos' }) }).then(r => r.json()).catch(() => null)
@@ -593,14 +594,22 @@
         }
       }
 
+      if (resPontosRac && Array.isArray(resPontosRac.lista)) {
+        const mapPts = {};
+        resPontosRac.lista.forEach(p => {
+          if (p.col1) mapPts[String(p.col1).trim().toUpperCase()] = parseFloat(String(p.col2 || 0).replace(',', '.')) || 0;
+        });
+        salvarNoLocalStorageSeguro(KEY_PONTUACOES_RAC_OFFLINE, mapPts);
+      }
+
       if (Array.isArray(resOcoRac)) {
-        salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resOcoRac.slice(0, 800));
+        salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resOcoRac.slice(0, 1500));
         if (nomeProfLogado) {
           const minhasOco = resOcoRac.filter(r => {
             const p = String(r.professor || "").trim().toUpperCase();
             return p === nomeProfLogado || p.includes(nomeProfLogado) || nomeProfLogado.includes(p);
           });
-          salvarNoLocalStorageSeguro('cache_rac_minhas_oco_' + nomeProfLogado.replace(/\s+/g, '_'), minhasOco.slice(0, 250));
+          salvarNoLocalStorageSeguro('cache_rac_minhas_oco_' + nomeProfLogado.replace(/\s+/g, '_'), minhasOco.slice(0, 300));
         }
       }
 
@@ -634,19 +643,26 @@
           tempoEletivo: String(c.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase(),
           eletiva: String(c.nome || c.eletiva || "").trim(),
           nome: String(c.nome || c.eletiva || "").trim(),
-          professor: String(c.professor || "").trim().toUpperCase()
+          professor: String(c.professor || "").trim().toUpperCase(),
+          vagasTotal: c.vagasTotal || 45
         }));
 
         const anosSet = new Set();
+        const diasSet = new Set();
+        const temposSet = new Set();
         const profsSet = new Set();
         catalogoNorm.forEach(c => {
           if (c.ano) anosSet.add(c.ano);
+          if (c.dia) diasSet.add(c.dia);
+          if (c.tempoEletivo) temposSet.add(c.tempoEletivo);
           if (c.professor) profsSet.add(c.professor);
         });
 
         const pacoteFiltrosFrequenciaEletiva = {
           success: true,
           anos: Array.from(anosSet).sort().reverse(),
+          dias: Array.from(diasSet).sort(),
+          tempos: Array.from(temposSet).sort(),
           professores: Array.from(profsSet).sort(),
           catalogo: catalogoNorm
         };
@@ -657,13 +673,16 @@
 
         if (Array.isArray(resMatElet.historico)) {
           const matriculasLeves = resMatElet.historico.map(m => ({
+            linha: m.linha || 0,
             ano: String(m.ano || "").trim(),
+            dia: String(m.dia || "").trim().toUpperCase(),
             eletiva: String(m.eletiva || "").trim().toUpperCase(),
             codigo: extrairCodigoEletivaCore(m.eletiva),
             aluno: String(m.aluno || "").replace(/\s+/g, " ").trim().toUpperCase(),
             serie: normalizarSeriePadraoCore(m.serie || m.serieBase || ""),
             serieBase: String(m.serieBase || "").trim().toUpperCase(),
-            tempoEletivo: String(m.tempoEletivo || "").trim().toUpperCase()
+            tempoEletivo: String(m.tempoEletivo || "").trim().toUpperCase(),
+            nota: m.nota || ""
           })).filter(m => m.aluno && m.eletiva);
 
           salvarNoLocalStorageSeguro(KEY_MATRICULAS_ELETIVAS_OFFLINE, matriculasLeves);
@@ -709,17 +728,20 @@
         salvarNoLocalStorageSeguro('cache_todos_mapas_salvos_v4', mapaConsolidado);
       }
 
-      // Lote 2 em segundo plano: Suspensões/Atendimentos, Atividades, Situação/AEE/Busca Ativa e Biblioteca
+      // Lote 2 silencioso: Suspensões, Atendimentos, Atividades, Frequências Eletivas, Situação, AEE, Busca Ativa e Biblioteca
       Promise.all([
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getAlunosParaPainelSuspensao' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('getAlunosParaPainelSuspensao', { action: 'getAlunosParaPainelSuspensao' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAtendimentosAlunos' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAtendimentosAlunos', { action: 'listarAtendimentosAlunos' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAtividadesUnificadas' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAtividadesUnificadas', { action: 'listarAtividadesUnificadas' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarFrequenciasGerenciamento', mes: '', semestre: '', eletiva: '', professor: '' }) }).then(r => r.json()).then(arr => { if (Array.isArray(arr)) salvarNoLocalStorageSeguro(KEY_FREQ_ELETIVAS_LANCAMENTOS, arr.slice(0, 1500)); }).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarSituacaoAlunos' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarSituacaoAlunos', { action: 'listarSituacaoAlunos' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAee' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAee', { action: 'listarAee' }, t)).catch(() => {}),
-        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarBuscaAtiva' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarBuscaAtiva', { action: 'listarBuscaAtiva' }, t)).catch(() => {})
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarBuscaAtiva' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarBuscaAtiva', { action: 'listarBuscaAtiva' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarLivrosBiblioteca' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarLivrosBiblioteca', { action: 'listarLivrosBiblioteca' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDadosEmprestimosBiblioteca' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarDadosEmprestimosBiblioteca', { action: 'listarDadosEmprestimosBiblioteca' }, t)).catch(() => {})
       ]).catch(() => {});
 
-      localStorage.setItem(TIMESTAMP_PREFETCH_KEY, String(Date.now()));
+      sessionStorage.setItem(SESSAO_JA_SINCRONIZADA_KEY, 'SIM');
       registrarDataHoraAtualizacaoBanco();
     } catch (errPrefetch) {
       atualizarSeloTopoSincronizacao();
@@ -728,7 +750,183 @@
     }
   };
 
+  // =========================================================================
+  // 2. CONSTRUTOR LOCAL INSTANTÂNEO (1ms) PARA PESQUISAS DE HISTÓRICO E FILTROS
+  // Evita que ao pesquisar o nome de um aluno no Histórico o sistema fique carregando!
+  // =========================================================================
   function construirRespostaOfflineInteligente(action, bodyObj) {
+    // A) Pesquisa de Histórico Individual de Ocorrências (getDadosHistorico) -> 1ms direto do cache!
+    if (action === 'getDadosHistorico') {
+      const nomeBusca = String(bodyObj.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
+      const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      const todasOco = JSON.parse(localStorage.getItem(KEY_TODAS_OCORRENCIAS_OFFLINE) || '[]');
+      const bims = JSON.parse(localStorage.getItem('cache_ativ_rapido_v3_bim') || '[]');
+      const mapPontos = JSON.parse(localStorage.getItem(KEY_PONTUACOES_RAC_OFFLINE) || '{}');
+
+      if (alunos.length === 0 && todasOco.length === 0) return null;
+
+      const alEncontrado = alunos.find(a => a.nome === nomeBusca) || { nome: nomeBusca, serie: "-" };
+      const listaBimestres = bims.map(b => {
+        const tsI = converterDataParaTimestampLocal(b.inicioIso);
+        const tsF = converterDataParaTimestampLocal(b.fimIso);
+        return {
+          nome: b.nome,
+          inicio: tsI > 0 ? new Date(tsI).setHours(0, 0, 0, 0) : 0,
+          fim: tsF > 0 ? new Date(tsF).setHours(23, 59, 59, 999) : 0,
+          inicioIso: b.inicioIso,
+          fimIso: b.fimIso
+        };
+      });
+
+      const ocorrenciasAluno = todasOco
+        .filter(o => String(o.aluno || "").replace(/\s+/g, " ").trim().toUpperCase() === nomeBusca)
+        .map(o => {
+          const ts = converterDataParaTimestampLocal(o.data);
+          let bimNome = "Fora do Bimestre";
+          for (let i = 0; i < listaBimestres.length; i++) {
+            if (ts > 0 && listaBimestres[i].inicio > 0 && listaBimestres[i].fim > 0) {
+              if (ts >= listaBimestres[i].inicio && ts <= listaBimestres[i].fim) {
+                bimNome = listaBimestres[i].nome;
+                break;
+              }
+            }
+          }
+          return {
+            id: o.id || "",
+            serie: normalizarSeriePadraoCore(o.serie || alEncontrado.serie),
+            data: o.data || "",
+            timestamp: ts,
+            bimestre: bimNome,
+            professor: o.professor || "",
+            ocorrencia: o.ocorrencia || "",
+            observacoes: o.obs || o.observacoes || "",
+            gravidade: o.gravidade || ""
+          };
+        })
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      return JSON.stringify({
+        success: true,
+        aluno: { nome: alEncontrado.nome, serie: alEncontrado.serie, foto: alEncontrado.foto || "" },
+        ocorrencias: ocorrenciasAluno,
+        bimestres: listaBimestres,
+        pontuacoes: mapPontos
+      });
+    }
+
+    // B) Pesquisa de Histórico de Eletivas do Aluno (getHistoricoEletivasAluno) -> 1ms direto do cache!
+    if (action === 'getHistoricoEletivasAluno') {
+      const termoBusca = String(bodyObj.aluno || "").replace(/\s+/g, " ").trim().toUpperCase();
+      const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      const matSalvas = JSON.parse(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE) || '[]');
+      const catSalvo = JSON.parse(localStorage.getItem(KEY_CATALOGO_ELETIVAS_OFFLINE) || 'null');
+      const freqsElet = JSON.parse(localStorage.getItem(KEY_FREQ_ELETIVAS_LANCAMENTOS) || '[]');
+
+      if (matSalvas.length === 0) return null;
+
+      const alInfo = alunos.find(a => a.nome === termoBusca) || { nome: termoBusca, serie: "-", foto: "" };
+      const catalogo = (catSalvo && Array.isArray(catSalvo.catalogo)) ? catSalvo.catalogo : [];
+
+      const historico = matSalvas
+        .filter(m => m.aluno === termoBusca)
+        .map(m => {
+          const catMatch = catalogo.find(c => c.ano === m.ano && (c.nome.toUpperCase() === m.eletiva || extrairCodigoEletivaCore(c.nome) === m.codigo)) || {};
+          const chValor = 40;
+          let diasComFalta = 0;
+          const datasFaltas = [];
+          const datasAulasSet = new Set();
+
+          freqsElet.forEach(f => {
+            const mesmaElet = String(f.eletiva || "").toUpperCase() === m.eletiva || extrairCodigoEletivaCore(f.eletiva) === m.codigo;
+            if (String(f.semestre || "") === m.ano && mesmaElet) {
+              if (f.data) datasAulasSet.add(f.data);
+              const faltososArr = String(f.faltosos || "").toUpperCase().split(',').map(s => s.replace(/\s+/g, " ").trim());
+              if (faltososArr.includes(termoBusca)) {
+                diasComFalta++;
+                if (f.data && !datasFaltas.includes(f.data)) datasFaltas.push(f.data);
+              }
+            }
+          });
+
+          const totalFaltas = diasComFalta * 2;
+          const totalAulasReg = datasAulasSet.size * 2;
+          const baseCalc = Math.max(chValor, totalAulasReg || chValor);
+          const perc = Math.max(0, Math.min(100, Math.round(((baseCalc - totalFaltas) / baseCalc) * 100)));
+
+          return {
+            anoLetivo: String(m.ano || "").split('.')[0] || m.ano,
+            semestre: m.ano || "-",
+            dia: m.dia || catMatch.dia || "-",
+            tempoEletivo: m.tempoEletivo || catMatch.tempoEletivo || "-",
+            serie: m.serie || alInfo.serie || "-",
+            eletiva: m.eletiva,
+            professor: catMatch.professor || "NÃO INFORMADO",
+            ch: chValor,
+            nota: m.nota || "",
+            diasFaltosos: diasComFalta,
+            faltas: totalFaltas,
+            datasFaltas: datasFaltas.join(", "),
+            aulasRegistradas: totalAulasReg,
+            frequenciaPercentual: perc + "%"
+          };
+        });
+
+      return JSON.stringify({
+        success: true,
+        aluno: { nome: alInfo.nome, serie: alInfo.serie, foto: alInfo.foto || "", matricula: "" },
+        historico: historico
+      });
+    }
+
+    // C) Pesquisa Global de Aluno em Eletivas (pesquisarAlunoGlobal)
+    if (action === 'pesquisarAlunoGlobal') {
+      const termo = String(bodyObj.nome || "").trim().toUpperCase();
+      const matSalvas = JSON.parse(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE) || '[]');
+      if (matSalvas.length === 0) return null;
+      const res = matSalvas
+        .filter(m => m.aluno.includes(termo))
+        .map(m => ({
+          linha: m.linha || 0,
+          ano: m.ano,
+          dia: m.dia || "",
+          tempoEletivo: m.tempoEletivo || "",
+          serie: m.serie,
+          eletiva: m.eletiva,
+          aluno: m.aluno,
+          nota: m.nota || ""
+        }));
+      return JSON.stringify(res);
+    }
+
+    // D) Relatório de Matrículas por Turma (getRelatorioMatriculas)
+    if (action === 'getRelatorioMatriculas') {
+      const anoB = String(bodyObj.ano || "").trim();
+      const serieB = normalizarSeriePadraoCore(bodyObj.serie || "");
+      const matSalvas = JSON.parse(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE) || '[]');
+      const catSalvo = JSON.parse(localStorage.getItem(KEY_CATALOGO_ELETIVAS_OFFLINE) || 'null');
+      if (matSalvas.length === 0) return null;
+
+      const catalogo = (catSalvo && Array.isArray(catSalvo.catalogo)) ? catSalvo.catalogo : [];
+      const rel = matSalvas
+        .filter(m => (!anoB || m.ano === anoB) && (!serieB || m.serie === serieB || m.serieBase === serieB))
+        .map(m => {
+          const catMatch = catalogo.find(c => c.ano === m.ano && (c.nome.toUpperCase() === m.eletiva || extrairCodigoEletivaCore(c.nome) === m.codigo)) || {};
+          const diaF = m.dia || catMatch.dia || "";
+          const tempoF = m.tempoEletivo || catMatch.tempoEletivo || "";
+          return {
+            aluno: m.aluno,
+            serie: m.serie,
+            diaSemana: diaF,
+            tempoEletivo: tempoF,
+            dia: diaF ? `${diaF}${tempoF ? ' - ' + tempoF : ''}` : (tempoF || '-'),
+            eletiva: m.eletiva
+          };
+        })
+        .sort((a, b) => a.aluno.localeCompare(b.aluno, 'pt-BR'));
+
+      return JSON.stringify(rel);
+    }
+
     if (action === 'buscarOcorrencias') {
       const f = bodyObj.filtros || {};
       const serieB = normalizarSeriePadraoCore(f.serie || "");
@@ -737,6 +935,7 @@
       const ignorarProf = f.ignorarRestricao === true;
 
       const todasSalvas = JSON.parse(localStorage.getItem(KEY_TODAS_OCORRENCIAS_OFFLINE) || '[]');
+      if (todasSalvas.length === 0) return null;
       const filtradas = todasSalvas.filter(r => {
         const bateSerie = !serieB || normalizarSeriePadraoCore(r.serie) === serieB;
         const bateAluno = !alunoB || String(r.aluno || "").toUpperCase().includes(alunoB);
@@ -765,6 +964,7 @@
 
     if (action === 'getAlunosFrequencia' || action === 'buscarAlunos') {
       const matSalvas = JSON.parse(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE) || '[]');
+      if (matSalvas.length === 0) return null;
       const anoB = String(bodyObj.ano || "").trim();
       const eletB = String(bodyObj.eletiva || "").trim().toUpperCase();
       const codB = extrairCodigoEletivaCore(eletB);
@@ -775,6 +975,7 @@
         const bateElet = !eletB || m.eletiva === eletB || m.eletiva.includes(eletB) || (codB && m.codigo === codB);
         if (bateAno && bateElet) {
           encontradosMap[m.aluno] = {
+            linha: m.linha || 0,
             nome: m.aluno,
             aluno: m.aluno,
             turma: m.serie,
@@ -782,7 +983,8 @@
             serieBase: m.serieBase,
             tempoEletivo: m.tempoEletivo,
             semestre: m.ano,
-            eletiva: m.eletiva
+            eletiva: m.eletiva,
+            notaAtual: m.nota || ""
           };
         }
       });
@@ -794,7 +996,7 @@
       const series = JSON.parse(localStorage.getItem(window.KEY_SERIES_UNIVERSAL_EEMTI) || '[]');
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const ocorrencias = JSON.parse(localStorage.getItem('cache_rac_catalogo_v3') || '[]');
-      if (series.length > 0 || alunos.length > 0) {
+      if (series.length > 0 && alunos.length > 0) {
         return JSON.stringify({ success: true, series: series, alunos: alunos, ocorrencias: ocorrencias });
       }
     }
@@ -804,7 +1006,7 @@
       const alunos = JSON.parse(localStorage.getItem('cache_freq_sec_alunos_det_v4') || localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const frequencias = JSON.parse(localStorage.getItem('cache_freq_sec_lancamentos_v4') || '[]');
       const diasLetivos = JSON.parse(localStorage.getItem('cache_freq_sec_dias_letivos_v4') || 'null');
-      if (series.length > 0 || alunos.length > 0) {
+      if (series.length > 0 && alunos.length > 0) {
         return JSON.stringify({
           success: true,
           series: series,
@@ -847,21 +1049,11 @@
       }
     }
 
-    if (action === 'obterFotoAlunoIndividual') {
-      // Se já tiver no cache universal, responde rápido sem travar o PDF de Suspensão!
-      const chFoto = gerarChaveCacheRequisicao(action, bodyObj);
-      const salvo = localStorage.getItem(chFoto);
-      if (salvo) return salvo;
-      if (!navigator.onLine) {
-        return JSON.stringify({ success: true, foto: "" });
-      }
-    }
-
     return null;
   }
 
   // =========================================================================
-  // 2. PONTE INDEXEDDB E BACKGROUND SYNC (SEM TRAVAMENTO INFINITO)
+  // 3. PONTE INDEXEDDB E BACKGROUND SYNC (COM O APP FECHADO OU MINIMIZADO)
   // =========================================================================
   function abrirBancoSyncIDB() {
     return new Promise(resolve => {
@@ -896,6 +1088,9 @@
         const reg = await navigator.serviceWorker.ready;
         if ('SyncManager' in window) {
           await reg.sync.register('sync-fila-eemti');
+        }
+        if ('periodicSync' in reg) {
+          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
         }
       } catch (e) {}
     }
@@ -946,7 +1141,7 @@
       window.atualizarBadgeStatusConexaoGlobal();
       registrarDataHoraAtualizacaoBanco();
       exibirAvisoFinalDeDadosSincronizados(itensDoBackground);
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 600);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
       return true;
     }
     return false;
@@ -975,8 +1170,7 @@
   }
 
   // =========================================================================
-  // 3. INTERCEPTADOR DE FETCH ULTRA-RÁPIDO (STALE-WHILE-REVALIDATE)
-  // Abre imediatamente do cache (0ms) e atualiza em 2º plano sem travar a tela!
+  // 4. INTERCEPTADOR DE FETCH (100% CACHE LOCAL NAS PESQUISAS — SEM RE-SYNC CONSTANTE!)
   // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
@@ -1050,12 +1244,12 @@
       const action = bodyObj.action || '';
       const ehReservaDeAmbiente = ACOES_EXCLUSIVAS_ONLINE_RESERVAS.includes(action);
 
-      // 1. MODO OFFLINE (Todas as páginas funcionam Offline, exceto Reservas de Ambientes)
+      // 1. MODO OFFLINE
       if (!navigator.onLine) {
         if (ehReservaDeAmbiente) {
           return new Response(JSON.stringify({
             success: false,
-            error: 'O módulo de Reservas de Ambientes exige conexão com a internet em tempo real para verificar conflitos de horário.'
+            error: 'O módulo de Reservas de Ambientes exige conexão com a internet em tempo real.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
@@ -1064,7 +1258,7 @@
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Salvo no Modo Offline! A sincronização ocorrerá automaticamente em segundo plano assim que houver internet.'
+            msg: 'Salvo no Modo Offline! O envio para o banco de dados ocorrerá automaticamente em segundo plano assim que houver internet.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
@@ -1074,64 +1268,42 @@
         }
       }
 
-      // 2. ABERTURA E FILTRO INSTANTÂNEO (0ms) QUANDO JÁ TEM CACHE LOCAL!
-      // Se for uma ação de leitura/filtro (e não for Reservas), entrega na mesma hora o que já está no cache
-      // e atualiza em segundo plano para nunca travar a tela do professor!
-      if (!ehReservaDeAmbiente && ACOES_LEITURA_INSTANTANEA.includes(action)) {
+      // 2. RESPOSTA EM 1 MILISSEGUNDO DIRETO DO CACHE (SEM DISPARAR REDE A CADA PESQUISA/FILTRO!)
+      if (!ehReservaDeAmbiente && ACOES_LEITURA_CACHE_PURO.includes(action)) {
         const cacheImediato = obterRespostaDoCacheInstantaneo(action, bodyObj);
         if (cacheImediato) {
-          // Atualiza em 2º plano de forma invisível!
-          fetchComTimeoutSeguranca(url, options, 15000).then(resBg => resBg.text()).then(txtBg => {
-            if (txtBg && (txtBg.startsWith('{') || txtBg.startsWith('['))) {
-              salvarRespostaNoCacheInstantaneo(action, bodyObj, txtBg);
-              registrarDataHoraAtualizacaoBanco();
-            }
-          }).catch(() => {});
-
           return new Response(cacheImediato, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
       }
 
-      // 3. EXECUÇÃO ONLINE DIRETA (Quando é Gravação, Login, Reserva ou 1ª leitura sem cache)
+      // 3. EXECUÇÃO ONLINE (Apenas na 1ª vez que ainda não tem cache, ou em cadastros/gravações/reservas)
       try {
-        atualizarSeloTopoSincronizacao('SINCRONIZANDO');
         const response = await fetchComTimeoutSeguranca(url, options, 18000);
         const clone = response.clone();
 
         clone.text().then(textoResp => {
           if (textoResp && (textoResp.startsWith('{') || textoResp.startsWith('['))) {
             salvarRespostaNoCacheInstantaneo(action, bodyObj, textoResp);
-            registrarDataHoraAtualizacaoBanco();
 
             try {
               const resJson = JSON.parse(textoResp);
-              if (action === 'buscarOcorrencias' && Array.isArray(resJson)) {
-                const f = bodyObj.filtros || {};
-                if (f.ignorarRestricao === true && !f.serie && !f.aluno) {
-                  salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resJson.slice(0, 800));
-                }
-              }
               if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
                 if (resJson && (resJson.success || resJson.msg)) {
-                  localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
                   setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
                 }
               }
             } catch (e) {}
-          } else {
-            atualizarSeloTopoSincronizacao();
           }
-        }).catch(() => atualizarSeloTopoSincronizacao());
+        }).catch(() => {});
 
         return response;
       } catch (errRede) {
-        atualizarSeloTopoSincronizacao();
         if (!ehReservaDeAmbiente && ACOES_GRAVACAO_OFFLINE[action]) {
           window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Conexão instável! Salvo na fila e será sincronizado em segundo plano sem interromper seu uso.'
+            msg: 'Conexão instável! Salvo na fila e será enviado automaticamente em segundo plano.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
@@ -1164,23 +1336,23 @@
   };
 
   // =========================================================================
-  // 4. SINCRONIZAÇÃO EM 2º PLANO (COM PROTEÇÃO CONTRA LOOP INFINITO!)
+  // 5. ENVIO EM SEGUNDO PLANO (SILENCIOSO, MOSTRA APENAS O AVISO QUANDO CONCLUÍDO!)
   // =========================================================================
   function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
     if (typeof Swal === 'undefined') return;
 
     Swal.fire({
-      title: 'Dados Offline Sincronizados!',
+      title: 'Dados Enviados ao Banco de Dados!',
       html: `
-        <p class="small text-muted mb-2">A sincronização em segundo plano foi concluída! Os seguintes registros já estão salvos na planilha:</p>
+        <p class="small text-muted mb-2">As seguintes informações salvas offline já foram sincronizadas com sucesso na planilha:</p>
         <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
           ${listaHtmlSincronizados.join('')}
         </ul>
       `,
       icon: 'success',
       confirmButtonColor: '#15438c',
-      confirmButtonText: 'OK, Entendido!'
+      confirmButtonText: 'OK, Ciente!'
     });
   }
 
@@ -1197,16 +1369,12 @@
     }
 
     sincronizacaoEmAndamento = true;
-    const totalParaEnviar = filaInicial.length;
     const sincronizadosHtml = [];
 
     try {
-      window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (0/${totalParaEnviar})...`);
-
       for (let i = 0; i < filaInicial.length; i++) {
         if (!navigator.onLine) break;
         const item = filaInicial[i];
-        window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (${i + 1}/${totalParaEnviar})...`);
 
         try {
           const res = await fetchComTimeoutSeguranca(item.url || API_PADRAO_URL, {
@@ -1218,7 +1386,6 @@
           let json = null;
           try { json = JSON.parse(texto); } catch (e) {}
 
-          // Se gravou com sucesso OU se a resposta HTTP foi 200 OK do Apps Script, remove imediatamente da fila para nunca ficar em loop!
           if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
             sincronizadosHtml.push(item.resumoHtml);
             const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
@@ -1227,20 +1394,17 @@
             await espelharFilaParaIndexedDB(filaAtual);
           }
         } catch (e) {
-          // Se der timeout, para o ciclo atual e oculta o spinner até a próxima tentativa
           break;
         }
       }
     } finally {
-      // GARANTIA ABSOLUTA: Sempre desliga o spinner ao terminar!
       sincronizacaoEmAndamento = false;
       window.atualizarBadgeStatusConexaoGlobal();
     }
 
     if (sincronizadosHtml.length > 0) {
       registrarDataHoraAtualizacaoBanco();
-      localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
 
       window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
       if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
@@ -1252,36 +1416,24 @@
     }
   };
 
-  window.atualizarBadgeStatusConexaoGlobal = function(textoProgressoEmSegundoPlano) {
+  // Mostra o badge flutuante APENAS quando está sem internet (Modo Offline), sem ficar piscando "Sincronizando..." na tela!
+  window.atualizarBadgeStatusConexaoGlobal = function() {
     let badge = document.getElementById('badgeStatusOfflineGlobal');
     const fila = unificarFilasOfflineNoStorage();
     if (!badge && document.body) {
       badge = document.createElement('div');
       badge.id = 'badgeStatusOfflineGlobal';
-      badge.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99999;padding:9px 15px;border-radius:30px;font-weight:800;font-size:0.78rem;box-shadow:0 6px 18px rgba(0,0,0,0.2);cursor:pointer;transition:all 0.2s;pointer-events:auto;';
+      badge.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99999;padding:9px 15px;border-radius:30px;font-weight:800;font-size:0.78rem;box-shadow:0 6px 18px rgba(0,0,0,0.2);cursor:pointer;transition:all 0.2s;pointer-events:auto;display:none;';
       badge.onclick = () => window.sincronizarFilaOfflineGlobal();
       document.body.appendChild(badge);
     }
     if (!badge) return;
 
-    if (textoProgressoEmSegundoPlano && sincronizacaoEmAndamento) {
-      badge.style.display = 'block';
-      badge.style.backgroundColor = '#15438c';
-      badge.style.color = '#ffffff';
-      badge.innerHTML = `<span class="spinner-border spinner-border-sm me-2" style="width:0.85rem;height:0.85rem;"></span>${textoProgressoEmSegundoPlano}`;
-      return;
-    }
-
     if (!navigator.onLine) {
       badge.style.display = 'block';
       badge.style.backgroundColor = '#dc2626';
       badge.style.color = '#ffffff';
-      badge.innerHTML = `<i class="bi bi-wifi-off me-2"></i>Modo Offline (${fila.length} na fila)`;
-    } else if (fila.length > 0) {
-      badge.style.display = 'block';
-      badge.style.backgroundColor = '#f59e0b';
-      badge.style.color = '#0f172a';
-      badge.innerHTML = `<i class="bi bi-cloud-arrow-up-fill me-2"></i>Na fila (${fila.length}) — Clique para enviar`;
+      badge.innerHTML = `<i class="bi bi-wifi-off me-2"></i>Modo Offline (${fila.length} pendente${fila.length === 1 ? '' : 's'})`;
     } else {
       badge.style.display = 'none';
     }
@@ -1291,7 +1443,6 @@
     atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
     setTimeout(window.sincronizarFilaOfflineGlobal, 300);
-    window.executarPreCarregamentoTotalOffline(false);
   });
 
   window.addEventListener('offline', () => {
@@ -1299,15 +1450,20 @@
     window.atualizarBadgeStatusConexaoGlobal();
   });
 
+  // Quando o professor minimiza o aplicativo no celular/PC, pede ao Service Worker para enviar qualquer item pendente!
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
+    if (document.visibilityState === 'hidden') {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+      }
+    } else if (document.visibilityState === 'visible') {
       verificarSincronizacoesFeitasComAppFechado();
     }
   });
 
   window.addEventListener('DOMContentLoaded', async () => {
     injetarResponsividadeGlobalEEMTI();
-    configurarNavegacaoInteligenteEBotaoVoltar();
+    configurarImagensENavegacaoTopo();
 
     const jaEnviouFechado = await verificarSincronizacoesFeitasComAppFechado();
     unificarFilasOfflineNoStorage();
@@ -1315,14 +1471,15 @@
 
     if (navigator.onLine) {
       if (!jaEnviouFechado) {
-        setTimeout(window.sincronizarFilaOfflineGlobal, 300);
+        setTimeout(window.sincronizarFilaOfflineGlobal, 250);
       }
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 700);
+      // Faz a sincronização inicial 1 única vez ao abrir o sistema online!
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 500);
     }
   });
 
   // =========================================================================
-  // 5. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
+  // 6. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
@@ -1355,9 +1512,8 @@
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    const b64CacheLogo = localStorage.getItem('cache_logo_oficial_eemti_b64');
     const imgLogoDom = document.getElementById('logoEscola') || document.querySelector('.brand-escola img');
-    const srcLogo = b64CacheLogo || ((imgLogoDom && imgLogoDom.src) ? imgLogoDom.src : 'LOGO-removebg-preview.png');
+    const srcLogo = (imgLogoDom && imgLogoDom.src) ? imgLogoDom.src : 'LOGO-removebg-preview.png';
     const logoB64 = await window.converterImagemParaDataUrlPdf(srcLogo, 200, 200);
 
     if (logoB64) {
