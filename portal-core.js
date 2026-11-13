@@ -1,11 +1,12 @@
 // =========================================================================
 // MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
-// 1. MAPEAMENTO DE SALA: TODAS AS FILAS CABEM NA TELA + FILA 1 NA ESQUERDA (PORTA)
-//    SEM DESTAQUE LARANJA NA FILA 1 (MANTENDO APENAS O AVISO SUPERIOR DA PORTA)
-// 2. FREQUÊNCIA SECRETARIA: COLUNA "Nº" JUSTA NO NÚMERO + COLUNA "ALUNO(A)" LARGA
-// 3. FICHA DO ALUNO: SEM CAIXA REPETIDA DE NOME/FILIAÇÃO (MOSTRA SÓ OS QUADROS DE BAIXO)
-// 4. RESERVAS PDF: CARREGA JSPDF AUTOMATICAMENTE E BAIXA O PDF DO PERÍODO NA HORA
-// 5. TODOS OS PDFS USAM A IMAGEM "LOGO-removebg-preview.png" | TOPO HTML USA "brasaoestado.png"
+// 1. MAPEAMENTO DE SALA: GRADE ATÉ 8x8 CABENDO 100% NA TELA DO CELULAR E PC,
+//    FILA 1 NA ESQUERDA (PORTA) E SEM DESTAQUE LARANJA NA FILA 1 (SÓ AVISO ACIMA)
+// 2. HISTÓRICO DE ELETIVAS (5 COLUNAS):
+//    [1] SEMESTRE + SÉRIE ABAIXO | [2] TEMPO ELETIVO + DIA ABAIXO |
+//    [3] ELETIVA + PROFESSOR ABAIXO (COLUNA LARGA) | [4] NOTA + % FREQ ABAIXO | [5] C.H
+// 3. FREQUÊNCIA SECRETARIA: COLUNA "Nº" JUSTA NO NÚMERO + COLUNA "ALUNO(A)" LARGA
+// 4. FICHA DO ALUNO SEM REPETIÇÃO + PDF RESERVAS POR PERÍODO + LOGO NOS PDFS
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -96,7 +97,6 @@
   let cacheUltimasReservasCarregadas = [];
   const assinaturasRecentementeEnviadas = new Set();
 
-  // Intercepta gravações nas filas antigas para enviar imediatamente pelo motor central
   const _setItemNativo = Storage.prototype.setItem;
   Storage.prototype.setItem = function(chave, valor) {
     _setItemNativo.call(this, chave, valor);
@@ -109,408 +109,473 @@
   };
 
   // =========================================================================
-  // 0. ESTILOS GLOBAIS: MAPEAMENTO AJUSTADO NA TELA + COLUNA Nº ESTREITA
+  // 0. ESTILOS GLOBAIS (SEMPRE NO FINAL DO <HEAD> PARA TER PRIORIDADE TOTAL)
   // =========================================================================
   function injetarResponsividadeGlobalEEMTI() {
-    if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
-    const style = document.createElement('style');
-    style.id = 'estiloResponsivoUniversalEEMTI';
-    style.innerHTML = `
-      html, body {
-        max-width: 100vw !important;
-        overflow-x: hidden !important;
-      }
-      .main-container, .container, .container-fluid, .card, .table-responsive {
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-        box-sizing: border-box !important;
-      }
+    let style = document.getElementById('estiloResponsivoUniversalEEMTI');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'estiloResponsivoUniversalEEMTI';
+      style.innerHTML = `
+        html, body {
+          max-width: 100vw !important;
+          overflow-x: hidden !important;
+        }
+        .main-container, .container, .container-fluid, .card, .table-responsive {
+          max-width: 100% !important;
+          overflow-x: hidden !important;
+          box-sizing: border-box !important;
+        }
 
-      table.table, .tabela-enquadrada {
-        width: 100% !important;
-        max-width: 100% !important;
-        table-layout: auto !important;
-        border-collapse: collapse !important;
-      }
-      table.table th, table.table td, .tabela-enquadrada th, .tabela-enquadrada td {
-        word-break: normal !important;
-        overflow-wrap: break-word !important;
-        white-space: normal !important;
-        vertical-align: middle !important;
-      }
+        table.table, .tabela-enquadrada {
+          width: 100% !important;
+          max-width: 100% !important;
+          table-layout: auto !important;
+          border-collapse: collapse !important;
+        }
+        table.table th, table.table td, .tabela-enquadrada th, .tabela-enquadrada td {
+          word-break: normal !important;
+          overflow-wrap: break-word !important;
+          white-space: normal !important;
+          vertical-align: middle !important;
+        }
 
-      /* Coluna Nº (1, 2, 3...) ajustada exatamente ao tamanho do número! */
-      th.col-numero-estreita-eemti,
-      td.col-numero-estreita-eemti {
-        width: 1% !important;
-        min-width: 28px !important;
-        max-width: 38px !important;
-        padding-left: 4px !important;
-        padding-right: 4px !important;
-        text-align: center !important;
-        white-space: nowrap !important;
-      }
-
-      table.table td .badge {
-        white-space: normal !important;
-        line-height: 1.2 !important;
-        text-align: center !important;
-        display: inline-block !important;
-        max-width: 100% !important;
-      }
-
-      .col-oculta-eemti {
-        display: none !important;
-      }
-
-      tr.linha-tabela-clicavel-eemti {
-        cursor: pointer;
-        transition: background-color 0.15s ease;
-      }
-      tr.linha-tabela-clicavel-eemti:hover {
-        background-color: #eff6ff !important;
-      }
-
-      .btn-chamada-compacto {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        min-width: 30px !important;
-        max-width: 38px !important;
-        height: 28px !important;
-        padding: 0 7px !important;
-        font-weight: 800 !important;
-        font-size: 0.74rem !important;
-        border-radius: 6px !important;
-        line-height: 1 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin: 1px !important;
-      }
-
-      td:has(.btn-chamada-compacto),
-      th.col-status-compacta-eemti {
-        width: 1% !important;
-        white-space: nowrap !important;
-        text-align: center !important;
-      }
-      td .d-flex:has(.btn-chamada-compacto),
-      td .btn-group:has(.btn-chamada-compacto),
-      td div:has(> .btn-chamada-compacto) {
-        display: inline-flex !important;
-        flex-wrap: nowrap !important;
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 4px !important;
-        width: auto !important;
-      }
-
-      th.col-nome-larga-eemti,
-      td.col-nome-larga-eemti {
-        width: 72% !important;
-        min-width: 150px !important;
-        text-align: left !important;
-      }
-
-      th.col-secundaria-larga-eemti,
-      td.col-secundaria-larga-eemti {
-        width: 34% !important;
-        min-width: 120px !important;
-        text-align: left !important;
-      }
-
-      th.col-acoes-visivel-eemti,
-      td.col-acoes-visivel-eemti {
-        width: 1% !important;
-        min-width: 72px !important;
-        white-space: nowrap !important;
-        text-align: center !important;
-      }
-
-      /* =================================================================== */
-      /* MAPEAMENTO DE SALA: TODAS AS FILAS CABENDO NA TELA E SEM DESTAQUE   */
-      /* LARANJA NA FILA 1 (MANTENDO APENAS O AVISO ACIMA DO LADO DA PORTA!) */
-      /* =================================================================== */
-      .room-grid-scroll {
-        overflow-x: hidden !important;
-        width: 100% !important;
-        padding-bottom: 4px !important;
-      }
-      .room-columns-wrapper,
-      #containerColunasSala,
-      #containerColunasVisualizacao {
-        display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
-        gap: 6px !important;
-        width: 100% !important;
-        min-width: 0 !important;
-      }
-      .fila-coluna,
-      .fila-coluna.fila-porta-destaque {
-        min-width: 0 !important;
-        width: 100% !important;
-        background: #f8fafc !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 10px !important;
-        padding: 5px !important;
-        box-shadow: none !important;
-      }
-      .fila-header,
-      .fila-coluna.fila-porta-destaque .fila-header {
-        background: #15438c !important;
-        color: #ffffff !important;
-        font-size: 0.68rem !important;
-        padding: 5px 4px !important;
-        border-radius: 6px !important;
-        text-align: center !important;
-        font-weight: 800 !important;
-      }
-      /* Oculta o subtítulo "INICIA NA PORTA DA SALA" de dentro do cabeçalho da Fila 1 */
-      .fila-header small,
-      .fila-header .sub-porta {
-        display: none !important;
-      }
-      .seat-card {
-        padding: 5px 4px !important;
-        border-radius: 8px !important;
-        background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-      }
-      .seat-card .seat-badge,
-      .fila-coluna.fila-porta-destaque .seat-badge {
-        background: #15438c !important;
-        color: #ffffff !important;
-        font-size: 0.56rem !important;
-        padding: 2px 5px !important;
-        border-radius: 4px !important;
-      }
-      .seat-photo-box {
-        width: 48px !important;
-        height: 64px !important;
-        margin: 3px auto !important;
-      }
-      .seat-select {
-        font-size: 0.63rem !important;
-        padding: 2px 16px 2px 4px !important;
-        width: 100% !important;
-      }
-
-      .d-flex.gap-2, .d-flex.gap-3, .btn-group {
-        gap: 4px !important;
-      }
-      td .btn + .btn, td .btn + button {
-        margin-left: 2px !important;
-      }
-
-      .barra-legenda-compacta-eemti {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-        background: #f8fafc;
-        border: 1px solid #cbd5e1;
-        border-radius: 10px;
-        padding: 7px 12px;
-        margin-bottom: 10px;
-        font-size: 0.74rem;
-        font-weight: 700;
-        color: #334155;
-      }
-      .barra-legenda-compacta-eemti .item-leg {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-      }
-
-      .badge-sync-header-eemti {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 0.67rem;
-        font-weight: 700;
-        color: #0f766e;
-        background: #f0fdfa;
-        border: 1px solid #99f6e4;
-        padding: 4px 9px;
-        border-radius: 50px;
-        cursor: pointer;
-        user-select: none;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-      }
-      .badge-sync-header-eemti:hover {
-        background: #ccfbf1;
-      }
-      .badge-sync-header-eemti.sincronizando {
-        color: #1d4ed8;
-        background: #eff6ff;
-        border-color: #bfdbfe;
-      }
-      .badge-sync-header-eemti.offline {
-        color: #b91c1c;
-        background: #fef2f2;
-        border-color: #fecaca;
-      }
-
-      .menu-autocompletar-eemti {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 100%;
-        z-index: 9999;
-        background: #ffffff;
-        border: 1px solid #94a3b8;
-        border-radius: 10px;
-        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16);
-        max-height: 220px;
-        overflow-y: auto;
-        margin-top: 3px;
-      }
-      .menu-autocompletar-eemti .item-auto-eemti {
-        padding: 8px 12px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: #1e293b;
-        border-bottom: 1px solid #f1f5f9;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .menu-autocompletar-eemti .item-auto-eemti:hover {
-        background: #eff6ff;
-        color: #15438c;
-      }
-
-      @media (max-width: 768px) {
-        .top-header {
-          flex-direction: column !important;
-          align-items: center !important;
+        /* Coluna Nº (1, 2, 3...) ajustada exatamente ao tamanho do número */
+        th.col-numero-estreita-eemti,
+        td.col-numero-estreita-eemti {
+          width: 1% !important;
+          min-width: 26px !important;
+          max-width: 36px !important;
+          padding-left: 3px !important;
+          padding-right: 3px !important;
           text-align: center !important;
-          padding: 10px 8px 6px 8px !important;
-          gap: 8px !important;
+          white-space: nowrap !important;
         }
-        .brand-escola {
-          flex-direction: row !important;
+
+        table.table td .badge {
+          white-space: normal !important;
+          line-height: 1.2 !important;
+          text-align: center !important;
+          display: inline-block !important;
+          max-width: 100% !important;
+        }
+
+        .col-oculta-eemti {
+          display: none !important;
+        }
+
+        tr.linha-tabela-clicavel-eemti {
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        }
+        tr.linha-tabela-clicavel-eemti:hover {
+          background-color: #eff6ff !important;
+        }
+
+        .btn-chamada-compacto {
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 30px !important;
+          max-width: 38px !important;
+          height: 28px !important;
+          padding: 0 7px !important;
+          font-weight: 800 !important;
+          font-size: 0.74rem !important;
+          border-radius: 6px !important;
+          line-height: 1 !important;
+          display: inline-flex !important;
+          align-items: center !important;
           justify-content: center !important;
-          text-align: left !important;
-          gap: 10px !important;
+          margin: 1px !important;
         }
-        .brand-escola img {
-          height: 58px !important;
+
+        td:has(.btn-chamada-compacto),
+        th.col-status-compacta-eemti {
+          width: 1% !important;
+          white-space: nowrap !important;
+          text-align: center !important;
+        }
+        td .d-flex:has(.btn-chamada-compacto),
+        td .btn-group:has(.btn-chamada-compacto),
+        td div:has(> .btn-chamada-compacto) {
+          display: inline-flex !important;
+          flex-wrap: nowrap !important;
+          justify-content: center !important;
+          align-items: center !important;
+          gap: 4px !important;
           width: auto !important;
         }
-        .brand-titulo-principal {
-          font-size: 1.35rem !important;
+
+        th.col-nome-larga-eemti,
+        td.col-nome-larga-eemti {
+          width: 48% !important;
+          min-width: 145px !important;
+          text-align: left !important;
         }
-        .brand-subtitulo {
-          font-size: 0.55rem !important;
+
+        th.col-secundaria-larga-eemti,
+        td.col-secundaria-larga-eemti {
+          width: 32% !important;
+          min-width: 115px !important;
+          text-align: left !important;
         }
-        .brand-slogan {
-          font-size: 1.08rem !important;
-        }
-        .user-bar {
-          flex-wrap: wrap !important;
-          justify-content: center !important;
-          width: 100% !important;
-          padding: 6px 8px !important;
-          border-radius: 14px !important;
-          gap: 5px !important;
-        }
-        .main-container {
-          padding: 6px 4px 24px 4px !important;
-        }
-        .card {
-          padding: 10px 6px !important;
-          border-radius: 12px !important;
-          margin-bottom: 12px !important;
-        }
-        .nav-tabs {
-          display: flex !important;
-          flex-wrap: wrap !important;
-          gap: 3px !important;
-        }
-        .nav-tabs .nav-item {
-          flex: 1 1 auto !important;
-        }
-        .nav-tabs .nav-link {
-          font-size: 0.72rem !important;
-          padding: 6px 7px !important;
+
+        th.col-acoes-visivel-eemti,
+        td.col-acoes-visivel-eemti {
+          width: 1% !important;
+          min-width: 72px !important;
+          white-space: nowrap !important;
           text-align: center !important;
         }
-        table.table th {
-          font-size: 0.61rem !important;
-          padding: 5px 2px !important;
-          line-height: 1.1 !important;
+
+        /* =================================================================== */
+        /* MAPEAMENTO DE SALA: ATÉ 8x8 CABENDO 100% NA TELA E SEM DESTAQUE     */
+        /* LARANJA NA FILA 1 (MANTENDO APENAS O AVISO SUPERIOR DA PORTA)       */
+        /* =================================================================== */
+        .room-grid-scroll {
+          overflow-x: hidden !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: 2px 0 !important;
         }
-        table.table td {
-          font-size: 0.68rem !important;
-          padding: 5px 2px !important;
-          line-height: 1.18 !important;
-        }
-        table.table td .btn:not(.btn-chamada-compacto) {
-          font-size: 0.62rem !important;
-          padding: 3px 5px !important;
-          margin: 1px 0 !important;
-        }
-        .btn-chamada-compacto {
-          min-width: 27px !important;
-          max-width: 34px !important;
-          height: 26px !important;
-          padding: 0 5px !important;
-          font-size: 0.7rem !important;
-        }
-        table.table td .badge {
-          font-size: 0.57rem !important;
-          padding: 2px 4px !important;
-        }
-        table.table td img {
-          max-width: 38px !important;
-          max-height: 50px !important;
-        }
-        /* No celular, o mapeamento de sala ajusta fontes e fotos para caberem todas as filas */
         .room-columns-wrapper,
         #containerColunasSala,
         #containerColunasVisualizacao {
-          gap: 3px !important;
+          display: grid !important;
+          grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
+          gap: 6px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          direction: ltr !important;
         }
         .fila-coluna,
-        .fila-coluna.fila-porta-destaque {
-          padding: 2px !important;
-          border-radius: 6px !important;
+        .fila-coluna.fila-porta-destaque,
+        div.fila-coluna[class*="porta"] {
+          min-width: 0 !important;
+          max-width: 100% !important;
+          width: 100% !important;
+          background: #f8fafc !important;
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 10px !important;
+          padding: 5px !important;
+          box-shadow: none !important;
         }
         .fila-header,
-        .fila-coluna.fila-porta-destaque .fila-header {
-          font-size: 0.52rem !important;
-          padding: 3px 1px !important;
+        .fila-coluna.fila-porta-destaque .fila-header,
+        div.fila-coluna .fila-header {
+          background: #15438c !important;
+          background-image: none !important;
+          color: #ffffff !important;
+          font-size: 0.68rem !important;
+          padding: 5px 3px !important;
+          border-radius: 6px !important;
+          text-align: center !important;
+          font-weight: 800 !important;
+          border: none !important;
         }
-        .seat-card {
-          padding: 2px 1px !important;
-        }
-        .seat-card .seat-badge {
-          font-size: 0.44rem !important;
-          padding: 1px 2px !important;
-        }
-        .seat-photo-box {
-          width: 30px !important;
-          height: 40px !important;
-          margin: 2px auto !important;
-        }
-        .seat-select {
-          font-size: 0.48rem !important;
-          padding: 1px 2px !important;
-        }
-        .col-oculta-mobile-eemti {
+        .fila-header small,
+        .fila-header .sub-porta,
+        .fila-header div {
           display: none !important;
         }
-        .barra-legenda-compacta-eemti {
-          font-size: 0.68rem;
-          padding: 6px 8px;
-          gap: 6px;
+        .seat-card,
+        .fila-coluna.fila-porta-destaque .seat-card {
+          padding: 4px 3px !important;
+          border-radius: 8px !important;
+          background: #ffffff !important;
+          border: 1px solid #e2e8f0 !important;
+          min-width: 0 !important;
         }
-      }
-    `;
-    (document.head || document.documentElement).appendChild(style);
+        .seat-card .seat-badge,
+        .fila-coluna.fila-porta-destaque .seat-badge {
+          background: #15438c !important;
+          color: #ffffff !important;
+          font-size: 0.55rem !important;
+          padding: 2px 4px !important;
+          border-radius: 4px !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          max-width: 100% !important;
+        }
+        .seat-photo-box {
+          width: 46px !important;
+          height: 60px !important;
+          max-width: 100% !important;
+          margin: 3px auto !important;
+        }
+        .seat-select {
+          font-size: 0.6rem !important;
+          padding: 2px 12px 2px 3px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .d-flex.gap-2, .d-flex.gap-3, .btn-group {
+          gap: 4px !important;
+        }
+        td .btn + .btn, td .btn + button {
+          margin-left: 2px !important;
+        }
+
+        .barra-legenda-compacta-eemti {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-radius: 10px;
+          padding: 7px 12px;
+          margin-bottom: 10px;
+          font-size: 0.74rem;
+          font-weight: 700;
+          color: #334155;
+        }
+        .barra-legenda-compacta-eemti .item-leg {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .badge-sync-header-eemti {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.67rem;
+          font-weight: 700;
+          color: #0f766e;
+          background: #f0fdfa;
+          border: 1px solid #99f6e4;
+          padding: 4px 9px;
+          border-radius: 50px;
+          cursor: pointer;
+          user-select: none;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        .badge-sync-header-eemti:hover {
+          background: #ccfbf1;
+        }
+        .badge-sync-header-eemti.sincronizando {
+          color: #1d4ed8;
+          background: #eff6ff;
+          border-color: #bfdbfe;
+        }
+        .badge-sync-header-eemti.offline {
+          color: #b91c1c;
+          background: #fef2f2;
+          border-color: #fecaca;
+        }
+
+        .menu-autocompletar-eemti {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 100%;
+          z-index: 9999;
+          background: #ffffff;
+          border: 1px solid #94a3b8;
+          border-radius: 10px;
+          box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16);
+          max-height: 220px;
+          overflow-y: auto;
+          margin-top: 3px;
+        }
+        .menu-autocompletar-eemti .item-auto-eemti {
+          padding: 8px 12px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: #1e293b;
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .menu-autocompletar-eemti .item-auto-eemti:hover {
+          background: #eff6ff;
+          color: #15438c;
+        }
+
+        @media (max-width: 768px) {
+          .top-header {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            padding: 10px 8px 6px 8px !important;
+            gap: 8px !important;
+          }
+          .brand-escola {
+            flex-direction: row !important;
+            justify-content: center !important;
+            text-align: left !important;
+            gap: 10px !important;
+          }
+          .brand-escola img {
+            height: 58px !important;
+            width: auto !important;
+          }
+          .brand-titulo-principal {
+            font-size: 1.35rem !important;
+          }
+          .brand-subtitulo {
+            font-size: 0.55rem !important;
+          }
+          .brand-slogan {
+            font-size: 1.08rem !important;
+          }
+          .user-bar {
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            width: 100% !important;
+            padding: 6px 8px !important;
+            border-radius: 14px !important;
+            gap: 5px !important;
+          }
+          .main-container {
+            padding: 6px 3px 24px 3px !important;
+          }
+          .card {
+            padding: 8px 5px !important;
+            border-radius: 12px !important;
+            margin-bottom: 12px !important;
+          }
+          .nav-tabs {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 3px !important;
+          }
+          .nav-tabs .nav-item {
+            flex: 1 1 auto !important;
+          }
+          .nav-tabs .nav-link {
+            font-size: 0.72rem !important;
+            padding: 6px 7px !important;
+            text-align: center !important;
+          }
+          table.table th {
+            font-size: 0.6rem !important;
+            padding: 5px 2px !important;
+            line-height: 1.1 !important;
+          }
+          table.table td {
+            font-size: 0.67rem !important;
+            padding: 5px 2px !important;
+            line-height: 1.18 !important;
+          }
+          table.table td .btn:not(.btn-chamada-compacto) {
+            font-size: 0.62rem !important;
+            padding: 3px 5px !important;
+            margin: 1px 0 !important;
+          }
+          .btn-chamada-compacto {
+            min-width: 27px !important;
+            max-width: 34px !important;
+            height: 26px !important;
+            padding: 0 5px !important;
+            font-size: 0.7rem !important;
+          }
+          table.table td .badge {
+            font-size: 0.56rem !important;
+            padding: 2px 4px !important;
+          }
+          table.table td img {
+            max-width: 38px !important;
+            max-height: 50px !important;
+          }
+          th.col-nome-larga-eemti,
+          td.col-nome-larga-eemti {
+            width: 44% !important;
+            min-width: 105px !important;
+          }
+          th.col-secundaria-larga-eemti,
+          td.col-secundaria-larga-eemti {
+            width: 30% !important;
+            min-width: 85px !important;
+          }
+          th.col-acoes-visivel-eemti,
+          td.col-acoes-visivel-eemti {
+            min-width: 58px !important;
+          }
+
+          /* Mapeamento de Sala no Celular: cabe até 8x8 colunas na tela sem rolar para o lado! */
+          .room-front-bar {
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            gap: 4px !important;
+            padding: 6px !important;
+            margin-bottom: 6px !important;
+          }
+          .room-front-bar > div {
+            font-size: 0.55rem !important;
+            padding: 4px 6px !important;
+          }
+          .room-columns-wrapper,
+          #containerColunasSala,
+          #containerColunasVisualizacao {
+            gap: 2px !important;
+          }
+          .fila-coluna,
+          .fila-coluna.fila-porta-destaque {
+            padding: 2px 1px !important;
+            border-radius: 5px !important;
+            gap: 2px !important;
+          }
+          .fila-header,
+          .fila-coluna.fila-porta-destaque .fila-header {
+            font-size: 0.48rem !important;
+            padding: 2px 1px !important;
+            border-radius: 4px !important;
+          }
+          .seat-card {
+            padding: 2px 1px !important;
+            border-radius: 4px !important;
+            margin-bottom: 2px !important;
+          }
+          .seat-card .seat-badge,
+          .fila-coluna.fila-porta-destaque .seat-badge {
+            font-size: 0.38rem !important;
+            padding: 1px 2px !important;
+          }
+          .seat-photo-box {
+            width: 26px !important;
+            height: 34px !important;
+            margin: 1px auto !important;
+          }
+          .seat-photo-box i {
+            font-size: 0.7rem !important;
+          }
+          .seat-photo-box span {
+            font-size: 0.36rem !important;
+          }
+          .seat-select {
+            font-size: 0.42rem !important;
+            padding: 1px 1px !important;
+            height: 18px !important;
+            background-image: none !important;
+          }
+          .seat-student-name {
+            font-size: 0.4rem !important;
+            line-height: 1.05 !important;
+          }
+          .col-oculta-mobile-eemti {
+            display: none !important;
+          }
+          .barra-legenda-compacta-eemti {
+            font-size: 0.68rem;
+            padding: 6px 8px;
+            gap: 6px;
+          }
+        }
+      `;
+    }
+    // Move sempre para o final do <head> para ter prioridade sobre o CSS interno da página!
+    if (document.head && document.head.lastElementChild !== style) {
+      document.head.appendChild(style);
+    }
   }
 
   injetarResponsividadeGlobalEEMTI();
@@ -524,7 +589,6 @@
     const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
     const b64LogoMarcaDagua = localStorage.getItem('cache_logo_escola_marcadagua_b64');
 
-    // Topo das páginas HTML: brasaoestado.png
     document.querySelectorAll('.brand-escola img, header img#logoEscola').forEach(img => {
       img.onerror = function() {
         if (this.src.endsWith('brasaoestado.png') && !this.src.endsWith('brasaoestado.png.png')) {
@@ -541,7 +605,6 @@
       }
     });
 
-    // Marca d'água de fundo das páginas HTML: LOGO-removebg-preview.png
     document.querySelectorAll('img.watermark-brasao-fundo').forEach(img => {
       img.onerror = function() {
         if (b64LogoMarcaDagua && this.src !== b64LogoMarcaDagua) {
@@ -557,7 +620,6 @@
     });
   }
 
-  // Intercepta qualquer geração de PDF para garantir que o logo no cabeçalho do PDF seja SEMPRE a "LOGO-removebg-preview.png"!
   function configurarInterceptadorLogoNosPdfs() {
     if (!window.jspdf || !window.jspdf.jsPDF || window.jspdf.jsPDF._eemtiLogoHooked) return;
     try {
@@ -567,8 +629,6 @@
         proto.addImage = function(imageData, format, x, y, w, h) {
           const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64');
           const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
-
-          // Se for a posição do logo no cabeçalho do PDF (canto superior esquerdo, x <= 25, y <= 20 e proporção quadrada)
           const ehPosicaoLogoCabecalhoPdf = (typeof x === 'number' && x <= 25 && typeof y === 'number' && y <= 20 && Math.abs((w || 0) - (h || 0)) <= 5);
           if (b64LogoEscola && (ehPosicaoLogoCabecalhoPdf || (b64BrasaoTopo && imageData === b64BrasaoTopo))) {
             arguments[0] = b64LogoEscola;
@@ -580,7 +640,6 @@
     } catch (e) {}
   }
 
-  // Carrega jsPDF + autoTable dinamicamente caso a página (ex: reservas.html) não tenha os scripts no <head>!
   function carregarScriptDinamico(url) {
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -620,7 +679,6 @@
     const hojeIso = new Date().toISOString().slice(0, 10);
     const inicioMesIso = hojeIso.slice(0, 8) + '01';
 
-    // Já garante as bibliotecas jsPDF e autoTable carregadas antes mesmo de confirmar!
     garantirBibliotecasPdfCarregadas().catch(() => {});
 
     const resultadoModal = await Swal.fire({
@@ -730,7 +788,6 @@
         return;
       }
 
-      // Busca todas as reservas diretamente da planilha para garantir que reservas passadas e futuras do período saiam no PDF!
       let listaRes = [];
       try {
         const rApi = await _fetchNativo(API_PADRAO_URL, {
@@ -797,11 +854,9 @@
     const pathLower = window.location.pathname.toLowerCase();
     if (!pathLower.includes('reservas')) return;
 
-    // Pré-carrega o jsPDF assim que entra na página de reservas
     garantirBibliotecasPdfCarregadas().catch(() => {});
 
     const botoesPdf = Array.from(document.querySelectorAll('button, a.btn')).filter(b => {
-      // CRUCIAL: NUNCA intercepta botões que estão dentro do modal do SweetAlert2 (.swal2-container)!
       if (b.closest('.swal2-container') || b.classList.contains('swal2-confirm') || b.classList.contains('swal2-cancel')) {
         return false;
       }
@@ -823,8 +878,193 @@
       });
     }
   }
+
   // =========================================================================
-  // 4. FUNÇÕES DE FORMATAÇÃO E FICHA DO ALUNO (SEM REPETIÇÃO DE DADOS!)
+  // 3. AJUSTE DO MAPEAMENTO DE SALA:
+  // - Garante Fila 1 iniciando do lado esquerdo (Porta da Sala)
+  // - Remove completamente o destaque laranja da Fila 1 (deixando apenas o aviso acima)
+  // - Ajusta até 8x8 filas e carteiras dentro da tela do celular e do computador!
+  // =========================================================================
+  function ajustarLayoutMapeamentoDeSala() {
+    const pathLower = window.location.pathname.toLowerCase();
+    if (!pathLower.includes('mapeamento')) return;
+
+    injetarResponsividadeGlobalEEMTI();
+
+    // 1. Garante que em qualquer container de colunas a FILA 1 esteja na extrema esquerda (início)
+    ['containerColunasSala', 'containerColunasVisualizacao'].forEach(idCont => {
+      const container = document.getElementById(idCont);
+      if (!container) return;
+      const colunas = Array.from(container.querySelectorAll('.fila-coluna'));
+      if (colunas.length > 1) {
+        const txtPrimeira = (colunas[0].querySelector('.fila-header')?.textContent || '').toUpperCase();
+        const txtUltima = (colunas[colunas.length - 1].querySelector('.fila-header')?.textContent || '').toUpperCase();
+        // Se por acaso a Fila 1 estiver na direita e a última fila na esquerda, inverte para a Fila 1 iniciar na esquerda!
+        if (!txtPrimeira.includes('FILA 1') && txtUltima.includes('FILA 1')) {
+          colunas.reverse().forEach(col => container.appendChild(col));
+        }
+      }
+    });
+
+    // 2. Remove qualquer destaque laranja/amarelo da Fila 1 (mantendo todas as filas com o mesmo visual azul limpo!)
+    document.querySelectorAll('.fila-coluna').forEach((col, idx) => {
+      col.classList.remove('fila-porta-destaque');
+      col.style.background = '#f8fafc';
+      col.style.border = '1px solid #cbd5e1';
+
+      const header = col.querySelector('.fila-header');
+      if (header) {
+        const numFila = idx + 1;
+        header.style.background = '#15438c';
+        header.style.color = '#ffffff';
+        if (header.innerHTML.includes('PORTA') || header.querySelector('small')) {
+          header.innerHTML = `<i class="bi bi-list-ul me-1"></i>FILA ${numFila}`;
+        }
+      }
+
+      col.querySelectorAll('.seat-badge').forEach(badge => {
+        badge.style.background = '#15438c';
+        badge.style.color = '#ffffff';
+        const txtB = (badge.textContent || '').replace(/🚪/g, '').trim();
+        if (badge.textContent !== txtB) badge.textContent = txtB;
+      });
+    });
+
+    // 3. Garante que na barra frontal superior o aviso da Porta da Sala (Fila 1) esteja no lado esquerdo
+    document.querySelectorAll('.room-front-bar').forEach(barra => {
+      const filhos = Array.from(barra.children);
+      if (filhos.length >= 3) {
+        const idxPorta = filhos.findIndex(el => (el.textContent || '').toUpperCase().includes('PORTA'));
+        if (idxPorta > 0) {
+          barra.insertBefore(filhos[idxPorta], barra.firstChild);
+        }
+      }
+    });
+
+    // 4. Atualiza também o gerador de PDF do Mapeamento de Sala para desenhar a Fila 1 na esquerda e sem cor laranja
+    if (typeof window.desenharPlantaDeSalaNoDocumentoPdf === 'function' && !window.desenharPlantaDeSalaNoDocumentoPdf._eemtiFixed) {
+      window.desenharPlantaDeSalaNoDocumentoPdf = async function(doc, cfg, adicionarNovaPaginaAntes) {
+        if (adicionarNovaPaginaAntes) doc.addPage();
+
+        const serie = cfg.serie;
+        const pdt = cfg.pdt || "NÃO ATRIBUÍDO";
+        const cols = Math.min(8, Math.max(1, Number(cfg.colunas) || 6));
+        const rows = Math.min(8, Math.max(1, Number(cfg.linhas) || 7));
+        const pos = cfg.posicoes || {};
+        const dtStr = cfg.ultimaAtualizacao || new Date().toLocaleDateString('pt-BR');
+
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        const marginX = 8;
+
+        const yAposCabecalho = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: `MAPEAMENTO OFICIAL DE SALA DE AULA — ${serie}`,
+          subtitulo1: `Professor(a) Diretor(a) de Turma (PDT): ${pdt}`,
+          subtitulo2: `Layout: ${cols} Filas x ${rows} Carteiras | Atualizado em: ${dtStr}`
+        });
+
+        const refY = yAposCabecalho;
+        doc.setFillColor(255, 251, 235);
+        doc.setDrawColor(217, 119, 6);
+        doc.setLineWidth(0.35);
+        doc.roundedRect(marginX, refY, 64, 6.2, 1.2, 1.2, 'FD');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(180, 83, 9);
+        doc.text("PORTA DA SALA (FILA 1 INICIA AQUI)", marginX + 32, refY + 4.1, { align: "center" });
+
+        doc.setFillColor(30, 41, 59);
+        doc.roundedRect((pageW / 2) - 42, refY, 84, 6.2, 1.2, 1.2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(6.8);
+        doc.text("QUADRO BRANCO / MESA DO PROFESSOR (FRENTE)", pageW / 2, refY + 4.1, { align: "center" });
+
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(pageW - marginX - 52, refY, 52, 6.2, 1.2, 1.2, 'FD');
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(6.2);
+        doc.text("Lado Oposto / Janelas", pageW - marginX - 26, refY + 4.1, { align: "center" });
+
+        const startY = refY + 8.2;
+        const availW = pageW - (marginX * 2);
+        const availH = pageH - startY - 6;
+        const gapX = 2.0;
+        const gapY = 1.6;
+        const headerFilaH = 4.8;
+
+        const seatW = (availW - (gapX * (cols - 1))) / cols;
+        const seatH = (availH - headerFilaH - 1.2 - (gapY * (rows - 1))) / rows;
+
+        for (let c = 1; c <= cols; c++) {
+          const xCol = marginX + (c - 1) * (seatW + gapX);
+          doc.setFillColor(21, 67, 140);
+          doc.roundedRect(xCol, startY, seatW, headerFilaH, 1, 1, 'F');
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6.5);
+          doc.setTextColor(255, 255, 255);
+          doc.text(`FILA ${c}`, xCol + (seatW / 2), startY + 3.3, { align: "center" });
+
+          for (let r = 1; r <= rows; r++) {
+            const ySeat = startY + headerFilaH + 1.2 + (r - 1) * (seatH + gapY);
+            const chave = `F${c}_C${r}`;
+            const nomeAlocado = pos[chave] || "";
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(203, 213, 225);
+            doc.setLineWidth(0.25);
+            doc.roundedRect(xCol, ySeat, seatW, seatH, 1.2, 1.2, 'FD');
+
+            doc.setFillColor(21, 67, 140);
+            doc.roundedRect(xCol + 1.2, ySeat + 1, 13, 3.2, 0.8, 0.8, 'F');
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(4.8);
+            doc.setTextColor(255, 255, 255);
+            doc.text(`${r}ª Cart.`, xCol + 7.7, ySeat + 3.2, { align: "center" });
+
+            const photoMaxH = Math.max(7, seatH - 8.8);
+            const photoW = Math.min(seatW - 6, photoMaxH * 0.75);
+            const photoH = photoW / 0.75;
+            const photoX = xCol + (seatW - photoW) / 2;
+            const photoY = ySeat + 4.6;
+
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(photoX, photoY, photoW, photoH, 'FD');
+
+            if (nomeAlocado) {
+              const infoCache = obterDadosCadastraisAlunoCache(nomeAlocado);
+              const fotoSrc = infoCache.foto || "";
+              const b64Img = fotoSrc ? await window.converterImagemParaDataUrlPdf(fotoSrc, 200, 260) : null;
+              if (b64Img) {
+                try { doc.addImage(b64Img, 'JPEG', photoX + 0.2, photoY + 0.2, photoW - 0.4, photoH - 0.4); } catch (e) {}
+              } else {
+                doc.setFontSize(4.3);
+                doc.setTextColor(148, 163, 184);
+                doc.text("SEM FOTO", photoX + (photoW / 2), photoY + (photoH / 2), { align: "center" });
+              }
+
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(4.8);
+              doc.setTextColor(15, 23, 42);
+              const linhasNome = doc.splitTextToSize(nomeAlocado, seatW - 2.4);
+              const yTexto = photoY + photoH + 2.3;
+              doc.text(linhasNome.slice(0, 2), xCol + (seatW / 2), yTexto, { align: "center" });
+            } else {
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(5);
+              doc.setTextColor(180, 180, 180);
+              doc.text("Vazio", xCol + (seatW / 2), photoY + (photoH / 2) + 1, { align: "center" });
+            }
+          }
+        }
+      };
+      window.desenharPlantaDeSalaNoDocumentoPdf._eemtiFixed = true;
+    }
+  }
+
+  // =========================================================================
+  // 4. FUNÇÕES DE FORMATAÇÃO E FICHA DO ALUNO
   // =========================================================================
   window.abreviarSerieParaExibicao = function(textoSerie) {
     if (!textoSerie) return "";
@@ -879,7 +1119,6 @@
     return Object.assign({}, baseAl, det);
   }
 
-  // Modal da Ficha Completa do Aluno: SEM repetição da caixa azul quando os dados são apenas Nome/Filiação/Série/Benefícios!
   window.abrirModalFichaCompletaAlunoEEMTI = async function(nomeAlunoClicado, serieHint, extrasLinhaHtml) {
     const nomeLimpo = String(nomeAlunoClicado || "").replace(/\s+/g, " ").trim().toUpperCase();
     if (!nomeLimpo || typeof Swal === 'undefined') return;
@@ -973,7 +1212,6 @@
       const nomeBase = (tr.getAttribute('data-nome-aluno-limpo') || parAluno.valor.split('\n')[0]).trim();
       const parSerie = pares.find(p => p.titulo.includes('SÉRIE') || p.titulo.includes('TURMA'));
 
-      // Na página Gerenciar Alunos (cadastro-alunos), NÃO envia campos repetidos de Nome, Série, Filiação ou Benefícios para a caixa extra!
       let htmlExtras = '';
       if (!path.includes('cadastro-alunos')) {
         htmlExtras = pares
@@ -1102,6 +1340,7 @@
   }
 
   function aplicarCompactacaoVisualNasTabelasEBotoes() {
+    injetarResponsividadeGlobalEEMTI();
     aplicarImagensOficiaisTopoEMarcaDagua();
     configurarInterceptadorLogoNosPdfs();
     vincularBotaoPdfReservasComSeletorDePeriodo();
@@ -1230,7 +1469,6 @@
         const th = ths[idx];
         if (!th) return;
 
-        // Coluna Nº / # super estreita (ajustada apenas para o número!)
         if (t === 'Nº' || t === 'N°' || t === '#' || t === 'ORD.' || t === 'POS.' || t === 'POSIÇÃO') {
           idxNumero = idx;
           th.classList.add('col-numero-estreita-eemti');
@@ -1252,13 +1490,13 @@
         if (t === 'SÉRIE' || t === 'SERIE' || t === 'TURMA' || t === 'SÉRIE / TURMA' || t === 'SERIE / TURMA') idxSerie = idx;
         if (t.includes('BIMESTRE')) idxBimestre = idx;
         if (t === 'DATA' || t.includes('DATA / HORA') || t.includes('SEMESTRE') || t.includes('ANO / SEM') || t === 'DATA REG.') idxData = idx;
-        if (t.includes('DIA')) idxDia = idx;
+        if (t === 'DIA' || t === 'DIA DA SEMANA') idxDia = idx;
         if (t.includes('TEMPO')) idxTempo = idx;
         if (t.includes('ELETIVA')) idxEletiva = idx;
         if (t.includes('PROFESSOR') || t.includes('REGISTRADO POR')) idxProfessor = idx;
         if (t === 'C.H' || t.includes('CARGA')) idxCh = idx;
         if (t.includes('NOTA')) idxNota = idx;
-        if (t.includes('FALTA')) idxFaltas = idx;
+        if (t.includes('FALTA') && !t.includes('FREQUÊNCIA')) idxFaltas = idx;
         if (t.includes('FREQ') && !t.includes('ALIMENTAR')) idxFreqPerc = idx;
         if (t.includes('OCORRÊNCIA') || t.includes('OCORRENCIA')) idxOcorrencia = idx;
         if (t.includes('GRAVIDADE')) idxGravidade = idx;
@@ -1279,7 +1517,7 @@
         }
       });
 
-      // 1. PAINEL DE ALUNOS NECESSITADOS DE SUSPENSÃO (atendimento-alunos.html)
+      // 1. PAINEL DE ALUNOS NECESSITADOS DE SUSPENSÃO
       const ehTabelaSuspensaoPdt = (
         tabela.querySelector('#tbodyAlunosSuspensao') !== null ||
         (idxAluno === 0 && idxSeriePdtSusp === 1 && idxOrigemSusp === 2 && idxInicioSusp === 3)
@@ -1298,28 +1536,56 @@
         ths[5].style.width = '18%';
       }
 
-      // 2. HISTÓRICO DE ELETIVAS DO ALUNO
+      // =====================================================================
+      // 2. HISTÓRICO INDIVIDUAL DE ELETIVAS DO ALUNO (image_71b089.jpg):
+      // Transforma as 8 colunas originais nas 5 colunas exatas solicitadas:
+      // Col 1: SEMESTRE (+ Série abaixo)
+      // Col 2: TEMPO ELETIVO (+ Dia da Semana abaixo)
+      // Col 3: ELETIVA CURSADA (+ Professor abaixo) -> Coluna Mais Larga (46%)
+      // Col 4: NOTA (+ % Frequência abaixo)
+      // Col 5: C.H
+      // =====================================================================
       const ehTabelaHistoricoEletivas = (
         pathLower.includes('historico-eletivas') ||
-        (idxEletiva >= 0 && idxNota >= 0 && (idxFreqPerc >= 0 || idxFaltas >= 0))
+        (idxEletiva >= 0 && idxNota >= 0 && (idxFreqPerc >= 0 || idxFaltas >= 0) && idxCh >= 0)
       );
-      if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxSerie >= 0) {
-        if (idxData >= 0 && ths[idxData]) ths[idxData].textContent = 'DATA / SEM.';
-        if (ths[idxSerie]) ths[idxSerie].textContent = 'SÉRIE / DIA / TEMPO';
-        if (ths[idxEletiva]) {
-          ths[idxEletiva].textContent = 'ELETIVA / PROFESSOR(A)';
-          ths[idxEletiva].classList.add('col-nome-larga-eemti');
-        }
-        if (idxNota >= 0 && ths[idxNota]) ths[idxNota].textContent = 'NOTA / % FREQ.';
+      const idxColTempoOuDia = idxTempo >= 0 ? idxTempo : idxDia;
 
-        [idxDia, idxTempo, idxProfessor, idxCh, idxFaltas, idxFreqPerc].forEach(cIdx => {
-          if (cIdx >= 0 && cIdx !== idxData && cIdx !== idxSerie && cIdx !== idxEletiva && cIdx !== idxNota && ths[cIdx]) {
+      if (ehTabelaHistoricoEletivas && idxData >= 0 && idxColTempoOuDia >= 0 && idxEletiva >= 0 && idxNota >= 0 && idxCh >= 0) {
+        ths[idxData].textContent = 'SEMESTRE / SÉRIE';
+        ths[idxData].style.width = '13%';
+
+        ths[idxColTempoOuDia].textContent = 'TEMPO ELETIVO / DIA';
+        ths[idxColTempoOuDia].style.width = '18%';
+
+        ths[idxEletiva].textContent = 'ELETIVA CURSADA / PROFESSOR(A)';
+        ths[idxEletiva].classList.add('col-nome-larga-eemti');
+        ths[idxEletiva].style.width = '46%';
+
+        ths[idxNota].textContent = 'NOTA / % FREQ.';
+        ths[idxNota].style.width = '14%';
+
+        ths[idxCh].textContent = 'C.H';
+        ths[idxCh].classList.remove('col-oculta-eemti', 'col-oculta-mobile-eemti');
+        ths[idxCh].style.width = '9%';
+
+        // Oculta as colunas mescladas (Série avulsa, Dia avulso, Professor avulso, Faltas, Frequência avulsa)
+        [idxSerie, idxDia, idxProfessor, idxFaltas, idxFreqPerc].forEach(cIdx => {
+          if (
+            cIdx >= 0 &&
+            cIdx !== idxData &&
+            cIdx !== idxColTempoOuDia &&
+            cIdx !== idxEletiva &&
+            cIdx !== idxNota &&
+            cIdx !== idxCh &&
+            ths[cIdx]
+          ) {
             ths[cIdx].classList.add('col-oculta-eemti');
           }
         });
       }
 
-      // 3. GERENCIAR ALUNOS (cadastro-alunos.html)
+      // 3. GERENCIAR ALUNOS
       const ehTabelaGerenciarAlunos = (idxFoto >= 0 && idxColStatusFoto >= 0);
       if (ehTabelaGerenciarAlunos) {
         inserirLegendaAcimaDaTabela(tabela, 'GERENCIAR_ALUNOS_BF_PM');
@@ -1360,7 +1626,7 @@
         });
       }
 
-      // 6. AEE - ATENDIMENTO EDUCACIONAL ESPECIALIZADO
+      // 6. AEE
       const ehTabelaAee = (pathLower.includes('aee') && idxAluno >= 0 && idxDeficiencia >= 0);
       if (ehTabelaAee) {
         if (ths[idxAluno]) {
@@ -1466,44 +1732,80 @@
           }
         }
 
-        // B) HISTÓRICO DE ELETIVAS
-        if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxSerie >= 0 && !tr._eemtiHistEletFormatado) {
+        // B) HISTÓRICO INDIVIDUAL DE ELETIVAS DO ALUNO (5 COLUNAS SOLICITADAS):
+        // Col 1: Semestre + Série abaixo
+        // Col 2: Tempo Eletivo + Dia da Semana abaixo
+        // Col 3: Eletiva + Professor abaixo (Larga)
+        // Col 4: Nota + % Frequência abaixo
+        // Col 5: C.H
+        if (ehTabelaHistoricoEletivas && idxData >= 0 && idxColTempoOuDia >= 0 && idxEletiva >= 0 && idxNota >= 0 && idxCh >= 0 && !tr._eemtiHistEletFormatado) {
           tr._eemtiHistEletFormatado = true;
-          [idxDia, idxTempo, idxProfessor, idxCh, idxFaltas, idxFreqPerc].forEach(cIdx => {
-            if (cIdx >= 0 && cIdx !== idxData && cIdx !== idxSerie && cIdx !== idxEletiva && cIdx !== idxNota && tds[cIdx]) {
+
+          [idxSerie, idxDia, idxProfessor, idxFaltas, idxFreqPerc].forEach(cIdx => {
+            if (
+              cIdx >= 0 &&
+              cIdx !== idxData &&
+              cIdx !== idxColTempoOuDia &&
+              cIdx !== idxEletiva &&
+              cIdx !== idxNota &&
+              cIdx !== idxCh &&
+              tds[cIdx]
+            ) {
               tds[cIdx].classList.add('col-oculta-eemti');
             }
           });
 
-          const valSerie = window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '-');
-          const valDia = idxDia >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxDia]?.valor || '') : '';
-          const valTempo = idxTempo >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxTempo]?.valor || '') : '';
-
-          tds[idxSerie].innerHTML = `
-            <div class="fw-bold text-primary" style="font-size:0.76rem;">${valSerie}</div>
-            ${valDia && valDia !== '-' ? `<div class="text-dark fw-semibold mt-1" style="font-size:0.65rem;">${valDia}</div>` : ''}
-            ${valTempo && valTempo !== '-' ? `<div class="text-muted" style="font-size:0.63rem;">${valTempo}</div>` : ''}
+          // 1. Coluna Semestre + Série abaixo
+          const valSemestre = tr._dadosOriginaisLinhaEEMTI[idxData]?.valor || '-';
+          const valSerie = idxSerie >= 0 ? window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '-') : '';
+          tds[idxData].innerHTML = `
+            <div class="fw-bold text-dark" style="font-size:0.76rem;">${valSemestre}</div>
+            ${valSerie ? `<div class="mt-1"><span class="badge bg-secondary" style="font-size:0.6rem;">${valSerie}</span></div>` : ''}
           `;
 
+          // 2. Coluna Tempo Eletivo + Dia da Semana abaixo
+          const brutoTempoDia = tr._dadosOriginaisLinhaEEMTI[idxColTempoOuDia]?.valor || '-';
+          let tempoParte = brutoTempoDia;
+          let diaParte = (idxDia >= 0 && idxDia !== idxColTempoOuDia) ? (tr._dadosOriginaisLinhaEEMTI[idxDia]?.valor || '') : '';
+
+          if (brutoTempoDia.includes('•')) {
+            const p = brutoTempoDia.split('•');
+            tempoParte = p[0].trim();
+            diaParte = p.slice(1).join('•').trim();
+          } else if (brutoTempoDia.includes(' - ')) {
+            const p = brutoTempoDia.split(' - ');
+            tempoParte = p[0].trim();
+            diaParte = p.slice(1).join(' - ').trim();
+          }
+
+          tds[idxColTempoOuDia].innerHTML = `
+            <div><span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.62rem;">${tempoParte || '-'}</span></div>
+            ${diaParte && diaParte !== '-' ? `<div class="text-secondary fw-semibold mt-1" style="font-size:0.64rem;">${diaParte}</div>` : ''}
+          `;
+
+          // 3. Coluna Eletiva + Professor abaixo (Mais Larga)
           const valElet = tr._dadosOriginaisLinhaEEMTI[idxEletiva]?.valor || '-';
           const valProf = idxProfessor >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxProfessor]?.valor || '') : '';
-
           tds[idxEletiva].classList.add('col-nome-larga-eemti');
           tds[idxEletiva].innerHTML = `
-            <div class="fw-bold text-dark" style="font-size:0.78rem;line-height:1.22;">${valElet}</div>
+            <div class="fw-bold text-dark" style="font-size:0.8rem;line-height:1.22;">${valElet}</div>
             ${valProf ? `<div class="text-secondary mt-1" style="font-size:0.67rem;"><i class="bi bi-person-workspace me-1"></i><b>Prof.:</b> ${valProf}</div>` : ''}
           `;
 
-          if (idxNota >= 0 && tds[idxNota]) {
-            const valNota = tr._dadosOriginaisLinhaEEMTI[idxNota]?.valor || '-';
-            let valFreq = idxFreqPerc >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxFreqPerc]?.valor || '') : '';
-            const matchPerc = valFreq.match(/(\d+%)/);
-            if (matchPerc) valFreq = matchPerc[1];
+          // 4. Coluna Nota + % Frequência abaixo (somente o percentual!)
+          const valNota = tr._dadosOriginaisLinhaEEMTI[idxNota]?.valor || '-';
+          let valFreq = idxFreqPerc >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxFreqPerc]?.valor || '') : '';
+          const matchPerc = valFreq.match(/(\d+%)/);
+          if (matchPerc) valFreq = matchPerc[1];
 
-            tds[idxNota].innerHTML = `
-              <div class="fw-bolder text-dark" style="font-size:0.84rem;">${valNota}</div>
-              ${valFreq ? `<div class="mt-1"><span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.63rem;">${valFreq}</span></div>` : ''}
-            `;
+          tds[idxNota].innerHTML = `
+            <div class="fw-bolder text-dark" style="font-size:0.8rem;">${valNota}</div>
+            ${valFreq ? `<div class="mt-1"><span class="badge bg-success text-white" style="font-size:0.61rem;">${valFreq}</span></div>` : ''}
+          `;
+
+          // 5. Coluna C.H visível na direita
+          if (tds[idxCh]) {
+            tds[idxCh].classList.remove('col-oculta-eemti', 'col-oculta-mobile-eemti');
           }
         }
 
@@ -3573,7 +3875,6 @@
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    // REGRA SOLICITADA: Nos PDFs usa SEMPRE a "LOGO-removebg-preview.png" que está nos arquivos!
     const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64');
     const logoB64 = b64LogoEscola || await window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 240, 240);
 
