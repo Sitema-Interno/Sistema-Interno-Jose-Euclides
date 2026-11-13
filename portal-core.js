@@ -1,10 +1,9 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA COMPLETA
-// 1. PRÉ-CARREGAMENTO TOTAL NO LOGIN (ALUNOS, SÉRIES, DISCIPLINAS, ELETIVAS,
-//    MATRÍCULAS, OCORRÊNCIAS, PDT E MAPEAMENTOS DE SALA)
-// 2. GRAVA EM TODAS AS CHAVES (V1, V2, V3, V4) + RESPONDE FETCH OFFLINE
-// 3. ATUALIZA AUTOMATICAMENTE AO CADASTRAR ALUNO, MATRÍCULA, DISCIPLINA, AMBIENTE, ETC.
-// 4. SINCRONIZAÇÃO COM O APP FECHADO (SW.JS + INDEXEDDB) E EM 2º PLANO SEM TRAVAR A TELA
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO COMPLETA + RESPONSIVIDADE
+// 1. PRÉ-CARREGAMENTO NO LOGIN (ALUNOS, DISCIPLINAS, ELETIVAS, MATRÍCULAS E OCORRÊNCIAS)
+// 2. ATUALIZAÇÃO AUTOMÁTICA EM NOVOS CADASTROS, EDIÇÕES OU EXCLUSÕES
+// 3. SINCRONIZAÇÃO OFFLINE COM O APP FECHADO/MINIMIZADO (SW.JS + INDEXEDDB)
+// 4. MOTOR UNIVERSAL DE AJUSTE DE TELAS (CELULAR, TABLET E COMPUTADOR)
 // 5. CABEÇALHO INSTITUCIONAL PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
 // =========================================================================
 (function() {
@@ -20,15 +19,12 @@
     'fila_offline_mapeamento_v1'
   ];
 
-  // Chaves universais compartilhadas entre todas as páginas offline
   window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
   window.KEY_SERIES_UNIVERSAL_EEMTI = 'cache_rac_series_v3';
   const KEY_MATRICULAS_ELETIVAS_OFFLINE = 'cache_matriculas_eletivas_global_v1';
   const KEY_CATALOGO_ELETIVAS_OFFLINE = 'cache_catalogo_eletivas_global_v1';
   const KEY_TODAS_OCORRENCIAS_OFFLINE = 'cache_rac_todas_ocorrencias_v1';
-  const KEY_AMBIENTES_OFFLINE = 'cache_ambientes_escola_v1';
 
-  // Ações que podem ser lançadas Offline pelos professores
   const ACOES_GRAVACAO_OFFLINE = {
     'salvarOcorrencia': 'Ocorrência Disciplinar (RAC)',
     'salvarAtividadeDisciplinas': 'Atividade Contínua (Disciplina/Eletiva)',
@@ -38,7 +34,6 @@
     'salvarMapeamentoSala': 'Mapeamento de Sala de Aula'
   };
 
-  // Todas as ações de cadastro, edição ou exclusão que disparam atualização imediata da base offline!
   const ACOES_MUTACAO_CADASTROS = [
     'salvarOcorrencia', 'excluirOcorrencia',
     'salvarAtividadeDisciplinas', 'salvarAtividadeEletivas',
@@ -48,11 +43,181 @@
     'excluirAluno', 'migrarAlunosSelecionados', 'salvarMatricula', 'cadastrarEletiva',
     'atualizarEletiva', 'editarEletiva', 'excluirEletiva', 'salvarDisciplinaCadastro',
     'excluirDisciplinaCadastro', 'salvarConfig', 'excluirConfig', 'salvarPDT', 'excluirPDT',
-    'salvarMapeamentoSala', 'salvarReserva', 'excluirReserva', 'salvarDiasLetivosMes'
+    'salvarMapeamentoSala'
   ];
 
   let sincronizacaoEmAndamento = false;
   let prefetchEmAndamento = false;
+
+  // =========================================================================
+  // 0. MOTOR UNIVERSAL DE RESPONSIVIDADE (CELULAR, TABLET E COMPUTADOR)
+  // Injeta regras globais em todas as páginas HTML para eliminar corte lateral!
+  // =========================================================================
+  function injetarResponsividadeGlobalEEMTI() {
+    if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
+    const style = document.createElement('style');
+    style.id = 'estiloResponsivoUniversalEEMTI';
+    style.innerHTML = `
+      html, body {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+      }
+
+      /* Garante que containers e cards nunca ultrapassem a largura da tela */
+      .main-container, .container, .container-fluid, .card {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Enquadramento inteligente de tabelas em qualquer dispositivo */
+      .table-responsive {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Ajustes para TABLETS (769px até 1024px) */
+      @media (max-width: 1024px) {
+        .top-header {
+          padding: 14px 16px 8px 16px !important;
+          justify-content: center !important;
+        }
+        .main-container {
+          padding: 12px 10px 30px 10px !important;
+        }
+        .card {
+          padding: 14px !important;
+        }
+        table th, table td {
+          padding: 6px 5px !important;
+          font-size: 0.76rem !important;
+          word-break: break-word !important;
+          overflow-wrap: anywhere !important;
+          white-space: normal !important;
+        }
+      }
+
+      /* Ajustes para CELULARES (até 768px) */
+      @media (max-width: 768px) {
+        .top-header {
+          flex-direction: column !important;
+          align-items: center !important;
+          text-align: center !important;
+          padding: 12px 10px 6px 10px !important;
+          gap: 10px !important;
+        }
+        .brand-escola {
+          flex-direction: row !important;
+          justify-content: center !important;
+          text-align: left !important;
+          gap: 10px !important;
+        }
+        .brand-escola img {
+          height: 62px !important;
+        }
+        .brand-titulo-principal {
+          font-size: 1.42rem !important;
+        }
+        .brand-subtitulo {
+          font-size: 0.58rem !important;
+        }
+        .brand-slogan {
+          font-size: 1.12rem !important;
+        }
+        .user-bar {
+          flex-wrap: wrap !important;
+          justify-content: center !important;
+          width: 100% !important;
+          padding: 7px 10px !important;
+          border-radius: 16px !important;
+          gap: 6px !important;
+        }
+        .main-container {
+          padding: 8px 6px 28px 6px !important;
+        }
+        .card {
+          padding: 12px 10px !important;
+          border-radius: 12px !important;
+          margin-bottom: 14px !important;
+        }
+        .card-header-custom {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 8px !important;
+        }
+        .nav-tabs {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 4px !important;
+        }
+        .nav-tabs .nav-item {
+          flex: 1 1 auto !important;
+        }
+        .nav-tabs .nav-link {
+          font-size: 0.76rem !important;
+          padding: 8px 10px !important;
+          text-align: center !important;
+          width: 100% !important;
+        }
+
+        /* Tabelas 100% ajustadas na tela do celular sem cortar colunas */
+        table.table {
+          width: 100% !important;
+          table-layout: fixed !important;
+          margin-bottom: 0 !important;
+        }
+        table.table th {
+          font-size: 0.62rem !important;
+          padding: 6px 3px !important;
+          line-height: 1.1 !important;
+          word-break: break-word !important;
+          overflow-wrap: anywhere !important;
+          white-space: normal !important;
+          vertical-align: middle !important;
+        }
+        table.table td {
+          font-size: 0.68rem !important;
+          padding: 6px 3px !important;
+          line-height: 1.15 !important;
+          word-break: break-word !important;
+          overflow-wrap: anywhere !important;
+          white-space: normal !important;
+          vertical-align: middle !important;
+        }
+        /* Empilha botões de ação dentro de células estreitas no celular */
+        table.table td.text-nowrap,
+        table.table td:last-child {
+          white-space: normal !important;
+        }
+        table.table td .btn {
+          font-size: 0.65rem !important;
+          padding: 4px 6px !important;
+          margin: 2px 0 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        table.table td input[type="date"],
+        table.table td input[type="number"],
+        table.table td select {
+          max-width: 100% !important;
+          min-width: 0 !important;
+          font-size: 0.66rem !important;
+          padding: 3px 4px !important;
+        }
+        table.table td .badge {
+          font-size: 0.6rem !important;
+          padding: 3px 5px !important;
+          white-space: normal !important;
+        }
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  injetarResponsividadeGlobalEEMTI();
+  window.addEventListener('DOMContentLoaded', injetarResponsividadeGlobalEEMTI);
 
   function obterNomeUsuarioLogadoCore() {
     try {
@@ -93,135 +258,7 @@
   }
 
   // =========================================================================
-  // 1. BANCO INDEXEDDB OFICIAL (PONTE ENTRE O APP FECHADO E ABERTO)
-  // =========================================================================
-  function abrirBancoSyncIDB() {
-    return new Promise(resolve => {
-      if (!window.indexedDB) return resolve(null);
-      const req = indexedDB.open(IDB_SYNC_NAME, 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
-        if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
-      };
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror = () => resolve(null);
-    });
-  }
-
-  async function adicionarItemNoIndexedDB(itemObj) {
-    const db = await abrirBancoSyncIDB();
-    if (!db) return;
-    await new Promise(resolve => {
-      try {
-        const tx = db.transaction('fila_pendente', 'readwrite');
-        tx.objectStore('fila_pendente').put(itemObj);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      } catch (e) {
-        resolve();
-      }
-    });
-
-    if ('serviceWorker' in navigator) {
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        if ('SyncManager' in window) {
-          await reg.sync.register('sync-fila-eemti');
-        }
-        if ('periodicSync' in reg) {
-          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
-        }
-      } catch (e) {}
-    }
-  }
-
-  async function removerItemDoIndexedDB(idFila) {
-    const db = await abrirBancoSyncIDB();
-    if (!db) return;
-    return new Promise(resolve => {
-      try {
-        const tx = db.transaction('fila_pendente', 'readwrite');
-        tx.objectStore('fila_pendente').delete(idFila);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      } catch (e) {
-        resolve();
-      }
-    });
-  }
-
-  async function reconciliarEstadoComServiceWorkerAoAbrir() {
-    const db = await abrirBancoSyncIDB();
-    let itensEnviadosComAppFechado = [];
-    let idsJaEnviadosSet = new Set();
-
-    if (db) {
-      await new Promise(resolve => {
-        try {
-          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
-          const storeRel = tx.objectStore('relatorio_concluido');
-          const storeFila = tx.objectStore('fila_pendente');
-
-          const reqRel = storeRel.getAll();
-          const reqFila = storeFila.getAll();
-
-          tx.oncomplete = () => {
-            const relatorios = Array.isArray(reqRel.result) ? reqRel.result : [];
-            const filaNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
-
-            if (relatorios.length > 0) {
-              relatorios.forEach(r => {
-                if (r.resumoHtml) itensEnviadosComAppFechado.push(r.resumoHtml);
-                if (r.idFila) idsJaEnviadosSet.add(r.idFila);
-              });
-              const txClear = db.transaction('relatorio_concluido', 'readwrite');
-              txClear.objectStore('relatorio_concluido').clear();
-            }
-
-            let filaLocal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
-            if (idsJaEnviadosSet.size > 0 || relatorios.length > 0) {
-              const idsAindaPendentesNoIDB = new Set(filaNoIDB.map(x => x.idFila));
-              filaLocal = filaLocal.filter(item => idsAindaPendentesNoIDB.has(item.idFila) && !idsJaEnviadosSet.has(item.idFila));
-              localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaLocal));
-            } else if (filaLocal.length > 0 && filaNoIDB.length === 0) {
-              const txSync = db.transaction('fila_pendente', 'readwrite');
-              filaLocal.forEach(it => txSync.objectStore('fila_pendente').put(it));
-            }
-            resolve();
-          };
-          tx.onerror = () => resolve();
-        } catch (e) {
-          resolve();
-        }
-      });
-    }
-
-    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
-    if (logLocal.length > 0) {
-      itensEnviadosComAppFechado = itensEnviadosComAppFechado.concat(logLocal);
-      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
-    }
-
-    if (itensEnviadosComAppFechado.length > 0) {
-      window.atualizarBadgeStatusConexaoGlobal();
-      window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
-      exibirAvisoFinalDeDadosSincronizados(itensEnviadosComAppFechado, true);
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
-      return true;
-    }
-    return false;
-  }
-
-  // =========================================================================
-  // 2. MOTOR DE PRÉ-CARREGAMENTO TOTAL NO LOGIN / INÍCIO (PRE-FETCH OFFLINE)
-  // Baixa e salva em TODAS as chaves usadas por:
-  // - Ocorrências RAC
-  // - Frequência da Secretaria
-  // - Frequência de Eletivas
-  // - Atividades (Disciplinas e Eletivas)
-  // - Mapeamento de Sala e PDT
-  // - Ambientes e Bimestres
+  // 1. MOTOR DE PRÉ-CARREGAMENTO TOTAL NO LOGIN / INÍCIO (PRE-FETCH OFFLINE)
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarImediato = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -234,52 +271,31 @@
     const ultimoTs = Number(localStorage.getItem(TIMESTAMP_PREFETCH_KEY) || 0);
     const jaTemAlunos = Boolean(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI));
     const jaTemEletivas = Boolean(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE));
-    const jaTemMapas = Boolean(localStorage.getItem('cache_todos_mapas_salvos_v4'));
 
-    // Se já baixou tudo há menos de 5 minutos e não foi forçado por novo cadastro, mantém o cache atual
-    if (!forcarImediato && jaTemAlunos && jaTemEletivas && jaTemMapas && (agora - ultimoTs < 300000)) {
+    if (!forcarImediato && jaTemAlunos && jaTemEletivas && (agora - ultimoTs < 600000)) {
       return;
     }
 
     prefetchEmAndamento = true;
-    const filaPendenteAgora = unificarFilasOfflineNoStorage();
-    if (filaPendenteAgora.length === 0) {
-      window.atualizarBadgeStatusConexaoGlobal("Preparando base offline...");
-    }
 
     try {
-      const [
-        resFreqSec,
-        resFiltrosRac,
-        resDisc,
-        resMatElet,
-        resBim,
-        resOcoRac,
-        resPdt,
-        resMapas,
-        resAmbientes
-      ] = await Promise.all([
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listarFrequenciaSecretaria' }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'getFiltrosOcorrencias' }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listarDisciplinasCadastradas' }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'getDadosMatricula' }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listarPDT' }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listarTodosMapeamentos' }), redirect: 'follow' }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listarConfig', tipo: 'AMBIENTE' }), redirect: 'follow' }).then(r => r.json()).catch(() => null)
+      const [resFreqSec, resFiltrosRac, resDisc, resMatElet, resBim, resOcoRac] = await Promise.all([
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarFrequenciaSecretaria' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDisciplinasCadastradas' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getDadosMatricula' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null)
       ]);
-
-      // 1. SÉRIES E ALUNOS (Salva em TODAS as chaves v2, v3 e v4 para Ocorrências, Secretaria, Atividades e Mapeamento!)
-      let series Consolidadas = [];
-      let alunosConsolidados = [];
 
       if (resFreqSec && resFreqSec.success) {
         if (Array.isArray(resFreqSec.series) && resFreqSec.series.length > 0) {
-          seriesConsolidadas = resFreqSec.series.map(s => normalizarSeriePadraoCore(s)).filter(Boolean);
+          const seriesNorm = resFreqSec.series.map(s => normalizarSeriePadraoCore(s)).filter(Boolean);
+          salvarNoLocalStorageSeguro(window.KEY_SERIES_UNIVERSAL_EEMTI, seriesNorm);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_ser', seriesNorm);
         }
         if (Array.isArray(resFreqSec.alunosDetalhados) && resFreqSec.alunosDetalhados.length > 0) {
-          alunosConsolidados = resFreqSec.alunosDetalhados.map(a => ({
+          const alunosNorm = resFreqSec.alunosDetalhados.map(a => ({
             ano: a.ano || "2026",
             nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
             serie: normalizarSeriePadraoCore(a.serie),
@@ -287,30 +303,20 @@
             peDeMeia: String(a.peDeMeia || "NÃO").trim().toUpperCase(),
             sexo: String(a.sexo || "-").trim().toUpperCase()
           })).filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO");
+
+          salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alunosNorm);
+          salvarNoLocalStorageSeguro('cache_freq_sec_alunos_det_v4', alunosNorm);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_alunos', alunosNorm);
         }
         if (resFreqSec.diasLetivosMes) {
           salvarNoLocalStorageSeguro('cache_freq_sec_dias_letivos_v4', resFreqSec.diasLetivosMes);
         }
         if (Array.isArray(resFreqSec.frequencias)) {
           salvarNoLocalStorageSeguro('cache_freq_sec_lancamentos_v4', resFreqSec.frequencias.slice(-2000));
-          salvarNoLocalStorageSeguro('cache_freq_sec_hist_v3', resFreqSec.frequencias.slice(-1500));
         }
       }
 
       if (resFiltrosRac && resFiltrosRac.success) {
-        if (seriesConsolidadas.length === 0 && Array.isArray(resFiltrosRac.series)) {
-          seriesConsolidadas = resFiltrosRac.series.map(s => normalizarSeriePadraoCore(s)).filter(Boolean);
-        }
-        if (alunosConsolidados.length === 0 && Array.isArray(resFiltrosRac.alunos)) {
-          alunosConsolidados = resFiltrosRac.alunos.map(a => ({
-            ano: a.ano || "2026",
-            nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
-            serie: normalizarSeriePadraoCore(a.serie),
-            bolsaFamilia: "NÃO",
-            peDeMeia: "NÃO",
-            sexo: "-"
-          })).filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO");
-        }
         if (Array.isArray(resFiltrosRac.ocorrencias) && resFiltrosRac.ocorrencias.length > 0) {
           const catRac = resFiltrosRac.ocorrencias.map(o => ({
             descricao: String(o.descricao || "").trim(),
@@ -318,23 +324,16 @@
           })).filter(o => o.descricao);
           salvarNoLocalStorageSeguro('cache_rac_catalogo_v3', catRac);
         }
+        if (Array.isArray(resFiltrosRac.alunos) && resFiltrosRac.alunos.length > 0 && (!resFreqSec || !resFreqSec.alunosDetalhados)) {
+          const alLeve = resFiltrosRac.alunos.map(a => ({
+            nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+            serie: normalizarSeriePadraoCore(a.serie)
+          })).filter(x => x.nome && x.serie);
+          salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alLeve);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_alunos', alLeve);
+        }
       }
 
-      if (seriesConsolidadas.length > 0) {
-        salvarNoLocalStorageSeguro(window.KEY_SERIES_UNIVERSAL_EEMTI, seriesConsolidadas);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_ser', seriesConsolidadas);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_ser', seriesConsolidadas);
-        salvarNoLocalStorageSeguro('cache_mapa_series_v4', seriesConsolidadas);
-      }
-
-      if (alunosConsolidados.length > 0) {
-        salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alunosConsolidados);
-        salvarNoLocalStorageSeguro('cache_freq_sec_alunos_det_v4', alunosConsolidados);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_alunos', alunosConsolidados);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_alunos', alunosConsolidados);
-      }
-
-      // 2. OCORRÊNCIAS REGISTRADAS (GERAL + DO PROFESSOR LOGADO)
       if (Array.isArray(resOcoRac)) {
         salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resOcoRac.slice(0, 800));
         if (nomeProfLogado) {
@@ -346,17 +345,13 @@
         }
       }
 
-      // 3. DISCIPLINAS CURRICULARES (Salva em v2 e v3 para Atividades e Cadastro de Disciplinas)
       if (resDisc && resDisc.success && Array.isArray(resDisc.disciplinas) && resDisc.disciplinas.length > 0) {
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_disc', resDisc.disciplinas);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_disc', resDisc.disciplinas);
         if (Array.isArray(resDisc.listaDetalhada)) {
           salvarNoLocalStorageSeguro('cache_aba_exclusiva_disciplinas_v2', resDisc.listaDetalhada);
-          salvarNoLocalStorageSeguro('cache_lista_disciplinas_det_v1', resDisc.listaDetalhada);
         }
       }
 
-      // 4. BIMESTRES (Salva em v2, v3 e v4)
       if (resBim && Array.isArray(resBim.lista)) {
         const bimFormatados = resBim.lista.map(b => ({
           nome: String(b.col1 || "").trim(),
@@ -364,10 +359,8 @@
           fimIso: String(b.col3 || "").includes('-') ? String(b.col3).trim() : ""
         })).filter(b => b.nome);
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_bim', bimFormatados);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_bim', bimFormatados);
       }
 
-      // 5. ELETIVAS E MATRÍCULAS EM ELETIVAS (Para Frequência Eletiva e Atividades de Eletivas!)
       if (resMatElet && resMatElet.success) {
         const catalogoNorm = (resMatElet.catalogo || []).map(c => ({
           id: c.id || "",
@@ -383,29 +376,21 @@
         }));
 
         const anosSet = new Set();
-        const diasSet = new Set();
-        const temposSet = new Set();
         const profsSet = new Set();
-
         catalogoNorm.forEach(c => {
           if (c.ano) anosSet.add(c.ano);
-          if (c.dia) diasSet.add(c.dia);
-          if (c.tempoEletivo) temposSet.add(c.tempoEletivo);
           if (c.professor) profsSet.add(c.professor);
         });
 
         const pacoteFiltrosFrequenciaEletiva = {
           success: true,
           anos: Array.from(anosSet).sort().reverse(),
-          dias: Array.from(diasSet).sort(),
-          tempos: Array.from(temposSet).sort(),
           professores: Array.from(profsSet).sort(),
           catalogo: catalogoNorm
         };
 
         salvarNoLocalStorageSeguro(KEY_CATALOGO_ELETIVAS_OFFLINE, pacoteFiltrosFrequenciaEletiva);
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_elet', catalogoNorm);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_elet', catalogoNorm);
 
         if (Array.isArray(resMatElet.historico)) {
           const matriculasLeves = resMatElet.historico.map(m => ({
@@ -422,68 +407,24 @@
 
           const mapaPorEletivaAtiv = {};
           matriculasLeves.forEach(m => {
-            const ch1 = `${m.ano}|${m.eletiva}`;
-            if (!mapaPorEletivaAtiv[ch1]) mapaPorEletivaAtiv[ch1] = [];
-            if (!mapaPorEletivaAtiv[ch1].some(x => x.nome === m.aluno)) {
-              mapaPorEletivaAtiv[ch1].push({ nome: m.aluno, serie: m.serie });
+            const ch = `${m.ano}|${m.eletiva}`;
+            if (!mapaPorEletivaAtiv[ch]) mapaPorEletivaAtiv[ch] = [];
+            if (!mapaPorEletivaAtiv[ch].some(x => x.nome === m.aluno)) {
+              mapaPorEletivaAtiv[ch].push({ nome: m.aluno, serie: m.serie });
             }
           });
           salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_al_elet', mapaPorEletivaAtiv);
-          salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_al_elet', mapaPorEletivaAtiv);
         }
       }
 
-      // 6. PDT E MAPEAMENTOS DE SALA (Para Mapeamento de Sala e Atendimento PDT!)
-      if (resPdt && Array.isArray(resPdt.lista)) {
-        const novoMapaPdt = {};
-        resPdt.lista.forEach(item => {
-          const s = normalizarSeriePadraoCore(item.serie);
-          const p = String(item.professor || "").trim().toUpperCase();
-          if (s && p) novoMapaPdt[s] = p;
-        });
-        salvarNoLocalStorageSeguro('cache_mapa_pdt_v4', novoMapaPdt);
-      }
-
-      if (resMapas && Array.isArray(resMapas.lista)) {
-        const mapaConsolidado = {};
-        resMapas.lista.forEach(item => {
-          const sNorm = normalizarSeriePadraoCore(item.serie);
-          if (sNorm) {
-            mapaConsolidado[sNorm] = {
-              serie: sNorm,
-              pdt: item.pdt || "NÃO ATRIBUÍDO",
-              colunas: Number(item.colunas) || 6,
-              linhas: Number(item.linhas) || 7,
-              posicoes: item.posicoes || {},
-              ultimaAtualizacao: item.ultimaAtualizacao || "-"
-            };
-          }
-        });
-        salvarNoLocalStorageSeguro('cache_todos_mapas_salvos_v4', mapaConsolidado);
-      }
-
-      // 7. AMBIENTES E MATERIAIS (Aba AMBIENTE/MATERIAL)
-      if (resAmbientes && Array.isArray(resAmbientes.lista)) {
-        salvarNoLocalStorageSeguro(KEY_AMBIENTES_OFFLINE, resAmbientes.lista);
-      }
-
       localStorage.setItem(TIMESTAMP_PREFETCH_KEY, String(Date.now()));
-
-      // Mostra um aviso rápido e discreto no canto inferior confirmando que a base offline está pronta!
-      if (unificarFilasOfflineNoStorage().length === 0) {
-        window.atualizarBadgeStatusConexaoGlobal("✓ Base offline atualizada!", "#16a34a");
-        setTimeout(() => window.atualizarBadgeStatusConexaoGlobal(), 2200);
-      }
     } catch (errPrefetch) {
-      window.atualizarBadgeStatusConexaoGlobal();
+      // Silencioso em segundo plano
     } finally {
       prefetchEmAndamento = false;
     }
   };
 
-  // =========================================================================
-  // 3. CONSTRUTOR DE RESPOSTAS OFFLINE PARA TODAS AS PÁGINAS DO PORTAL
-  // =========================================================================
   function construirRespostaOfflineInteligente(action, bodyObj) {
     if (action === 'buscarOcorrencias') {
       const f = bodyObj.filtros || {};
@@ -507,7 +448,7 @@
       if (catSalvo) return JSON.stringify(catSalvo);
     }
 
-    if (action === 'getEletivasProfessor' || action === 'getEletivasPorAno') {
+    if (action === 'getEletivasProfessor') {
       const catSalvo = JSON.parse(localStorage.getItem(KEY_CATALOGO_ELETIVAS_OFFLINE) || 'null');
       if (catSalvo && Array.isArray(catSalvo.catalogo)) {
         const anoB = String(bodyObj.ano || "").trim();
@@ -546,15 +487,6 @@
       return JSON.stringify(listaFinal);
     }
 
-    if (action === 'getAlunosParaEdicao') {
-      const serieAlvo = normalizarSeriePadraoCore((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || "");
-      const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
-      const daTurma = alunos
-        .filter(a => !serieAlvo || normalizarSeriePadraoCore(a.serie) === serieAlvo)
-        .map(a => ({ nome: a.nome, serie: a.serie, foto: "" }));
-      return JSON.stringify(daTurma);
-    }
-
     if (action === 'getFiltrosOcorrencias') {
       const series = JSON.parse(localStorage.getItem(window.KEY_SERIES_UNIVERSAL_EEMTI) || '[]');
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
@@ -582,48 +514,106 @@
       return JSON.stringify({ success: true, disciplinas: disc, listaDetalhada: det });
     }
 
-    if (action === 'listarPDT') {
-      const mapaPdt = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
-      const lista = Object.keys(mapaPdt).map((s, idx) => ({ linha: idx + 2, serie: s, professor: mapaPdt[s] }));
-      return JSON.stringify({ success: true, lista: lista });
-    }
-
-    if (action === 'listarTodosMapeamentos') {
-      const mapaSalvos = JSON.parse(localStorage.getItem('cache_todos_mapas_salvos_v4') || '{}');
-      return JSON.stringify({ success: true, lista: Object.values(mapaSalvos) });
-    }
-
-    if (action === 'buscarMapeamentoSala') {
-      const sAlvo = normalizarSeriePadraoCore(bodyObj.serie || "");
-      const mapaSalvos = JSON.parse(localStorage.getItem('cache_todos_mapas_salvos_v4') || '{}');
-      if (mapaSalvos[sAlvo]) {
-        return JSON.stringify({ success: true, encontrado: true, dados: mapaSalvos[sAlvo] });
-      }
-      return JSON.stringify({ success: true, encontrado: false });
-    }
-
-    if (action === 'listarConfig') {
-      const t = String(bodyObj.tipo || "").toUpperCase();
-      if (t === 'BIMESTRE') {
-        const bims = JSON.parse(localStorage.getItem('cache_ativ_rapido_v3_bim') || '[]');
-        return JSON.stringify({ success: true, lista: bims.map((b, i) => ({ linha: i + 2, col1: b.nome, col2: b.inicioIso, col3: b.fimIso })) });
-      }
-      if (t === 'SERIE' || t === 'SÉRIE') {
-        const sers = JSON.parse(localStorage.getItem(window.KEY_SERIES_UNIVERSAL_EEMTI) || '[]');
-        return JSON.stringify({ success: true, lista: sers.map((s, i) => ({ linha: i + 2, col1: s, col2: s })) });
-      }
-      if (t === 'AMBIENTE' || t === 'AMBIENTE/MATERIAL') {
-        const ambs = JSON.parse(localStorage.getItem(KEY_AMBIENTES_OFFLINE) || '[]');
-        return JSON.stringify({ success: true, lista: ambs });
-      }
-    }
-
     return null;
   }
 
   // =========================================================================
-  // 4. REGISTRO DO SERVICE WORKER E UNIFICAÇÃO DE FILAS
+  // 2. PONTE INDEXEDDB E BACKGROUND SYNC (COM O APP FECHADO OU MINIMIZADO)
   // =========================================================================
+  function abrirBancoSyncIDB() {
+    return new Promise(resolve => {
+      if (!window.indexedDB) return resolve(null);
+      const req = indexedDB.open(IDB_SYNC_NAME, 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
+        if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function espelharFilaParaIndexedDB(filaArray) {
+    const db = await abrirBancoSyncIDB();
+    if (!db) return;
+    try {
+      await new Promise(resolve => {
+        const tx = db.transaction('fila_pendente', 'readwrite');
+        const store = tx.objectStore('fila_pendente');
+        store.clear();
+        (filaArray || []).forEach(item => store.put(item));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {}
+
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        if (filaArray && filaArray.length > 0) {
+          if ('SyncManager' in window) {
+            await reg.sync.register('sync-fila-eemti');
+          }
+          if (reg.active) {
+            reg.active.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  async function verificarSincronizacoesFeitasComAppFechado() {
+    const db = await abrirBancoSyncIDB();
+    let itensDoBackground = [];
+    let idsJaEnviadosNoSW = new Set();
+
+    if (db) {
+      await new Promise(resolve => {
+        try {
+          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
+          const storeRel = tx.objectStore('relatorio_concluido');
+          const storeFila = tx.objectStore('fila_pendente');
+
+          const reqRel = storeRel.getAll();
+          const reqFila = storeFila.getAll();
+
+          tx.oncomplete = () => {
+            if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
+              reqRel.result.forEach(r => {
+                itensDoBackground.push(r.resumoHtml || r);
+                if (r.idFila) idsJaEnviadosNoSW.add(r.idFila);
+              });
+              const txClear = db.transaction('relatorio_concluido', 'readwrite');
+              txClear.objectStore('relatorio_concluido').clear();
+
+              const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
+              localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
+            }
+            resolve();
+          };
+          tx.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+
+    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+    if (logLocal.length > 0) {
+      itensDoBackground = itensDoBackground.concat(logLocal);
+      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
+    }
+
+    if (itensDoBackground.length > 0) {
+      window.atualizarBadgeStatusConexaoGlobal();
+      exibirAvisoFinalDeDadosSincronizados(itensDoBackground);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 600);
+      return true;
+    }
+    return false;
+  }
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -640,12 +630,15 @@
 
       navigator.serviceWorker.addEventListener('message', event => {
         if (event.data && event.data.type === 'SYNC_BACKGROUND_CONCLUIDO') {
-          reconciliarEstadoComServiceWorkerAoAbrir();
+          verificarSincronizacoesFeitasComAppFechado();
         }
       });
     });
   }
 
+  // =========================================================================
+  // 3. UNIFICAÇÃO DE FILAS E INTERCEPTADOR INTELIGENTE DE FETCH
+  // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
     let alterou = false;
@@ -662,15 +655,13 @@
             payloadUnificado = { action: acaoInferida, dados: item.dados };
           }
           if (payloadUnificado) {
-            const novoItem = {
+            filaGlobal.push({
               idFila: item.idFila || item.idTemp || item.idLocal || (Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
               dataHora: item.dataHora || new Date().toLocaleString('pt-BR'),
               url: item.url || API_PADRAO_URL,
               payload: payloadUnificado,
               resumoHtml: item.resumoHtml || (`<li>${item.resumo || resumirItemSincronizado(payloadUnificado)}</li>`)
-            };
-            filaGlobal.push(novoItem);
-            adicionarItemNoIndexedDB(novoItem);
+            });
             alterou = true;
           }
         });
@@ -680,6 +671,7 @@
 
     if (alterou) {
       localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaGlobal));
+      espelharFilaParaIndexedDB(filaGlobal);
     }
     return filaGlobal;
   }
@@ -724,7 +716,7 @@
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Salvo no Modo Offline! O envio para a planilha será feito automaticamente em segundo plano assim que o aparelho conectar à internet (mesmo com o aplicativo fechado).'
+            msg: 'Salvo no Modo Offline! A sincronização ocorrerá automaticamente em segundo plano assim que houver internet.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
@@ -759,13 +751,11 @@
           }).catch(() => {});
         }
 
-        // Quando faz Login ou cadastra/edita Aluno, Matrícula, Disciplina, Ambiente, Ocorrência, etc.:
-        // Força imediatamente a atualização de toda a base offline!
         if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
           clone.json().then(resJson => {
             if (resJson && (resJson.success || resJson.msg)) {
               localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
-              setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 250);
+              setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
             }
           }).catch(() => {});
         }
@@ -777,7 +767,7 @@
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Conexão instável! Salvo na fila e será sincronizado automaticamente em segundo plano.'
+            msg: 'Conexão instável! Salvo na fila e será sincronizado em segundo plano sem interromper seu uso.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
@@ -793,16 +783,15 @@
 
   window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
     const fila = unificarFilasOfflineNoStorage();
-    const novoItem = {
+    fila.push({
       idFila: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       dataHora: new Date().toLocaleString('pt-BR'),
       url: url || API_PADRAO_URL,
       payload: payload,
       resumoHtml: resumoCustomizado ? `<li>${resumoCustomizado}</li>` : resumirItemSincronizado(payload)
-    };
-    fila.push(novoItem);
+    });
     localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
-    adicionarItemNoIndexedDB(novoItem);
+    espelharFilaParaIndexedDB(fila);
     window.atualizarBadgeStatusConexaoGlobal();
   };
 
@@ -811,35 +800,31 @@
   };
 
   // =========================================================================
-  // 5. EXIBIÇÃO DO AVISO DE DADOS ENVIADOS E SINCRONIZAÇÃO EM 2º PLANO
+  // 4. SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM TRAVAR A TELA DO PROFESSOR)
   // =========================================================================
-  function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados, enviadoComAppFechado = false) {
+  function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
     if (typeof Swal === 'undefined') return;
 
-    const subtitulo = enviadoComAppFechado
-      ? 'Enquanto o aplicativo estava fechado, a conexão retornou e as seguintes informações já foram enviadas automaticamente para a planilha:'
-      : 'A sincronização em segundo plano foi concluída! As seguintes informações foram enviadas para a planilha:';
-
     Swal.fire({
-      title: 'Informações Sincronizadas!',
+      title: 'Dados Offline Sincronizados!',
       html: `
-        <p class="small text-muted mb-2">${subtitulo}</p>
+        <p class="small text-muted mb-2">A sincronização automática foi concluída! Os seguintes registros já foram enviados e salvos no banco de dados:</p>
         <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
           ${listaHtmlSincronizados.join('')}
         </ul>
       `,
       icon: 'success',
       confirmButtonColor: '#15438c',
-      confirmButtonText: 'Ciente, Obrigado!'
+      confirmButtonText: 'OK, Entendido!'
     });
   }
 
   window.sincronizarFilaOfflineGlobal = async function() {
     if (sincronizacaoEmAndamento || !navigator.onLine) return;
 
-    const jaSincronizouNoSW = await reconciliarEstadoComServiceWorkerAoAbrir();
-    if (jaSincronizouNoSW) return;
+    const jaFoiEnviadoPeloSW = await verificarSincronizacoesFeitasComAppFechado();
+    if (jaFoiEnviadoPeloSW) return;
 
     const filaInicial = unificarFilasOfflineNoStorage();
     if (filaInicial.length === 0) {
@@ -872,7 +857,7 @@
           const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
             .filter(f => f.idFila !== item.idFila);
           localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaAtual));
-          await removerItemDoIndexedDB(item.idFila);
+          await espelharFilaParaIndexedDB(filaAtual);
         }
       } catch (e) {}
     }
@@ -886,7 +871,7 @@
 
       window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
       if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
-        exibirAvisoFinalDeDadosSincronizados(sincronizadosHtml, false);
+        exibirAvisoFinalDeDadosSincronizados(sincronizadosHtml);
       } else {
         const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
         localStorage.setItem(LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(sincronizadosHtml)));
@@ -894,7 +879,7 @@
     }
   };
 
-  window.atualizarBadgeStatusConexaoGlobal = function(textoProgressoEmSegundoPlano, corFundoCustomizada) {
+  window.atualizarBadgeStatusConexaoGlobal = function(textoProgressoEmSegundoPlano) {
     let badge = document.getElementById('badgeStatusOfflineGlobal');
     const fila = unificarFilasOfflineNoStorage();
     if (!badge && document.body) {
@@ -908,12 +893,9 @@
 
     if (textoProgressoEmSegundoPlano) {
       badge.style.display = 'block';
-      badge.style.backgroundColor = corFundoCustomizada || '#15438c';
+      badge.style.backgroundColor = '#15438c';
       badge.style.color = '#ffffff';
-      const iconeHtml = corFundoCustomizada
-        ? ''
-        : `<span class="spinner-border spinner-border-sm me-2" style="width:0.85rem;height:0.85rem;"></span>`;
-      badge.innerHTML = `${iconeHtml}${textoProgressoEmSegundoPlano}`;
+      badge.innerHTML = `<span class="spinner-border spinner-border-sm me-2" style="width:0.85rem;height:0.85rem;"></span>${textoProgressoEmSegundoPlano}`;
       return;
     }
 
@@ -934,38 +916,38 @@
 
   window.addEventListener('online', () => {
     window.atualizarBadgeStatusConexaoGlobal();
-    window.sincronizarFilaOfflineGlobal();
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+    }
+    setTimeout(window.sincronizarFilaOfflineGlobal, 400);
     window.executarPreCarregamentoTotalOffline(false);
   });
+
   window.addEventListener('offline', () => {
     window.atualizarBadgeStatusConexaoGlobal();
   });
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      reconciliarEstadoComServiceWorkerAoAbrir();
+      verificarSincronizacoesFeitasComAppFechado();
     }
   });
 
   window.addEventListener('DOMContentLoaded', async () => {
+    const jaEnviouFechado = await verificarSincronizacoesFeitasComAppFechado();
     unificarFilasOfflineNoStorage();
-
-    // 1º PASSO: Verifica se o Service Worker já enviou itens com o app fechado
-    const jaEnviouFechado = await reconciliarEstadoComServiceWorkerAoAbrir();
     window.atualizarBadgeStatusConexaoGlobal();
 
     if (navigator.onLine) {
       if (!jaEnviouFechado) {
-        setTimeout(window.sincronizarFilaOfflineGlobal, 200);
+        setTimeout(window.sincronizarFilaOfflineGlobal, 400);
       }
-      // 2º PASSO: Se estiver na tela inicial (index.html) ou se faltar qualquer cache, força o download completo para uso Offline!
-      const estaNaHome = window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/');
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(estaNaHome), 450);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 900);
     }
   });
 
   // =========================================================================
-  // 6. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
+  // 5. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
