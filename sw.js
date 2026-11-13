@@ -1,6 +1,7 @@
-const CACHE_NAME = 'sistema-jose-euclides-v9';
+const CACHE_NAME = 'sistema-jose-euclides-v10';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 
+// Lista 100% fiel aos arquivos do seu VS Code (image_c5451e.png e image_c544e2.png)
 const URLS_TO_CACHE = [
   './',
   './index.html',
@@ -9,47 +10,43 @@ const URLS_TO_CACHE = [
   './portal-core.js',
   './LOGO-removebg-preview.png',
   './brasaoestado.png.png',
-  './ocorrencias.html',
-  './registro-ocorrencias.html',
-  './consulta-ocorrencias-aluno.html',
-  './historico.html',
-  './historico-ocorrencias.html',
-  './relatorio-turma-ocorrencias.html',
-  './notas-turma.html',
-  './notas-registros.html',
-  './graficos-ocorrencias.html',
-  './simulados.html',
-  './atividades.html',
-  './atividade-disciplinas.html',
-  './frequencia-secretaria.html',
-  './controle-frequencia-ranking.html',
-  './frequencia-eletivas.html',
-  './historico-eletivas.html',
-  './monitoramento-eletivas.html',
-  './mapeamento.html',
-  './mapeamento-sala.html',
-  './atendimento.html',
-  './atendimento-alunos.html',
-  './notas.html',
-  './gestao-notas.html',
-  './matricula.html',
-  './matricula-eletivas.html',
-  './cadastro-alunos.html',
-  './situacao-aluno.html',
-  './busca-ativa.html',
+  './icon-192.png',
+  './icon-512.png',
+  './acompanhamento.html',
   './aee.html',
-  './cadastro-livros.html',
-  './reservas-livros.html',
-  './gestao-funcionarios.html',
+  './atendimento-alunos.html',
+  './atividade-disciplinas.html',
+  './atividade-eletivas.html',
+  './auditoria.html',
+  './busca-ativa.html',
+  './cadastro-alunos.html',
   './cadastro-disciplinas.html',
   './cadastro-eletivas.html',
+  './cadastro-livros.html',
+  './consulta-ocorrencias-aluno.html',
+  './controle-frequencia-ranking.html',
+  './frequencia-eletivas.html',
+  './frequencia-secretaria.html',
+  './gestao-ambiente.html',
   './gestao-bimestre.html',
-  './gestao-serie.html',
+  './gestao-funcionarios.html',
+  './gestao-notas.html',
   './gestao-pdt.html',
   './gestao-pontuacao.html',
-  './gestao-ambiente.html',
-  './acompanhamento.html',
-  './auditoria.html',
+  './gestao-serie.html',
+  './graficos-ocorrencias.html',
+  './historico-eletivas.html',
+  './historico-ocorrencias.html',
+  './mapeamento-sala.html',
+  './matricula-eletivas.html',
+  './monitoramento-eletivas.html',
+  './notas-registros.html',
+  './registro-ocorrencias.html',
+  './relatorio-turma-ocorrencias.html',
+  './reservas-livros.html',
+  './reservas.html',
+  './simulados.html',
+  './situacao-aluno.html',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
@@ -79,45 +76,41 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Interceptação Network-First (HTML, JS, JSON e Imagens locais sempre buscam a versão mais nova do GitHub!)
+// Estratégia Cache-First Ultra-Rápida para páginas e imagens (abre em milissegundos sem travar!)
+// e atualiza os arquivos do GitHub silenciosamente em segundo plano (Stale-While-Revalidate)
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
 
-  const urlLower = event.request.url.toLowerCase();
-  const isArquivoDinamicoLocal =
-    event.request.mode === 'navigate' ||
-    urlLower.endsWith('.html') ||
-    urlLower.endsWith('.js') ||
-    urlLower.endsWith('.json') ||
-    urlLower.endsWith('.png') ||
-    urlLower.endsWith('.jpg') ||
-    urlLower.endsWith('.jpeg');
+  let reqUrl = event.request.url;
+  // Se alguma página pedir "brasaoestado.png" (com um .png só), redireciona para "brasaoestado.png.png"
+  if (reqUrl.toLowerCase().endsWith('brasaoestado.png') && !reqUrl.toLowerCase().endsWith('brasaoestado.png.png')) {
+    reqUrl = reqUrl + '.png';
+  }
 
-  const fetchReq = isArquivoDinamicoLocal
-    ? new Request(event.request.url, { cache: 'no-store' })
-    : event.request;
+  const requestFinal = reqUrl !== event.request.url ? new Request(reqUrl) : event.request;
 
   event.respondWith(
-    fetch(fetchReq)
-      .then(fetchResponse => {
-        if (fetchResponse && fetchResponse.status === 200) {
-          const responseClone = fetchResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-        }
-        return fetchResponse;
-      })
-      .catch(() => {
-        return caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
-          return cachedResponse || (event.request.mode === 'navigate' ? caches.match('./index.html') : null);
-        });
-      })
+    caches.match(requestFinal, { ignoreSearch: true }).then(cachedResponse => {
+      const fetchPromise = fetch(new Request(reqUrl, { cache: 'no-store' }))
+        .then(networkResponse => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(requestFinal, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
+
+      // Se já tiver no cache, entrega em 1 milissegundo e atualiza o cache em 2º plano!
+      return cachedResponse || fetchPromise;
+    })
   );
 });
 
 // =========================================================================
-// BACKGROUND SYNC: ENVIA QUANDO O APP ESTIVER FECHADO OU MINIMIZADO
+// BACKGROUND SYNC: ENVIA DIRETO PARA A PLANILHA COM O APP FECHADO OU MINIMIZADO
 // =========================================================================
 let envioSwEmAndamento = false;
 
@@ -134,14 +127,14 @@ function abrirBancoNoServiceWorker() {
   });
 }
 
-async function processarFilaEmSegundoPlanoSW() {
+async function processarFilaEmSegundoPlanoSW(forcarMesmoComJanela = false) {
   if (envioSwEmAndamento) return;
 
-  // Se houver uma janela visível em primeiro plano, deixa o portal-core.js enviar para não duplicar!
-  // Se estiver minimizado (hidden) ou fechado (0 clientes), o Service Worker assume e envia!
-  const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  const algumVisivelEmPrimeiroPlano = clientes.some(c => c.visibilityState === 'visible');
-  if (algumVisivelEmPrimeiroPlano) return;
+  if (!forcarMesmoComJanela) {
+    const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const algumVisivel = clientes.some(c => c.visibilityState === 'visible');
+    if (algumVisivel) return;
+  }
 
   envioSwEmAndamento = true;
 
@@ -210,18 +203,18 @@ async function processarFilaEmSegundoPlanoSW() {
 
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-fila-eemti') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
+    event.waitUntil(processarFilaEmSegundoPlanoSW(true));
   }
 });
 
 self.addEventListener('periodicsync', event => {
   if (event.tag === 'periodic-sync-fila-eemti') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
+    event.waitUntil(processarFilaEmSegundoPlanoSW(true));
   }
 });
 
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'DISPARAR_SYNC_AGORA') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
+    event.waitUntil(processarFilaEmSegundoPlanoSW(true));
   }
 });
