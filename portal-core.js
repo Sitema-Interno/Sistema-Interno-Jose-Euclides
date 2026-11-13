@@ -1,10 +1,11 @@
 // =========================================================================
 // MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
-// 1. SUSPENSÕES (PDT): UNIFICA ALUNO+SÉRIE/PDT (COLUNA LARGA) E ORIGEM ACIMA DA DATA
-// 2. TODOS OS PDFS USAM "brasaoestado.png" (INTERCEPTADOR AUTOMÁTICO DE PDF)
-// 3. HISTÓRICO DE ELETIVAS: DATA | SÉRIE+DIA+TEMPO | ELETIVA+PROF | NOTA+%FREQ
-// 4. GERENCIAR ALUNOS: FOTO+SEXO | NOME+MÃE(TEL)+PAI(TEL) | SÉRIE+BF+PM + LEGENDA
-// 5. SITUAÇÃO DO ALUNO, BUSCA ATIVA E AEE COMPACTOS + PESQUISA VIVA EM 1ms
+// 1. CONSULTA OCORRÊNCIAS: ALUNO -> SÉRIE ABAIXO -> PROFESSOR ABAIXO DA SÉRIE
+// 2. AEE CORRIGIDO: NOME -> PAI E MÃE ABAIXO -> DATA NASC. + MATRÍCULA NA FRENTE
+// 3. RESERVAS PDF: ABRE SELETOR DE PERÍODO (DATA INICIAL E FINAL) AO CLICAR EM PDF
+// 4. SUSPENSÕES PDT (4 COLUNAS SEMPRE ALINHADAS):
+//    COL 1: ALUNO + SÉRIE + PDT | COL 2: ORIGEM ACIMA + DATA + ÚLT. ABAIXO | COL 3: MOTIVO | COL 4: AÇÕES
+// 5. TODOS OS PDFS USAM "brasaoestado.png" + PESQUISA VIVA EM 1ms
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -92,6 +93,7 @@
   let prefetchEmAndamento = false;
   let mapaFotosAlunosCacheMemoria = {};
   let filtroExclusivoAlunoSelecionado = '';
+  let cacheUltimasReservasCarregadas = [];
 
   // =========================================================================
   // 0. ESTILOS GLOBAIS: SEM ROLAGEM LATERAL E COM DISTRIBUIÇÃO PROPORCIONAL
@@ -180,22 +182,22 @@
 
       th.col-nome-larga-eemti,
       td.col-nome-larga-eemti {
-        width: 44% !important;
-        min-width: 145px !important;
+        width: 40% !important;
+        min-width: 135px !important;
         text-align: left !important;
       }
 
       th.col-secundaria-larga-eemti,
       td.col-secundaria-larga-eemti {
-        width: 34% !important;
-        min-width: 120px !important;
+        width: 32% !important;
+        min-width: 115px !important;
         text-align: left !important;
       }
 
       th.col-acoes-visivel-eemti,
       td.col-acoes-visivel-eemti {
         width: 1% !important;
-        min-width: 68px !important;
+        min-width: 72px !important;
         white-space: nowrap !important;
         text-align: center !important;
       }
@@ -326,7 +328,7 @@
           padding: 6px 4px 24px 4px !important;
         }
         .card {
-          padding: 10px 7px !important;
+          padding: 10px 6px !important;
           border-radius: 12px !important;
           margin-bottom: 12px !important;
         }
@@ -344,19 +346,19 @@
           text-align: center !important;
         }
         table.table th {
-          font-size: 0.62rem !important;
-          padding: 5px 3px !important;
+          font-size: 0.61rem !important;
+          padding: 5px 2px !important;
           line-height: 1.1 !important;
         }
         table.table td {
-          font-size: 0.7rem !important;
-          padding: 6px 3px !important;
-          line-height: 1.2 !important;
+          font-size: 0.68rem !important;
+          padding: 5px 2px !important;
+          line-height: 1.18 !important;
         }
         table.table td .btn:not(.btn-chamada-compacto) {
-          font-size: 0.64rem !important;
+          font-size: 0.62rem !important;
           padding: 3px 5px !important;
-          margin: 1px !important;
+          margin: 1px 0 !important;
         }
         .btn-chamada-compacto {
           min-width: 27px !important;
@@ -366,20 +368,26 @@
           font-size: 0.7rem !important;
         }
         table.table td .badge {
-          font-size: 0.58rem !important;
+          font-size: 0.57rem !important;
           padding: 2px 4px !important;
         }
         table.table td img {
-          max-width: 40px !important;
-          max-height: 52px !important;
+          max-width: 38px !important;
+          max-height: 50px !important;
         }
         th.col-nome-larga-eemti,
         td.col-nome-larga-eemti {
-          min-width: 120px !important;
+          width: 36% !important;
+          min-width: 105px !important;
         }
         th.col-secundaria-larga-eemti,
         td.col-secundaria-larga-eemti {
-          min-width: 100px !important;
+          width: 30% !important;
+          min-width: 90px !important;
+        }
+        th.col-acoes-visivel-eemti,
+        td.col-acoes-visivel-eemti {
+          min-width: 58px !important;
         }
         .col-oculta-mobile-eemti {
           display: none !important;
@@ -405,7 +413,6 @@
     const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
     const b64LogoMarcaDagua = localStorage.getItem('cache_logo_escola_marcadagua_b64');
 
-    // Topo das páginas: brasaoestado.png
     document.querySelectorAll('.brand-escola img, header img#logoEscola').forEach(img => {
       img.onerror = function() {
         if (this.src.endsWith('brasaoestado.png') && !this.src.endsWith('brasaoestado.png.png')) {
@@ -422,7 +429,6 @@
       }
     });
 
-    // Marca d'água de fundo das páginas HTML: LOGO-removebg-preview.png
     document.querySelectorAll('img.watermark-brasao-fundo').forEach(img => {
       img.onerror = function() {
         if (b64LogoMarcaDagua && this.src !== b64LogoMarcaDagua) {
@@ -438,8 +444,6 @@
     });
   }
 
-  // Intercepta qualquer geração de PDF (mesmo em páginas que desenham cabeçalho próprio)
-  // para garantir que o brasão no topo esquerdo do PDF seja SEMPRE o "brasaoestado.png"!
   function configurarInterceptadorBrasaoNosPdfs() {
     if (!window.jspdf || !window.jspdf.jsPDF || window.jspdf.jsPDF._eemtiBrasaoHooked) return;
     try {
@@ -449,8 +453,6 @@
         proto.addImage = function(imageData, format, x, y, w, h) {
           const b64BrasaoEstado = localStorage.getItem('cache_brasao_estado_topo_b64');
           const b64LogoAntiga = localStorage.getItem('cache_logo_escola_marcadagua_b64');
-
-          // Se for a imagem da logo/brasão do cabeçalho do PDF (canto superior esquerdo, x <= 25, y <= 20 e quadrada w === h)
           const ehPosicaoLogoCabecalhoPdf = (typeof x === 'number' && x <= 25 && typeof y === 'number' && y <= 20 && Math.abs((w || 0) - (h || 0)) <= 4);
           if (b64BrasaoEstado && (ehPosicaoLogoCabecalhoPdf || (b64LogoAntiga && imageData === b64LogoAntiga))) {
             imageData = b64BrasaoEstado;
@@ -463,7 +465,216 @@
   }
 
   // =========================================================================
-  // 2. FUNÇÕES DE FORMATAÇÃO E MODAIS DE DETALHES AO CLICAR NA LINHA
+  // 2. RELATÓRIO PDF DE RESERVAS COM SELEÇÃO DE PERÍODO (DATA INICIAL E FINAL)
+  // =========================================================================
+  function converterDataBrOuIsoParaTimestamp(strData) {
+    if (!strData) return 0;
+    const s = String(strData).trim();
+    const mBr = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (mBr) return new Date(Number(mBr[3]), Number(mBr[2]) - 1, Number(mBr[1]), 12, 0, 0).getTime();
+    const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mIso) return new Date(Number(mIso[1]), Number(mIso[2]) - 1, Number(mIso[3]), 12, 0, 0).getTime();
+    return 0;
+  }
+
+  window.abrirModalPdfReservasPorPeriodoEEMTI = async function() {
+    if (typeof Swal === 'undefined') return;
+    const hojeIso = new Date().toISOString().slice(0, 10);
+    const inicioMesIso = hojeIso.slice(0, 8) + '01';
+
+    const { value: datasEscolhidas } = await Swal.fire({
+      title: '<span style="font-size:1.05rem;font-weight:800;color:#15438c;"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Relatório de Reservas por Período</span>',
+      html: `
+        <div class="text-start mt-2" style="font-size:0.85rem;">
+          <p class="text-muted small mb-3">Selecione a data inicial e a data final para gerar o relatório em PDF:</p>
+          <div class="mb-3">
+            <label class="form-label fw-bold text-dark small mb-1">Data Inicial *</label>
+            <input type="date" id="swalDataIniReservaPdf" class="form-control fw-bold" value="${inicioMesIso}">
+          </div>
+          <div class="mb-1">
+            <label class="form-label fw-bold text-dark small mb-1">Data Final *</label>
+            <input type="date" id="swalDataFimReservaPdf" class="form-control fw-bold" value="${hojeIso}">
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: '<i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar PDF',
+      cancelButtonText: 'Cancelar',
+      preConfirm: () => {
+        const dIni = document.getElementById('swalDataIniReservaPdf').value;
+        const dFim = document.getElementById('swalDataFimReservaPdf').value;
+        if (!dIni || !dFim) {
+          Swal.showValidationMessage('Selecione a Data Inicial e a Data Final!');
+          return false;
+        }
+        if (dIni > dFim) {
+          Swal.showValidationMessage('A Data Inicial não pode ser maior que a Data Final!');
+          return false;
+        }
+        return { inicioIso: dIni, fimIso: dFim };
+      }
+    });
+
+    if (!datasEscolhidas) return;
+
+    const tsIni = new Date(datasEscolhidas.inicioIso + 'T00:00:00').getTime();
+    const tsFim = new Date(datasEscolhidas.fimIso + 'T23:59:59').getTime();
+    const dtIniBr = datasEscolhidas.inicioIso.split('-').reverse().join('/');
+    const dtFimBr = datasEscolhidas.fimIso.split('-').reverse().join('/');
+
+    Swal.fire({ title: 'Gerando Relatório PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    try {
+      const pathLower = window.location.pathname.toLowerCase();
+      const ehReservaLivros = pathLower.includes('reservas-livros');
+
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.close();
+        window.print();
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'mm', 'a4');
+
+      if (ehReservaLivros) {
+        const resEmp = await _fetchNativo(API_PADRAO_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'listarDadosEmprestimosBiblioteca' }),
+          redirect: 'follow'
+        }).then(r => r.json()).catch(() => ({ emprestimos: [] }));
+
+        const listaEmp = (resEmp && Array.isArray(resEmp.emprestimos)) ? resEmp.emprestimos : [];
+        const filtrados = listaEmp.filter(item => {
+          const ts = converterDataBrOuIsoParaTimestamp(item.dataEmprestimo);
+          return ts >= tsIni && ts <= tsFim;
+        });
+
+        const yStart = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: 'RELATÓRIO DE EMPRÉSTIMOS E RESERVAS DA BIBLIOTECA',
+          subtitulo1: `Período Selecionado: ${dtIniBr} a ${dtFimBr}`,
+          subtitulo2: `Total de Registros no Período: ${filtrados.length}`
+        });
+
+        const rowsPdf = filtrados.map((it, i) => [
+          i + 1,
+          it.dataEmprestimo || '-',
+          it.aluno || '-',
+          window.abreviarSerieParaExibicao(it.serie || '-'),
+          it.titulo || '-',
+          it.dataPrevista || '-',
+          it.status || '-'
+        ]);
+
+        doc.autoTable({
+          startY: yStart,
+          head: [['#', 'DATA EMPRÉSTIMO', 'ALUNO(A)', 'SÉRIE', 'LIVRO / OBRA', 'DEVOLUÇÃO PREV.', 'STATUS']],
+          body: rowsPdf.length > 0 ? rowsPdf : [['-', '-', 'Nenhum empréstimo registrado no período selecionado', '-', '-', '-', '-']],
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 2.2 },
+          headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
+        });
+
+        Swal.close();
+        doc.save(`Relatorio_Biblioteca_${datasEscolhidas.inicioIso}_a_${datasEscolhidas.fimIso}.pdf`);
+        return;
+      }
+
+      // Caso padrão: Reservas de Ambientes e Equipamentos (reservas.html)
+      let listaRes = cacheUltimasReservasCarregadas;
+      if (!Array.isArray(listaRes) || listaRes.length === 0) {
+        const rApi = await _fetchNativo(API_PADRAO_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'listarReservas' }),
+          redirect: 'follow'
+        }).then(r => r.json()).catch(() => ({ lista: [] }));
+        listaRes = (rApi && Array.isArray(rApi.lista)) ? rApi.lista : [];
+      }
+
+      const reservasNoPeriodo = listaRes
+        .filter(item => {
+          const ts = converterDataBrOuIsoParaTimestamp(item.data);
+          return ts >= tsIni && ts <= tsFim;
+        })
+        .sort((a, b) => converterDataBrOuIsoParaTimestamp(a.data) - converterDataBrOuIsoParaTimestamp(b.data));
+
+      const yStart = await window.desenharCabecalhoPadraoEEMTI(doc, {
+        tituloDocumento: 'RELATÓRIO DE RESERVAS DE AMBIENTES E EQUIPAMENTOS',
+        subtitulo1: `Período Selecionado: ${dtIniBr} até ${dtFimBr}`,
+        subtitulo2: `Total de Reservas no Período: ${reservasNoPeriodo.length}`
+      });
+
+      const corpoTabela = reservasNoPeriodo.map((r, idx) => {
+        const aulasFormatadas = Array.isArray(r.aulas)
+          ? r.aulas.map((val, i) => val ? `${i + 1}ª Aula (${val})` : '').filter(Boolean).join(', ')
+          : '-';
+        return [
+          idx + 1,
+          r.data || '-',
+          r.ambiente || '-',
+          r.professor || '-',
+          aulasFormatadas || 'Reservado'
+        ];
+      });
+
+      doc.autoTable({
+        startY: yStart,
+        head: [['#', 'DATA', 'AMBIENTE / EQUIPAMENTO', 'PROFESSOR(A) SOLICITANTE', 'AULAS / HORÁRIOS RESERVADOS']],
+        body: corpoTabela.length > 0 ? corpoTabela : [['-', '-', 'Nenhuma reserva encontrada no período selecionado', '-', '-']],
+        theme: 'grid',
+        styles: { fontSize: 8.5, cellPadding: 2.5 },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
+      });
+
+      Swal.close();
+      doc.save(`Relatorio_Reservas_${datasEscolhidas.inicioIso}_a_${datasEscolhidas.fimIso}.pdf`);
+    } catch (errPdf) {
+      Swal.fire('Erro', 'Não foi possível gerar o PDF: ' + errPdf.message, 'error');
+    }
+  };
+
+  function vincularBotaoPdfReservasComSeletorDePeriodo() {
+    const pathLower = window.location.pathname.toLowerCase();
+    if (!pathLower.includes('reservas')) return;
+
+    // Intercepta botões de PDF existentes na página de Reservas ou injeta um botão "Relatório PDF por Período" se não houver
+    const botoesPdf = Array.from(document.querySelectorAll('button, a.btn')).filter(b => {
+      const txt = (b.textContent || '').toUpperCase();
+      const onc = (b.getAttribute('onclick') || '').toUpperCase();
+      return txt.includes('PDF') || onc.includes('PDF');
+    });
+
+    if (botoesPdf.length > 0) {
+      botoesPdf.forEach(btn => {
+        if (btn._eemtiReservaPdfBound) return;
+        btn._eemtiReservaPdfBound = true;
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.abrirModalPdfReservasPorPeriodoEEMTI();
+        }, true);
+      });
+    } else {
+      const cabecalhoCard = document.querySelector('.card-header-custom, .card h5, .card h4');
+      if (cabecalhoCard && !document.getElementById('btnPdfReservasPorPeriodoEEMTI')) {
+        const btnNovo = document.createElement('button');
+        btnNovo.type = 'button';
+        btnNovo.id = 'btnPdfReservasPorPeriodoEEMTI';
+        btnNovo.className = 'btn btn-danger btn-sm fw-bold rounded-pill px-3 ms-auto';
+        btnNovo.innerHTML = `<i class="bi bi-file-earmark-pdf-fill me-1"></i>Relatório PDF (Período)`;
+        btnNovo.onclick = () => window.abrirModalPdfReservasPorPeriodoEEMTI();
+        cabecalhoCard.appendChild(btnNovo);
+      }
+    }
+  }
+
+  // =========================================================================
+  // 3. FUNÇÕES DE FORMATAÇÃO E MODAIS DE DETALHES AO CLICAR NA LINHA
   // =========================================================================
   window.abreviarSerieParaExibicao = function(textoSerie) {
     if (!textoSerie) return "";
@@ -623,7 +834,7 @@
   }
 
   // =========================================================================
-  // 3. REORGANIZADOR DAS TABELAS (INCLUINDO SUSPENSÕES PDT DA IMAGEM 1!)
+  // 4. REORGANIZADOR DAS TABELAS E BOTÕES
   // =========================================================================
   function inserirLegendaAcimaDaTabela(tabela, tipoLegenda) {
     if (!tabela || !tabela.parentElement) return;
@@ -664,6 +875,7 @@
   function aplicarCompactacaoVisualNasTabelasEBotoes() {
     aplicarImagensOficiaisTopoEMarcaDagua();
     configurarInterceptadorBrasaoNosPdfs();
+    vincularBotaoPdfReservasComSeletorDePeriodo();
 
     let temBotoesAtividade = false;
     let temBotoesChamadaSec = false;
@@ -747,6 +959,12 @@
       const ths = Array.from(tabela.querySelectorAll('thead th'));
       if (ths.length === 0) return;
 
+      // Guarda os títulos originais de cada coluna antes de qualquer modificação para nunca perder a referência quando a tabela for filtrada!
+      if (!tabela._titulosOriginaisThEEMTI) {
+        tabela._titulosOriginaisThEEMTI = ths.map(th => (th.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase());
+      }
+      const titulosOriginais = tabela._titulosOriginaisThEEMTI;
+
       let idxFoto = -1;
       let idxColStatusFoto = -1;
       let idxBeneficios = -1;
@@ -755,6 +973,7 @@
       let idxSeriePdtSusp = -1;
       let idxOrigemSusp = -1;
       let idxInicioSusp = -1;
+      let idxMotivoSusp = -1;
       let idxBimestre = -1;
       let idxData = -1;
       let idxDia = -1;
@@ -778,8 +997,9 @@
       let idxAcaoBuscaAtiva = -1;
       let idxAcoesBotoes = -1;
 
-      ths.forEach((th, idx) => {
-        const t = (th.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase();
+      titulosOriginais.forEach((t, idx) => {
+        const th = ths[idx];
+        if (!th) return;
 
         if (t.includes('FOTO 3X4') || t === 'FOTO') idxFoto = idx;
         if (t.includes('STATUS DA FOTO') || t === 'STATUS FOTO') idxColStatusFoto = idx;
@@ -792,12 +1012,13 @@
           th.classList.add('col-status-compacta-eemti');
         }
         if (t.includes('SÉRIE / PDT') || t.includes('SERIE / PDT')) idxSeriePdtSusp = idx;
-        if (t === 'ORIGEM' || t.includes('ORIGEM / INÍCIO')) idxOrigemSusp = idx;
-        if (t.includes('INÍCIO DA SUSPENSÃO') || t.includes('INICIO DA SUSPENSAO')) idxInicioSusp = idx;
+        if (t === 'ORIGEM') idxOrigemSusp = idx;
+        if (t.includes('INÍCIO DA SUSPENSÃO') || t.includes('INICIO DA SUSPENSAO') || t.includes('ORIGEM / INÍCIO')) idxInicioSusp = idx;
+        if (t.includes('MOTIVO / CRITÉRIO') || t.includes('MOTIVO / CRITERIO')) idxMotivoSusp = idx;
 
         if (t === 'SÉRIE' || t === 'SERIE' || t === 'TURMA' || t === 'SÉRIE / TURMA' || t === 'SERIE / TURMA') idxSerie = idx;
         if (t.includes('BIMESTRE')) idxBimestre = idx;
-        if (t === 'DATA' || t.includes('DATA / HORA') || t.includes('SEMESTRE') || t.includes('ANO / SEM')) idxData = idx;
+        if (t === 'DATA' || t.includes('DATA / HORA') || t.includes('SEMESTRE') || t.includes('ANO / SEM') || t === 'DATA REG.') idxData = idx;
         if (t.includes('DIA')) idxDia = idx;
         if (t.includes('TEMPO')) idxTempo = idx;
         if (t.includes('ELETIVA')) idxEletiva = idx;
@@ -810,7 +1031,7 @@
         if (t.includes('GRAVIDADE')) idxGravidade = idx;
         if (t.includes('OBSERVA') || t.includes('PARECER')) idxObs = idx;
         if (t.includes('MATRÍCULA') || t.includes('MATRICULA') || t.includes('CPF')) idxMatCpf = idx;
-        if (t.includes('NASCIMENTO') || t.includes('DATA NASC')) idxNascimento = idx;
+        if (t.includes('NASCIMENTO') || t.includes('DATA NASC') || t === 'NASC.') idxNascimento = idx;
         if (t.includes('DEFICIÊNCIA') || t.includes('DEFICIENCIA') || t.includes('NECESSIDADE')) idxDeficiencia = idx;
         if (t.includes('LAUDO')) idxLaudo = idx;
         if (t.includes('RESPONSÁVEL') || t.includes('RESPONSAVEL')) idxResp = idx;
@@ -826,26 +1047,31 @@
       });
 
       // =====================================================================
-      // CASO ESPECIAL NOVO: PAINEL DE ALUNOS NECESSITADOS DE SUSPENSÃO (PDT)
-      // - Unifica ALUNO(A) + SÉRIE / PDT em 1 coluna larga (ALUNO(A) / SÉRIE / PDT)
-      // - Coloca o selo de ORIGEM (Automática / Manual) ACIMA da caixa de data de INÍCIO DA SUSPENSÃO!
+      // 1. PAINEL DE ALUNOS NECESSITADOS DE SUSPENSÃO (atendimento-alunos.html)
+      // Garante 4 colunas perfeitamente alinhadas tanto na 1ª abertura quanto ao trocar o filtro de turma!
+      // Col 1: Aluno + Série abaixo + PDT abaixo | Col 2: Origem acima + Data + Últ. abaixo | Col 3: Motivo | Col 4: Ações
       // =====================================================================
-      const ehTabelaSuspensaoPdt = (idxAluno >= 0 && idxSeriePdtSusp >= 0 && idxOrigemSusp >= 0 && idxInicioSusp >= 0);
-      if (ehTabelaSuspensaoPdt) {
-        if (ths[idxSeriePdtSusp]) ths[idxSeriePdtSusp].classList.add('col-oculta-eemti');
-        if (ths[idxOrigemSusp]) ths[idxOrigemSusp].classList.add('col-oculta-eemti');
-        if (ths[idxAluno]) {
-          ths[idxAluno].textContent = 'ALUNO(A) / SÉRIE / PDT';
-          ths[idxAluno].classList.add('col-nome-larga-eemti');
-          ths[idxAluno].style.width = '40%';
-        }
-        if (ths[idxInicioSusp]) {
-          ths[idxInicioSusp].textContent = 'ORIGEM / INÍCIO (HOJE)';
-          ths[idxInicioSusp].style.width = '22%';
-        }
+      const ehTabelaSuspensaoPdt = (
+        tabela.querySelector('#tbodyAlunosSuspensao') !== null ||
+        (idxAluno === 0 && idxSeriePdtSusp === 1 && idxOrigemSusp === 2 && idxInicioSusp === 3)
+      );
+      if (ehTabelaSuspensaoPdt && ths.length >= 6) {
+        ths[1].classList.add('col-oculta-eemti'); // Oculta SÉRIE / PDT separada
+        ths[2].classList.add('col-oculta-eemti'); // Oculta ORIGEM separada
+        ths[0].textContent = 'ALUNO(A) / SÉRIE / PDT';
+        ths[0].classList.add('col-nome-larga-eemti');
+        ths[0].style.width = '36%';
+        ths[3].textContent = 'ORIGEM / INÍCIO (HOJE)';
+        ths[3].style.width = '24%';
+        ths[4].textContent = 'MOTIVO / CRITÉRIO';
+        ths[4].style.width = '22%';
+        ths[5].textContent = 'AÇÕES';
+        ths[5].style.width = '18%';
       }
 
-      // CASO 1: HISTÓRICO DE ELETIVAS DO ALUNO
+      // =====================================================================
+      // 2. HISTÓRICO DE ELETIVAS DO ALUNO (historico-eletivas.html)
+      // =====================================================================
       const ehTabelaHistoricoEletivas = (
         pathLower.includes('historico-eletivas') ||
         (idxEletiva >= 0 && idxNota >= 0 && (idxFreqPerc >= 0 || idxFaltas >= 0))
@@ -866,7 +1092,9 @@
         });
       }
 
-      // CASO 2: GERENCIAR ALUNOS
+      // =====================================================================
+      // 3. GERENCIAR ALUNOS (cadastro-alunos.html)
+      // =====================================================================
       const ehTabelaGerenciarAlunos = (idxFoto >= 0 && idxColStatusFoto >= 0);
       if (ehTabelaGerenciarAlunos) {
         inserirLegendaAcimaDaTabela(tabela, 'GERENCIAR_ALUNOS_BF_PM');
@@ -875,7 +1103,9 @@
         if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].textContent = 'SÉRIE / BF / PM';
       }
 
-      // CASO 3: SITUAÇÃO DO ALUNO
+      // =====================================================================
+      // 4. SITUAÇÃO DO ALUNO (situacao-aluno.html)
+      // =====================================================================
       const ehTabelaSituacao = (idxMatCpf >= 0 && idxAluno >= 0 && pathLower.includes('situacao'));
       if (ehTabelaSituacao) {
         if (ths[idxMatCpf]) ths[idxMatCpf].classList.add('col-oculta-eemti');
@@ -884,7 +1114,9 @@
         if (ths[idxAluno]) ths[idxAluno].style.width = '48%';
       }
 
-      // CASO 4: BUSCA ATIVA
+      // =====================================================================
+      // 5. BUSCA ATIVA (busca-ativa.html)
+      // =====================================================================
       const ehTabelaBuscaAtiva = (pathLower.includes('busca-ativa') && idxAluno >= 0);
       if (ehTabelaBuscaAtiva) {
         if (idxSerie >= 0 && idxSerie !== idxAluno && ths[idxSerie]) ths[idxSerie].classList.add('col-oculta-eemti');
@@ -904,11 +1136,15 @@
         });
       }
 
-      // CASO 5: AEE
+      // =====================================================================
+      // 6. AEE - ATENDIMENTO EDUCACIONAL ESPECIALIZADO (aee.html)
+      // Coluna Aluno Larga: Nome do Aluno -> Pai e Mãe abaixo -> Data Nasc. e Matrícula na frente!
+      // Coluna Deficiência Larga: Deficiência/Necessidade -> Laudo -> Observação/Parecer
+      // =====================================================================
       const ehTabelaAee = (pathLower.includes('aee') && idxAluno >= 0 && idxDeficiencia >= 0);
       if (ehTabelaAee) {
         if (ths[idxAluno]) {
-          ths[idxAluno].textContent = 'ALUNO(A) / MATRÍCULA / NASC.';
+          ths[idxAluno].textContent = 'ALUNO(A) / FILIAÇÃO / NASC. & MATRÍCULA';
           ths[idxAluno].classList.add('col-nome-larga-eemti');
         }
         if (ths[idxDeficiencia]) {
@@ -922,7 +1158,9 @@
         });
       }
 
-      // CASO 6: HISTÓRICO INDIVIDUAL E CONSULTA DE OCORRÊNCIAS
+      // =====================================================================
+      // 7. HISTÓRICO INDIVIDUAL E CONSULTA/EDIÇÃO/EXCLUSÃO DE OCORRÊNCIAS
+      // =====================================================================
       const ehTabelaHistoricoIndividual = (
         idxOcorrencia >= 0 &&
         idxData >= 0 &&
@@ -944,6 +1182,10 @@
         !ehTabelaSuspensaoPdt
       );
       if (ehTabelaConsultaOcorrencias) {
+        if (ths[idxAluno]) {
+          ths[idxAluno].textContent = 'ALUNO(A) / SÉRIE / PROFESSOR(A)';
+          ths[idxAluno].classList.add('col-nome-larga-eemti');
+        }
         if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].classList.add('col-oculta-eemti');
         if (idxGravidade >= 0 && ths[idxGravidade]) ths[idxGravidade].classList.add('col-oculta-eemti');
         if (idxProfessor >= 0 && ths[idxProfessor]) ths[idxProfessor].classList.add('col-oculta-eemti');
@@ -959,7 +1201,7 @@
 
         if (!tr._dadosOriginaisLinhaEEMTI) {
           tr._dadosOriginaisLinhaEEMTI = Array.from(tds).map((td, i) => ({
-            titulo: ths[i] ? (ths[i].textContent || '').replace(/\s+/g, ' ').trim() : `Campo ${i + 1}`,
+            titulo: titulosOriginais[i] || `Campo ${i + 1}`,
             valor: (td.innerText || td.textContent || '').replace(/\s+/g, ' ').trim(),
             html: td.innerHTML
           }));
@@ -968,35 +1210,50 @@
         if (idxAluno >= 0 && tds[idxAluno]) tds[idxAluno].classList.add('col-nome-larga-eemti');
         if (idxAcoesBotoes >= 0 && tds[idxAcoesBotoes]) tds[idxAcoesBotoes].classList.add('col-acoes-visivel-eemti');
 
-        // 0. Formata Linha de ALUNOS NECESSITADOS DE SUSPENSÃO (PDT - Imagem 1)
-        // - Unifica Aluno(a) + Série/PDT na Coluna 1 (Larga)
-        // - Coloca o selo de Origem (Automática/Manual) ACIMA da caixa de data na Coluna Início da Suspensão!
-        if (ehTabelaSuspensaoPdt && !tr._eemtiSuspensaoPdtFormatado) {
+        // A) Formata Linha de ALUNOS NECESSITADOS DE SUSPENSÃO (atendimento-alunos.html)
+        // Col 0: Nome do Aluno -> Série abaixo -> PDT abaixo
+        // Col 3: Origem (Automática/Manual) ACIMA do input de data -> Data (Hoje) -> Última ocorrência abaixo
+        // Col 4: Motivo / Critério compacto
+        // Col 5: Botões Termo PDF e Atender
+        if (ehTabelaSuspensaoPdt && tds.length >= 6 && !tr._eemtiSuspensaoPdtFormatado) {
           tr._eemtiSuspensaoPdtFormatado = true;
-          if (tds[idxSeriePdtSusp]) tds[idxSeriePdtSusp].classList.add('col-oculta-eemti');
-          if (tds[idxOrigemSusp]) tds[idxOrigemSusp].classList.add('col-oculta-eemti');
+          tds[1].classList.add('col-oculta-eemti');
+          tds[2].classList.add('col-oculta-eemti');
 
-          const nomeAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '-';
+          const nomeAl = tr._dadosOriginaisLinhaEEMTI[0]?.valor || '-';
           tr.setAttribute('data-nome-aluno-limpo', nomeAl);
-          const htmlSeriePdt = tds[idxSeriePdtSusp] ? tds[idxSeriePdtSusp].innerHTML : '';
 
-          tds[idxAluno].innerHTML = `
-            <div class="fw-bold text-dark" style="font-size:0.81rem;line-height:1.22;">${nomeAl}</div>
-            <div class="mt-1 pt-1 border-top border-light-subtle" style="line-height:1.15;">${htmlSeriePdt}</div>
+          // Extrai Série e PDT da célula 1
+          const divSerieEl = tds[1].querySelector('.fw-bold');
+          const divPdtEl = tds[1].querySelector('.text-muted');
+          const serieTxt = window.abreviarSerieParaExibicao(divSerieEl ? divSerieEl.textContent.trim() : (tr._dadosOriginaisLinhaEEMTI[1]?.valor.split('PDT:')[0] || '').trim());
+          const pdtTxt = divPdtEl ? divPdtEl.textContent.replace(/PDT:\s*/i, '').trim() : ((tr._dadosOriginaisLinhaEEMTI[1]?.valor.split('PDT:')[1] || '').trim());
+
+          tds[0].classList.add('col-nome-larga-eemti');
+          tds[0].innerHTML = `
+            <div class="fw-bold text-dark" style="font-size:0.8rem;line-height:1.22;">${nomeAl}</div>
+            <div class="mt-1"><span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.62rem;">${serieTxt}</span></div>
+            <div class="text-secondary mt-1" style="font-size:0.65rem;line-height:1.18;"><i class="bi bi-person-badge me-1"></i><b>PDT:</b> ${pdtTxt || 'Não atribuído'}</div>
           `;
 
-          // Move o badge de Origem (Automática / Manual) para ficar ACIMA do input de data (sem perder o id do input!)
-          const tdDataSusp = tds[idxInicioSusp];
-          const htmlBadgeOrigem = tds[idxOrigemSusp] ? tds[idxOrigemSusp].innerHTML : '';
+          // Coloca o badge de Origem (Automática / Manual) ACIMA do input de data na célula 3 (preservando o input original e seu ID!)
+          const tdDataSusp = tds[3];
+          const htmlBadgeOrigem = tds[2].innerHTML;
           if (tdDataSusp && htmlBadgeOrigem && !tdDataSusp.querySelector('.div-origem-acima-data-eemti')) {
             const divOrigemTopo = document.createElement('div');
-            divOrigemTopo.className = 'div-origem-acima-data-eemti mb-1';
+            divOrigemTopo.className = 'div-origem-acima-data-eemti mb-1 text-center';
             divOrigemTopo.innerHTML = htmlBadgeOrigem;
             tdDataSusp.insertBefore(divOrigemTopo, tdDataSusp.firstChild);
           }
+          const inpDateEl = tdDataSusp ? tdDataSusp.querySelector('input[type="date"]') : null;
+          if (inpDateEl) {
+            inpDateEl.style.maxWidth = '112px';
+            inpDateEl.style.fontSize = '0.68rem';
+            inpDateEl.style.padding = '2px 4px';
+          }
         }
 
-        // 1. Formata Linha do HISTÓRICO DE ELETIVAS
+        // B) Formata Linha do HISTÓRICO DE ELETIVAS
         if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxSerie >= 0 && !tr._eemtiHistEletFormatado) {
           tr._eemtiHistEletFormatado = true;
           [idxDia, idxTempo, idxProfessor, idxCh, idxFaltas, idxFreqPerc].forEach(cIdx => {
@@ -1037,7 +1294,7 @@
           }
         }
 
-        // 2. Formata Linha do GERENCIAR ALUNOS (Foto+Sexo | Nome+Pai/Mãe | Série+BF+PM)
+        // C) Formata Linha do GERENCIAR ALUNOS
         if (ehTabelaGerenciarAlunos && !tr._eemtiGerenciarFormatado) {
           tr._eemtiGerenciarFormatado = true;
           if (tds[idxColStatusFoto]) tds[idxColStatusFoto].classList.add('col-oculta-eemti');
@@ -1105,7 +1362,7 @@
           }
         }
 
-        // 3. Formata Linha da SITUAÇÃO DO ALUNO
+        // D) Formata Linha da SITUAÇÃO DO ALUNO
         if (ehTabelaSituacao && !tr._eemtiSituacaoFormatada) {
           tr._eemtiSituacaoFormatada = true;
           if (tds[idxMatCpf]) tds[idxMatCpf].classList.add('col-oculta-eemti');
@@ -1127,7 +1384,7 @@
           `;
         }
 
-        // 4. Formata Linha da BUSCA ATIVA
+        // E) Formata Linha da BUSCA ATIVA
         if (ehTabelaBuscaAtiva && !tr._eemtiBuscaAtivaFormatada) {
           tr._eemtiBuscaAtivaFormatada = true;
           const idxColPrincipalMotivo = idxMotivoBuscaAtiva >= 0 ? idxMotivoBuscaAtiva : (idxStatusBuscaAtiva >= 0 ? idxStatusBuscaAtiva : -1);
@@ -1170,7 +1427,7 @@
           }
         }
 
-        // 5. Formata Linha do AEE
+        // F) Formata Linha do AEE (CORRIGIDO: Nome do Aluno -> Pai e Mãe abaixo -> Data Nasc. e Matrícula na frente!)
         if (ehTabelaAee && !tr._eemtiAeeFormatada) {
           tr._eemtiAeeFormatada = true;
           [idxSerie, idxMatCpf, idxNascimento, idxLaudo, idxObs, idxData].forEach(cIdx => {
@@ -1179,16 +1436,52 @@
             }
           });
 
-          const nomeAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '-';
+          const tdAlOriginal = tds[idxAluno];
+          const divBoldAl = tdAlOriginal.querySelector('.fw-bold, b, strong');
+          const nomeAl = (divBoldAl ? divBoldAl.textContent : (tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '')).split('Matrícula:')[0].trim().toUpperCase();
           tr.setAttribute('data-nome-aluno-limpo', nomeAl);
+
           const serieAl = idxSerie >= 0 ? window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '') : '';
-          const matAl = idxMatCpf >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxMatCpf]?.valor || '-') : '-';
-          const nascAl = idxNascimento >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxNascimento]?.valor || '-') : '-';
+
+          // Extrai a Matrícula e a Data de Nascimento apenas quando forem realmente números/datas (evita colocar o nome do aluno na matrícula!)
+          const textoBrutoLinhaAee = tr._dadosOriginaisLinhaEEMTI.map(x => x.valor).join(' | ');
+          const matchDataNasc = textoBrutoLinhaAee.match(/\b(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/);
+          const nascAl = (idxNascimento >= 0 && /\d/.test(tr._dadosOriginaisLinhaEEMTI[idxNascimento]?.valor || ''))
+            ? tr._dadosOriginaisLinhaEEMTI[idxNascimento].valor
+            : (matchDataNasc ? matchDataNasc[1] : '-');
+
+          let matAl = '-';
+          if (idxMatCpf >= 0) {
+            const valColMat = (tr._dadosOriginaisLinhaEEMTI[idxMatCpf]?.valor || '').replace(/Matrícula:\s*/i, '').trim();
+            if (valColMat && valColMat.toUpperCase() !== nomeAl && /\d/.test(valColMat)) {
+              matAl = valColMat;
+            }
+          }
+          if (matAl === '-') {
+            const matchNumMat = textoBrutoLinhaAee.match(/\b(\d{5,12})\b/);
+            if (matchNumMat) matAl = matchNumMat[1];
+          }
+
+          // Puxa Nome do Pai e da Mãe do cache cadastral do aluno
+          const infoCad = obterDadosCadastraisAlunoCache(nomeAl);
+          const paiNome = infoCad.pai || '';
+          const maeNome = infoCad.mae || '';
+          let htmlPais = '';
+          if (paiNome || maeNome) {
+            const partesPais = [];
+            if (paiNome) partesPais.push(`<b>Pai:</b> ${paiNome}`);
+            if (maeNome) partesPais.push(`<b>Mãe:</b> ${maeNome}`);
+            htmlPais = `<div class="text-secondary mt-1" style="font-size:0.65rem;line-height:1.2;">${partesPais.join(' • ')}</div>`;
+          }
 
           tds[idxAluno].innerHTML = `
-            <div class="fw-bold text-dark" style="font-size:0.79rem;line-height:1.2;">${nomeAl} ${serieAl ? `<span class="badge bg-primary ms-1" style="font-size:0.58rem;">${serieAl}</span>` : ''}</div>
-            <div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;"><b>Matrícula:</b> ${matAl}</div>
-            <div class="text-muted" style="font-size:0.65rem;line-height:1.2;"><b>Data Nasc.:</b> ${nascAl}</div>
+            <div class="fw-bold text-dark" style="font-size:0.79rem;line-height:1.2;">
+              ${nomeAl} ${serieAl ? `<span class="badge bg-primary ms-1" style="font-size:0.58rem;">${serieAl}</span>` : ''}
+            </div>
+            ${htmlPais}
+            <div class="text-muted mt-1" style="font-size:0.65rem;line-height:1.2;">
+              <b>Data Nasc.:</b> ${nascAl} • <b>Matrícula:</b> ${matAl}
+            </div>
           `;
 
           const defTxt = tr._dadosOriginaisLinhaEEMTI[idxDeficiencia]?.valor || '-';
@@ -1204,7 +1497,7 @@
           `;
         }
 
-        // 6. Formata Linha do HISTÓRICO INDIVIDUAL DE OCORRÊNCIAS
+        // G) Formata Linha do HISTÓRICO INDIVIDUAL DE OCORRÊNCIAS
         if (ehTabelaHistoricoIndividual && !tr._eemtiHistOcoFormatado) {
           tr._eemtiHistOcoFormatado = true;
           if (idxBimestre >= 0 && tds[idxBimestre]) tds[idxBimestre].classList.add('col-oculta-eemti');
@@ -1230,7 +1523,8 @@
           `;
         }
 
-        // 7. Formata Linha da CONSULTA DE OCORRÊNCIAS
+        // H) Formata Linha de CONSULTAR / EDITAR / EXCLUIR OCORRÊNCIAS
+        // Coluna Aluno -> Nome do Aluno + Série abaixo + Nome do Professor abaixo da Série!
         if (ehTabelaConsultaOcorrencias && !tr._eemtiConsOcoFormatado) {
           tr._eemtiConsOcoFormatado = true;
           if (idxSerie >= 0 && tds[idxSerie]) tds[idxSerie].classList.add('col-oculta-eemti');
@@ -1241,21 +1535,21 @@
           const nomeAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '-';
           tr.setAttribute('data-nome-aluno-limpo', nomeAl);
           const serieAl = idxSerie >= 0 ? window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '') : '';
+          const profTxt = idxProfessor >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxProfessor]?.valor || '') : '';
 
           tdAl.innerHTML = `
             <div class="fw-bold text-dark" style="font-size:0.78rem;line-height:1.2;">${nomeAl}</div>
             ${serieAl ? `<div class="mt-1"><span class="badge bg-secondary" style="font-size:0.6rem;">${serieAl}</span></div>` : ''}
+            ${profTxt ? `<div class="text-muted mt-1" style="font-size:0.64rem;line-height:1.15;"><i class="bi bi-person-badge me-1"></i><b>Prof.:</b> ${profTxt}</div>` : ''}
           `;
 
           const tdOco = tds[idxOcorrencia];
           const descOco = tr._dadosOriginaisLinhaEEMTI[idxOcorrencia]?.valor || '-';
           const gravTxt = idxGravidade >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxGravidade]?.valor || '') : '';
-          const profTxt = idxProfessor >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxProfessor]?.valor || '') : '';
 
           tdOco.innerHTML = `
             <div class="fw-bold text-dark" style="font-size:0.76rem;line-height:1.2;">${descOco}</div>
             ${gravTxt ? `<div class="mt-1"><span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:0.59rem;">${gravTxt}</span></div>` : ''}
-            ${profTxt ? `<div class="text-muted mt-1" style="font-size:0.64rem;"><b>Prof.:</b> ${profTxt}</div>` : ''}
           `;
         }
 
@@ -1289,7 +1583,7 @@
   }
 
   // =========================================================================
-  // 4. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL + FILTRO EXCLUSIVO DO ALUNO CLICADO
+  // 5. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL + FILTRO EXCLUSIVO DO ALUNO CLICADO
   // =========================================================================
   function limparAcentosComparacao(str) {
     return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
@@ -1472,7 +1766,7 @@
   }
 
   // =========================================================================
-  // 5. SELO DE ATUALIZAÇÃO APÓS O BOTÃO SAIR + BOTÕES VOLTAR E INÍCIO
+  // 6. SELO DE ATUALIZAÇÃO APÓS O BOTÃO SAIR + BOTÕES VOLTAR E INÍCIO
   // =========================================================================
   function registrarDataHoraAtualizacaoBanco() {
     const agora = new Date();
@@ -1713,7 +2007,7 @@
   }
 
   // =========================================================================
-  // 6. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 OFFLINE
+  // 7. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 OFFLINE
   // =========================================================================
   function abrirBancoSyncIDB() {
     return new Promise(resolve => {
@@ -1892,7 +2186,7 @@
   }
 
   // =========================================================================
-  // 7. MOTOR DE SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR ONLINE OU CLICANDO EM ATUALIZAR)
+  // 8. MOTOR DE SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR ONLINE OU CLICANDO EM ATUALIZAR)
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarManual = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -2613,7 +2907,7 @@
   }
 
   // =========================================================================
-  // 8. INTERCEPTADOR DE FETCH
+  // 9. INTERCEPTADOR DE FETCH
   // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
@@ -2728,6 +3022,9 @@
 
             try {
               const resJson = JSON.parse(textoResp);
+              if (action === 'listarReservas' && resJson && Array.isArray(resJson.lista)) {
+                cacheUltimasReservasCarregadas = resJson.lista;
+              }
               if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
                 if (resJson && (resJson.success || resJson.msg)) {
                   setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
@@ -2920,7 +3217,7 @@
   });
 
   // =========================================================================
-  // 9. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "brasaoestado.png"!)
+  // 10. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "brasaoestado.png"!)
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
@@ -2954,7 +3251,6 @@
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    // REGRA SOLICITADA: Em todos os PDFs usa o "brasaoestado.png" substituindo o LOGO antigo!
     const b64BrasaoEstado = localStorage.getItem('cache_brasao_estado_topo_b64');
     const logoB64 = b64BrasaoEstado ||
                     await window.converterImagemParaDataUrlPdf('brasaoestado.png', 240, 240) ||
