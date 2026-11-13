@@ -1,11 +1,9 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
-// 1. CONSULTA OCORRÊNCIAS: ALUNO -> SÉRIE ABAIXO -> PROFESSOR ABAIXO DA SÉRIE
-// 2. AEE CORRIGIDO: NOME -> PAI E MÃE ABAIXO -> DATA NASC. + MATRÍCULA NA FRENTE
-// 3. RESERVAS PDF: ABRE SELETOR DE PERÍODO (DATA INICIAL E FINAL) AO CLICAR EM PDF
-// 4. SUSPENSÕES PDT (4 COLUNAS SEMPRE ALINHADAS):
-//    COL 1: ALUNO + SÉRIE + PDT | COL 2: ORIGEM ACIMA + DATA + ÚLT. ABAIXO | COL 3: MOTIVO | COL 4: AÇÕES
-// 5. TODOS OS PDFS USAM "brasaoestado.png" + PESQUISA VIVA EM 1ms
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA ANTI-DUPLICIDADE
+// 1. TRAVA ATÔMICA DE FILA OFFLINE: ENVIA EXATAMENTE 1 ÚNICA VEZ (ZERO REPETIÇÃO!)
+// 2. AEE CORRIGIDO: MATRÍCULA SÓ COM NÚMEROS (SEM NOME REPETIDO) + MÃE E PAI ABAIXO
+// 3. GERENCIAR ALUNOS: NOME + FILIAÇÃO COM CONTATO | SÉRIE + BF/PM + LOCALIDADE E ENDEREÇO
+// 4. SUSPENSÕES PDT (4 COLUNAS ALINHADAS) + RESERVAS PDF POR PERÍODO + BRASÃO NOS PDFS
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -94,6 +92,7 @@
   let mapaFotosAlunosCacheMemoria = {};
   let filtroExclusivoAlunoSelecionado = '';
   let cacheUltimasReservasCarregadas = [];
+  const assinaturasRecentementeEnviadas = new Set();
 
   // =========================================================================
   // 0. ESTILOS GLOBAIS: SEM ROLAGEM LATERAL E COM DISTRIBUIÇÃO PROPORCIONAL
@@ -182,15 +181,15 @@
 
       th.col-nome-larga-eemti,
       td.col-nome-larga-eemti {
-        width: 40% !important;
-        min-width: 135px !important;
+        width: 42% !important;
+        min-width: 140px !important;
         text-align: left !important;
       }
 
       th.col-secundaria-larga-eemti,
       td.col-secundaria-larga-eemti {
-        width: 32% !important;
-        min-width: 115px !important;
+        width: 34% !important;
+        min-width: 120px !important;
         text-align: left !important;
       }
 
@@ -377,7 +376,7 @@
         }
         th.col-nome-larga-eemti,
         td.col-nome-larga-eemti {
-          width: 36% !important;
+          width: 38% !important;
           min-width: 105px !important;
         }
         th.col-secundaria-larga-eemti,
@@ -583,7 +582,6 @@
         return;
       }
 
-      // Caso padrão: Reservas de Ambientes e Equipamentos (reservas.html)
       let listaRes = cacheUltimasReservasCarregadas;
       if (!Array.isArray(listaRes) || listaRes.length === 0) {
         const rApi = await _fetchNativo(API_PADRAO_URL, {
@@ -641,7 +639,6 @@
     const pathLower = window.location.pathname.toLowerCase();
     if (!pathLower.includes('reservas')) return;
 
-    // Intercepta botões de PDF existentes na página de Reservas ou injeta um botão "Relatório PDF por Período" se não houver
     const botoesPdf = Array.from(document.querySelectorAll('button, a.btn')).filter(b => {
       const txt = (b.textContent || '').toUpperCase();
       const onc = (b.getAttribute('onclick') || '').toUpperCase();
@@ -699,6 +696,21 @@
     if (todosNumeros.length > 1) return todosNumeros[todosNumeros.length - 1];
     if (todosNumeros.length === 1 && todosNumeros[0].length >= 10) return todosNumeros[0];
     return "Não informado";
+  }
+
+  // Extrai SOMENTE os números da matrícula (removendo o nome do aluno que vinha concatenado na planilha AEE!)
+  function extrairSomenteDigitosMatricula(textoBruto, nomeAlunoParaRemover) {
+    if (!textoBruto) return "Não informada";
+    let limpo = String(textoBruto);
+    if (nomeAlunoParaRemover) {
+      limpo = limpo.replace(new RegExp(nomeAlunoParaRemover.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
+    }
+    // Remove datas (DD/MM/YYYY ou YYYY-MM-DD) para não confundir data de nascimento com matrícula
+    limpo = limpo.replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, '').replace(/\b\d{4}-\d{2}-\d{2}\b/g, '');
+    const mDigitos = limpo.match(/\b(\d{4,15})\b/);
+    if (mDigitos) return mDigitos[1];
+    const apenasNum = limpo.replace(/\D/g, '');
+    return apenasNum.length >= 4 ? apenasNum : "Não informada";
   }
 
   function formatarSexoPorExtenso(sexoBruto) {
@@ -872,6 +884,59 @@
     tabela.parentElement.insertBefore(divLeg, tabela);
   }
 
+  // Caso os alunos da turma ainda não tenham filiação/endereço no cache leve, busca 1 vez da planilha em segundo plano e atualiza a tabela na hora!
+  const turmasFiliacaoBuscadasNaSessao = new Set();
+  function garantirFiliacaoEEnderecoDaTurmaEmSegundoPlano(serieAlvo) {
+    const sNorm = normalizarSeriePadraoCore(serieAlvo);
+    if (!sNorm || !navigator.onLine || turmasFiliacaoBuscadasNaSessao.has(sNorm)) return;
+    turmasFiliacaoBuscadasNaSessao.add(sNorm);
+
+    fetchComTimeoutSeguranca(API_PADRAO_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getAlunosParaEdicao', dados: { ano: '2026', serie: sNorm } })
+    }, 15000).then(r => r.json()).then(listaDet => {
+      if (!Array.isArray(listaDet) || listaDet.length === 0) return;
+
+      const alunosAtuais = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      const mapaPorNome = {};
+      listaDet.forEach(al => {
+        if (al && al.nome) {
+          const nUp = String(al.nome).replace(/\s+/g, ' ').trim().toUpperCase();
+          mapaPorNome[nUp] = al;
+          salvarFotoNoIndexedDB('ALUNO_' + nUp, Object.assign({ success: true }, al));
+        }
+      });
+
+      let atualizouCache = false;
+      alunosAtuais.forEach(a => {
+        const novo = mapaPorNome[a.nome];
+        if (novo) {
+          a.mae = novo.mae || a.mae || '';
+          a.telMae = novo.telMae || a.telMae || '';
+          a.pai = novo.pai || a.pai || '';
+          a.telPai = novo.telPai || a.telPai || '';
+          a.localidade = novo.localidade || a.localidade || '';
+          a.endereco = novo.endereco || a.endereco || '';
+          a.bolsaFamilia = novo.bolsaFamilia || a.bolsaFamilia || 'NÃO';
+          a.peDeMeia = novo.peDeMeia || a.peDeMeia || 'NÃO';
+          a.sexo = novo.sexo || a.sexo || '-';
+          atualizouCache = true;
+        }
+      });
+
+      if (atualizouCache) {
+        salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alunosAtuais);
+      }
+
+      // Re-formata as linhas visíveis na tabela imediatamente com os dados de Mãe/Pai/Endereço recém-chegados!
+      document.querySelectorAll('table.table tbody tr').forEach(tr => {
+        tr._eemtiGerenciarFormatado = false;
+        tr._eemtiAeeFormatada = false;
+      });
+      aplicarCompactacaoVisualNasTabelasEBotoes();
+    }).catch(() => {});
+  }
+
   function aplicarCompactacaoVisualNasTabelasEBotoes() {
     aplicarImagensOficiaisTopoEMarcaDagua();
     configurarInterceptadorBrasaoNosPdfs();
@@ -959,7 +1024,6 @@
       const ths = Array.from(tabela.querySelectorAll('thead th'));
       if (ths.length === 0) return;
 
-      // Guarda os títulos originais de cada coluna antes de qualquer modificação para nunca perder a referência quando a tabela for filtrada!
       if (!tabela._titulosOriginaisThEEMTI) {
         tabela._titulosOriginaisThEEMTI = ths.map(th => (th.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase());
       }
@@ -973,7 +1037,6 @@
       let idxSeriePdtSusp = -1;
       let idxOrigemSusp = -1;
       let idxInicioSusp = -1;
-      let idxMotivoSusp = -1;
       let idxBimestre = -1;
       let idxData = -1;
       let idxDia = -1;
@@ -1014,7 +1077,6 @@
         if (t.includes('SÉRIE / PDT') || t.includes('SERIE / PDT')) idxSeriePdtSusp = idx;
         if (t === 'ORIGEM') idxOrigemSusp = idx;
         if (t.includes('INÍCIO DA SUSPENSÃO') || t.includes('INICIO DA SUSPENSAO') || t.includes('ORIGEM / INÍCIO')) idxInicioSusp = idx;
-        if (t.includes('MOTIVO / CRITÉRIO') || t.includes('MOTIVO / CRITERIO')) idxMotivoSusp = idx;
 
         if (t === 'SÉRIE' || t === 'SERIE' || t === 'TURMA' || t === 'SÉRIE / TURMA' || t === 'SERIE / TURMA') idxSerie = idx;
         if (t.includes('BIMESTRE')) idxBimestre = idx;
@@ -1046,18 +1108,14 @@
         }
       });
 
-      // =====================================================================
       // 1. PAINEL DE ALUNOS NECESSITADOS DE SUSPENSÃO (atendimento-alunos.html)
-      // Garante 4 colunas perfeitamente alinhadas tanto na 1ª abertura quanto ao trocar o filtro de turma!
-      // Col 1: Aluno + Série abaixo + PDT abaixo | Col 2: Origem acima + Data + Últ. abaixo | Col 3: Motivo | Col 4: Ações
-      // =====================================================================
       const ehTabelaSuspensaoPdt = (
         tabela.querySelector('#tbodyAlunosSuspensao') !== null ||
         (idxAluno === 0 && idxSeriePdtSusp === 1 && idxOrigemSusp === 2 && idxInicioSusp === 3)
       );
       if (ehTabelaSuspensaoPdt && ths.length >= 6) {
-        ths[1].classList.add('col-oculta-eemti'); // Oculta SÉRIE / PDT separada
-        ths[2].classList.add('col-oculta-eemti'); // Oculta ORIGEM separada
+        ths[1].classList.add('col-oculta-eemti');
+        ths[2].classList.add('col-oculta-eemti');
         ths[0].textContent = 'ALUNO(A) / SÉRIE / PDT';
         ths[0].classList.add('col-nome-larga-eemti');
         ths[0].style.width = '36%';
@@ -1069,9 +1127,7 @@
         ths[5].style.width = '18%';
       }
 
-      // =====================================================================
-      // 2. HISTÓRICO DE ELETIVAS DO ALUNO (historico-eletivas.html)
-      // =====================================================================
+      // 2. HISTÓRICO DE ELETIVAS DO ALUNO
       const ehTabelaHistoricoEletivas = (
         pathLower.includes('historico-eletivas') ||
         (idxEletiva >= 0 && idxNota >= 0 && (idxFreqPerc >= 0 || idxFaltas >= 0))
@@ -1092,20 +1148,21 @@
         });
       }
 
-      // =====================================================================
       // 3. GERENCIAR ALUNOS (cadastro-alunos.html)
-      // =====================================================================
+      // Coluna 1: NOME DO ALUNO / FILIAÇÃO (COM CONTATO)
+      // Coluna 2: SÉRIE / BF / PM / LOCALIDADE & ENDEREÇO
       const ehTabelaGerenciarAlunos = (idxFoto >= 0 && idxColStatusFoto >= 0);
       if (ehTabelaGerenciarAlunos) {
         inserirLegendaAcimaDaTabela(tabela, 'GERENCIAR_ALUNOS_BF_PM');
         if (ths[idxColStatusFoto]) ths[idxColStatusFoto].classList.add('col-oculta-eemti');
         if (idxBeneficios >= 0 && ths[idxBeneficios]) ths[idxBeneficios].classList.add('col-oculta-eemti');
-        if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].textContent = 'SÉRIE / BF / PM';
+        if (idxSerie >= 0 && ths[idxSerie]) {
+          ths[idxSerie].textContent = 'SÉRIE / BF / PM / ENDEREÇO';
+          ths[idxSerie].classList.add('col-secundaria-larga-eemti');
+        }
       }
 
-      // =====================================================================
-      // 4. SITUAÇÃO DO ALUNO (situacao-aluno.html)
-      // =====================================================================
+      // 4. SITUAÇÃO DO ALUNO
       const ehTabelaSituacao = (idxMatCpf >= 0 && idxAluno >= 0 && pathLower.includes('situacao'));
       if (ehTabelaSituacao) {
         if (ths[idxMatCpf]) ths[idxMatCpf].classList.add('col-oculta-eemti');
@@ -1114,9 +1171,7 @@
         if (ths[idxAluno]) ths[idxAluno].style.width = '48%';
       }
 
-      // =====================================================================
-      // 5. BUSCA ATIVA (busca-ativa.html)
-      // =====================================================================
+      // 5. BUSCA ATIVA
       const ehTabelaBuscaAtiva = (pathLower.includes('busca-ativa') && idxAluno >= 0);
       if (ehTabelaBuscaAtiva) {
         if (idxSerie >= 0 && idxSerie !== idxAluno && ths[idxSerie]) ths[idxSerie].classList.add('col-oculta-eemti');
@@ -1136,15 +1191,11 @@
         });
       }
 
-      // =====================================================================
       // 6. AEE - ATENDIMENTO EDUCACIONAL ESPECIALIZADO (aee.html)
-      // Coluna Aluno Larga: Nome do Aluno -> Pai e Mãe abaixo -> Data Nasc. e Matrícula na frente!
-      // Coluna Deficiência Larga: Deficiência/Necessidade -> Laudo -> Observação/Parecer
-      // =====================================================================
       const ehTabelaAee = (pathLower.includes('aee') && idxAluno >= 0 && idxDeficiencia >= 0);
       if (ehTabelaAee) {
         if (ths[idxAluno]) {
-          ths[idxAluno].textContent = 'ALUNO(A) / FILIAÇÃO / NASC. & MATRÍCULA';
+          ths[idxAluno].textContent = 'ALUNO(A) / MATRÍCULA & NASC. / FILIAÇÃO';
           ths[idxAluno].classList.add('col-nome-larga-eemti');
         }
         if (ths[idxDeficiencia]) {
@@ -1158,9 +1209,7 @@
         });
       }
 
-      // =====================================================================
-      // 7. HISTÓRICO INDIVIDUAL E CONSULTA/EDIÇÃO/EXCLUSÃO DE OCORRÊNCIAS
-      // =====================================================================
+      // 7. HISTÓRICO INDIVIDUAL E CONSULTA DE OCORRÊNCIAS
       const ehTabelaHistoricoIndividual = (
         idxOcorrencia >= 0 &&
         idxData >= 0 &&
@@ -1210,11 +1259,7 @@
         if (idxAluno >= 0 && tds[idxAluno]) tds[idxAluno].classList.add('col-nome-larga-eemti');
         if (idxAcoesBotoes >= 0 && tds[idxAcoesBotoes]) tds[idxAcoesBotoes].classList.add('col-acoes-visivel-eemti');
 
-        // A) Formata Linha de ALUNOS NECESSITADOS DE SUSPENSÃO (atendimento-alunos.html)
-        // Col 0: Nome do Aluno -> Série abaixo -> PDT abaixo
-        // Col 3: Origem (Automática/Manual) ACIMA do input de data -> Data (Hoje) -> Última ocorrência abaixo
-        // Col 4: Motivo / Critério compacto
-        // Col 5: Botões Termo PDF e Atender
+        // A) ALUNOS NECESSITADOS DE SUSPENSÃO (atendimento-alunos.html)
         if (ehTabelaSuspensaoPdt && tds.length >= 6 && !tr._eemtiSuspensaoPdtFormatado) {
           tr._eemtiSuspensaoPdtFormatado = true;
           tds[1].classList.add('col-oculta-eemti');
@@ -1223,7 +1268,6 @@
           const nomeAl = tr._dadosOriginaisLinhaEEMTI[0]?.valor || '-';
           tr.setAttribute('data-nome-aluno-limpo', nomeAl);
 
-          // Extrai Série e PDT da célula 1
           const divSerieEl = tds[1].querySelector('.fw-bold');
           const divPdtEl = tds[1].querySelector('.text-muted');
           const serieTxt = window.abreviarSerieParaExibicao(divSerieEl ? divSerieEl.textContent.trim() : (tr._dadosOriginaisLinhaEEMTI[1]?.valor.split('PDT:')[0] || '').trim());
@@ -1236,7 +1280,6 @@
             <div class="text-secondary mt-1" style="font-size:0.65rem;line-height:1.18;"><i class="bi bi-person-badge me-1"></i><b>PDT:</b> ${pdtTxt || 'Não atribuído'}</div>
           `;
 
-          // Coloca o badge de Origem (Automática / Manual) ACIMA do input de data na célula 3 (preservando o input original e seu ID!)
           const tdDataSusp = tds[3];
           const htmlBadgeOrigem = tds[2].innerHTML;
           if (tdDataSusp && htmlBadgeOrigem && !tdDataSusp.querySelector('.div-origem-acima-data-eemti')) {
@@ -1253,7 +1296,7 @@
           }
         }
 
-        // B) Formata Linha do HISTÓRICO DE ELETIVAS
+        // B) HISTÓRICO DE ELETIVAS
         if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxSerie >= 0 && !tr._eemtiHistEletFormatado) {
           tr._eemtiHistEletFormatado = true;
           [idxDia, idxTempo, idxProfessor, idxCh, idxFaltas, idxFreqPerc].forEach(cIdx => {
@@ -1294,19 +1337,32 @@
           }
         }
 
-        // C) Formata Linha do GERENCIAR ALUNOS
+        // C) GERENCIAR ALUNOS (cadastro-alunos.html — CORRIGIDO conforme image_a98afe.jpg):
+        // - Coluna 0 (Foto): Foto 3x4 + Masculino/Feminino embaixo
+        // - Coluna 1 (Nome / Filiação): Nome do Aluno + Mãe (Contato) + Pai (Contato)
+        // - Coluna 2 (Série / BF / PM / Endereço): Série + BF + PM + Localidade e Endereço abaixo!
         if (ehTabelaGerenciarAlunos && !tr._eemtiGerenciarFormatado) {
           tr._eemtiGerenciarFormatado = true;
           if (tds[idxColStatusFoto]) tds[idxColStatusFoto].classList.add('col-oculta-eemti');
           if (idxBeneficios >= 0 && tds[idxBeneficios]) tds[idxBeneficios].classList.add('col-oculta-eemti');
 
-          const divBoldNome = tds[1].querySelector('.fw-bold, b, strong') || tds[1];
-          const nomeExtraido = (divBoldNome.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase();
+          // Extrai o nome puro a partir do registro original da célula 1
+          const htmlOrigCol1 = tr._dadosOriginaisLinhaEEMTI[1]?.html || '';
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlOrigCol1;
+          const elNomeOrig = tempDiv.querySelector('.fw-bold, b, strong');
+          const nomeExtraido = (elNomeOrig ? elNomeOrig.textContent : (tr._dadosOriginaisLinhaEEMTI[1]?.valor || '').split('Mãe:')[0].split('Pai:')[0]).replace(/\s+/g, ' ').trim().toUpperCase();
           tr.setAttribute('data-nome-aluno-limpo', nomeExtraido);
 
           const infoCad = obterDadosCadastraisAlunoCache(nomeExtraido);
-          const sexoExtenso = formatarSexoPorExtenso(infoCad.sexo);
+          const serieCompletaAluno = infoCad.serie || tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '';
 
+          // Se o cache leve ainda não tinha Mãe/Pai/Endereço desta turma, busca em 2º plano e já atualiza a tela!
+          if (!infoCad.mae && !infoCad.pai && !infoCad.localidade && serieCompletaAluno) {
+            garantirFiliacaoEEnderecoDaTurmaEmSegundoPlano(serieCompletaAluno);
+          }
+
+          const sexoExtenso = formatarSexoPorExtenso(infoCad.sexo);
           if (tds[idxFoto] && sexoExtenso && !tds[idxFoto].querySelector('.lbl-sexo-foto-eemti')) {
             const divSexo = document.createElement('div');
             divSexo.className = 'lbl-sexo-foto-eemti fw-bold text-secondary mt-1 text-center';
@@ -1320,40 +1376,59 @@
           const paiNome = infoCad.pai || '';
           const paiTel = infoCad.telPai || '';
 
-          const textoOrigCol1 = tr._dadosOriginaisLinhaEEMTI[1]?.valor || '';
           let linhasFiliacaoHtml = '';
-
-          if (paiNome || maeNome) {
-            if (paiNome) {
-              linhasFiliacaoHtml += `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;"><b>Pai:</b> ${paiNome}${paiTel ? ' • <b>Tel:</b> ' + paiTel : ''}</div>`;
-            }
+          if (maeNome || paiNome) {
             if (maeNome) {
-              linhasFiliacaoHtml += `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;"><b>Mãe:</b> ${maeNome}${maeTel ? ' • <b>Tel:</b> ' + maeTel : ''}</div>`;
+              linhasFiliacaoHtml += `<div class="text-secondary mt-1" style="font-size:0.68rem;line-height:1.22;"><i class="bi bi-person-heart me-1 text-primary"></i><b>Mãe:</b> ${maeNome}${maeTel ? ` <span class="text-dark fw-semibold">(${maeTel})</span>` : ''}</div>`;
+            }
+            if (paiNome) {
+              linhasFiliacaoHtml += `<div class="text-secondary mt-1" style="font-size:0.68rem;line-height:1.22;"><i class="bi bi-person me-1 text-primary"></i><b>Pai:</b> ${paiNome}${paiTel ? ` <span class="text-dark fw-semibold">(${paiTel})</span>` : ''}</div>`;
             }
           } else {
+            const textoOrigCol1 = tr._dadosOriginaisLinhaEEMTI[1]?.valor || '';
             const restoFiliacao = textoOrigCol1.replace(nomeExtraido, '').trim();
             if (restoFiliacao) {
-              linhasFiliacaoHtml = `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;">${restoFiliacao}</div>`;
+              linhasFiliacaoHtml = `<div class="text-secondary mt-1" style="font-size:0.67rem;line-height:1.2;">${restoFiliacao}</div>`;
+            } else {
+              linhasFiliacaoHtml = `<div class="text-muted mt-1" style="font-size:0.64rem;">Filiação: Não informada na planilha</div>`;
             }
           }
 
           tds[1].innerHTML = `
-            <div class="fw-bold text-dark" style="font-size:0.8rem;line-height:1.2;">${nomeExtraido}</div>
+            <div class="fw-bold text-dark" style="font-size:0.82rem;line-height:1.2;">${nomeExtraido}</div>
             ${linhasFiliacaoHtml}
           `;
 
           if (idxSerie >= 0 && tds[idxSerie]) {
-            const serieCurta = window.abreviarSerieParaExibicao(infoCad.serie || tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '-');
+            const serieCurta = window.abreviarSerieParaExibicao(serieCompletaAluno || '-');
             const textoBenefOrig = idxBeneficios >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxBeneficios]?.valor || '').toUpperCase() : '';
             const recebeBF = String(infoCad.bolsaFamilia || '').toUpperCase() === 'SIM' || textoBenefOrig.includes('BF: SIM');
             const recebePM = String(infoCad.peDeMeia || '').toUpperCase() === 'SIM' || textoBenefOrig.includes('PM: SIM');
 
+            const locAluno = infoCad.localidade || '';
+            const endAluno = infoCad.endereco || '';
+            let htmlLocalEndereco = '';
+
+            if (locAluno || endAluno) {
+              const partesEnd = [];
+              if (locAluno) partesEnd.push(`<b>Loc.:</b> ${locAluno}`);
+              if (endAluno) partesEnd.push(`<b>End.:</b> ${endAluno}`);
+              htmlLocalEndereco = `<div class="text-secondary mt-1 pt-1 border-top" style="font-size:0.65rem;line-height:1.2;"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${partesEnd.join(' • ')}</div>`;
+            } else if (textoBenefOrig) {
+              const limpoBenef = textoBenefOrig.replace(/BF:\s*(SIM|NÃO|NAO)/gi, '').replace(/PM:\s*(SIM|NÃO|NAO)/gi, '').trim();
+              if (limpoBenef) {
+                htmlLocalEndereco = `<div class="text-secondary mt-1 pt-1 border-top" style="font-size:0.65rem;line-height:1.2;"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${limpoBenef}</div>`;
+              }
+            }
+
+            tds[idxSerie].classList.add('col-secundaria-larga-eemti');
             tds[idxSerie].innerHTML = `
-              <div class="mb-1"><span class="badge bg-light text-dark border fw-bold" style="font-size:0.66rem;">${serieCurta}</span></div>
-              <div class="d-flex justify-content-center gap-1 flex-wrap">
+              <div class="d-flex align-items-center gap-1 flex-wrap">
+                <span class="badge bg-light text-dark border fw-bold" style="font-size:0.66rem;">${serieCurta}</span>
                 <span class="badge ${recebeBF ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary'}" title="Bolsa Família: ${recebeBF ? 'SIM' : 'NÃO'}" style="font-size:0.6rem;">BF</span>
                 <span class="badge ${recebePM ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary'}" title="Pé-de-Meia: ${recebePM ? 'SIM' : 'NÃO'}" style="font-size:0.6rem;">PM</span>
               </div>
+              ${htmlLocalEndereco}
             `;
           }
 
@@ -1362,7 +1437,7 @@
           }
         }
 
-        // D) Formata Linha da SITUAÇÃO DO ALUNO
+        // D) SITUAÇÃO DO ALUNO
         if (ehTabelaSituacao && !tr._eemtiSituacaoFormatada) {
           tr._eemtiSituacaoFormatada = true;
           if (tds[idxMatCpf]) tds[idxMatCpf].classList.add('col-oculta-eemti');
@@ -1384,7 +1459,7 @@
           `;
         }
 
-        // E) Formata Linha da BUSCA ATIVA
+        // E) BUSCA ATIVA
         if (ehTabelaBuscaAtiva && !tr._eemtiBuscaAtivaFormatada) {
           tr._eemtiBuscaAtivaFormatada = true;
           const idxColPrincipalMotivo = idxMotivoBuscaAtiva >= 0 ? idxMotivoBuscaAtiva : (idxStatusBuscaAtiva >= 0 ? idxStatusBuscaAtiva : -1);
@@ -1427,7 +1502,10 @@
           }
         }
 
-        // F) Formata Linha do AEE (CORRIGIDO: Nome do Aluno -> Pai e Mãe abaixo -> Data Nasc. e Matrícula na frente!)
+        // F) AEE (CORRIGIDO conforme image_a9e3fd.jpg):
+        // - Linha 1: Nome do Aluno + Série
+        // - Linha 2: Data Nasc.: DD/MM/AAAA • Matrícula: SOMENTE OS NÚMEROS (sem repetir o nome do aluno!)
+        // - Linha 3: Mãe e Pai (puxando do cadastro de alunos!)
         if (ehTabelaAee && !tr._eemtiAeeFormatada) {
           tr._eemtiAeeFormatada = true;
           [idxSerie, idxMatCpf, idxNascimento, idxLaudo, idxObs, idxData].forEach(cIdx => {
@@ -1436,52 +1514,49 @@
             }
           });
 
-          const tdAlOriginal = tds[idxAluno];
-          const divBoldAl = tdAlOriginal.querySelector('.fw-bold, b, strong');
-          const nomeAl = (divBoldAl ? divBoldAl.textContent : (tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '')).split('Matrícula:')[0].trim().toUpperCase();
+          const htmlOrigAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.html || '';
+          const tmpAl = document.createElement('div');
+          tmpAl.innerHTML = htmlOrigAl;
+          const boldEl = tmpAl.querySelector('.fw-bold, b, strong');
+          const nomeAl = (boldEl ? boldEl.textContent : (tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '')).split('Data Nasc')[0].split('Matrícula')[0].replace(/\b[123][ªº°]\s*(?:SÉRIE|SERIE)?\s*[A-Z]\b/gi, '').replace(/\s+/g, ' ').trim().toUpperCase();
           tr.setAttribute('data-nome-aluno-limpo', nomeAl);
 
-          const serieAl = idxSerie >= 0 ? window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '') : '';
+          const infoCad = obterDadosCadastraisAlunoCache(nomeAl);
+          const serieAl = window.abreviarSerieParaExibicao(
+            (idxSerie >= 0 ? tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor : '') || infoCad.serie || ''
+          );
 
-          // Extrai a Matrícula e a Data de Nascimento apenas quando forem realmente números/datas (evita colocar o nome do aluno na matrícula!)
+          if (!infoCad.mae && !infoCad.pai && infoCad.serie) {
+            garantirFiliacaoEEnderecoDaTurmaEmSegundoPlano(infoCad.serie);
+          }
+
           const textoBrutoLinhaAee = tr._dadosOriginaisLinhaEEMTI.map(x => x.valor).join(' | ');
           const matchDataNasc = textoBrutoLinhaAee.match(/\b(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/);
           const nascAl = (idxNascimento >= 0 && /\d/.test(tr._dadosOriginaisLinhaEEMTI[idxNascimento]?.valor || ''))
             ? tr._dadosOriginaisLinhaEEMTI[idxNascimento].valor
             : (matchDataNasc ? matchDataNasc[1] : '-');
 
-          let matAl = '-';
-          if (idxMatCpf >= 0) {
-            const valColMat = (tr._dadosOriginaisLinhaEEMTI[idxMatCpf]?.valor || '').replace(/Matrícula:\s*/i, '').trim();
-            if (valColMat && valColMat.toUpperCase() !== nomeAl && /\d/.test(valColMat)) {
-              matAl = valColMat;
-            }
-          }
-          if (matAl === '-') {
-            const matchNumMat = textoBrutoLinhaAee.match(/\b(\d{5,12})\b/);
-            if (matchNumMat) matAl = matchNumMat[1];
-          }
+          const matBruta = idxMatCpf >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxMatCpf]?.valor || textoBrutoLinhaAee) : textoBrutoLinhaAee;
+          const matSomenteNumeros = extrairSomenteDigitosMatricula(matBruta, nomeAl);
 
-          // Puxa Nome do Pai e da Mãe do cache cadastral do aluno
-          const infoCad = obterDadosCadastraisAlunoCache(nomeAl);
-          const paiNome = infoCad.pai || '';
           const maeNome = infoCad.mae || '';
+          const paiNome = infoCad.pai || '';
           let htmlPais = '';
-          if (paiNome || maeNome) {
+          if (maeNome || paiNome) {
             const partesPais = [];
-            if (paiNome) partesPais.push(`<b>Pai:</b> ${paiNome}`);
             if (maeNome) partesPais.push(`<b>Mãe:</b> ${maeNome}`);
-            htmlPais = `<div class="text-secondary mt-1" style="font-size:0.65rem;line-height:1.2;">${partesPais.join(' • ')}</div>`;
+            if (paiNome) partesPais.push(`<b>Pai:</b> ${paiNome}`);
+            htmlPais = `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;">${partesPais.join(' • ')}</div>`;
           }
 
           tds[idxAluno].innerHTML = `
-            <div class="fw-bold text-dark" style="font-size:0.79rem;line-height:1.2;">
+            <div class="fw-bold text-dark" style="font-size:0.8rem;line-height:1.2;">
               ${nomeAl} ${serieAl ? `<span class="badge bg-primary ms-1" style="font-size:0.58rem;">${serieAl}</span>` : ''}
             </div>
-            ${htmlPais}
-            <div class="text-muted mt-1" style="font-size:0.65rem;line-height:1.2;">
-              <b>Data Nasc.:</b> ${nascAl} • <b>Matrícula:</b> ${matAl}
+            <div class="text-dark mt-1" style="font-size:0.66rem;line-height:1.2;">
+              <b>Data Nasc.:</b> ${nascAl} • <b>Matrícula:</b> <span class="fw-bold text-primary">${matSomenteNumeros}</span>
             </div>
+            ${htmlPais}
           `;
 
           const defTxt = tr._dadosOriginaisLinhaEEMTI[idxDeficiencia]?.valor || '-';
@@ -1497,7 +1572,7 @@
           `;
         }
 
-        // G) Formata Linha do HISTÓRICO INDIVIDUAL DE OCORRÊNCIAS
+        // G) HISTÓRICO INDIVIDUAL DE OCORRÊNCIAS
         if (ehTabelaHistoricoIndividual && !tr._eemtiHistOcoFormatado) {
           tr._eemtiHistOcoFormatado = true;
           if (idxBimestre >= 0 && tds[idxBimestre]) tds[idxBimestre].classList.add('col-oculta-eemti');
@@ -1523,8 +1598,7 @@
           `;
         }
 
-        // H) Formata Linha de CONSULTAR / EDITAR / EXCLUIR OCORRÊNCIAS
-        // Coluna Aluno -> Nome do Aluno + Série abaixo + Nome do Professor abaixo da Série!
+        // H) CONSULTAR / EDITAR / EXCLUIR OCORRÊNCIAS
         if (ehTabelaConsultaOcorrencias && !tr._eemtiConsOcoFormatado) {
           tr._eemtiConsOcoFormatado = true;
           if (idxSerie >= 0 && tds[idxSerie]) tds[idxSerie].classList.add('col-oculta-eemti');
@@ -1566,7 +1640,6 @@
       });
     });
 
-    // Abrevia "2ª SÉRIE A" para "2ª A" dentro de células de tabelas (mantendo "2ª SÉRIE A" nos <select>)
     document.querySelectorAll('table td .badge, table td span, table td div, table td').forEach(el => {
       if (el.children.length === 0) {
         const original = el.textContent || '';
@@ -1583,7 +1656,7 @@
   }
 
   // =========================================================================
-  // 5. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL + FILTRO EXCLUSIVO DO ALUNO CLICADO
+  // 5. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL
   // =========================================================================
   function limparAcentosComparacao(str) {
     return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
@@ -2242,15 +2315,29 @@
           salvarNoLocalStorageSeguro('cache_mapa_series_v4', seriesNorm);
         }
         if (Array.isArray(resFreqSec.alunosDetalhados) && resFreqSec.alunosDetalhados.length > 0) {
+          const alunosAntigos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+          const mapaAntigo = {};
+          alunosAntigos.forEach(x => { if (x && x.nome) mapaAntigo[x.nome] = x; });
+
           const alunosNorm = resFreqSec.alunosDetalhados
-            .map(a => ({
-              ano: a.ano || "2026",
-              nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
-              serie: normalizarSeriePadraoCore(a.serie),
-              bolsaFamilia: String(a.bolsaFamilia || "NÃO").trim().toUpperCase(),
-              peDeMeia: String(a.peDeMeia || "NÃO").trim().toUpperCase(),
-              sexo: String(a.sexo || "-").trim().toUpperCase()
-            }))
+            .map(a => {
+              const nomeUp = String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
+              const ant = mapaAntigo[nomeUp] || mapaFotosAlunosCacheMemoria['ALUNO_' + nomeUp] || {};
+              return {
+                ano: a.ano || "2026",
+                nome: nomeUp,
+                serie: normalizarSeriePadraoCore(a.serie),
+                bolsaFamilia: String(a.bolsaFamilia || ant.bolsaFamilia || "NÃO").trim().toUpperCase(),
+                peDeMeia: String(a.peDeMeia || ant.peDeMeia || "NÃO").trim().toUpperCase(),
+                sexo: String(a.sexo || ant.sexo || "-").trim().toUpperCase(),
+                mae: String(a.mae || ant.mae || "").trim().toUpperCase(),
+                telMae: String(a.telMae || ant.telMae || "").trim(),
+                pai: String(a.pai || ant.pai || "").trim().toUpperCase(),
+                telPai: String(a.telPai || ant.telPai || "").trim(),
+                localidade: String(a.localidade || ant.localidade || "").trim().toUpperCase(),
+                endereco: String(a.endereco || ant.endereco || "").trim().toUpperCase()
+              };
+            })
             .filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO")
             .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
@@ -2468,7 +2555,7 @@
           .map((a, idx) => {
             const det = mapaFotosAlunosCacheMemoria['ALUNO_' + a.nome] || {};
             return {
-              linha: det.linha || (idx + 2),
+              linha: det.linha || a.linha || (idx + 2),
               ano: a.ano || anoAlvo,
               serie: a.serie,
               nome: a.nome,
@@ -2478,23 +2565,18 @@
               bolsaFamilia: det.bolsaFamilia || a.bolsaFamilia || "NÃO",
               peDeMeia: det.peDeMeia || a.peDeMeia || "NÃO",
               sexo: det.sexo || a.sexo || "-",
-              mae: det.mae || "",
-              telMae: det.telMae || "",
-              pai: det.pai || "",
-              telPai: det.telPai || "",
-              localidade: det.localidade || "",
-              endereco: det.endereco || ""
+              mae: det.mae || a.mae || "",
+              telMae: det.telMae || a.telMae || "",
+              pai: det.pai || a.pai || "",
+              telPai: det.telPai || a.telPai || "",
+              localidade: det.localidade || a.localidade || "",
+              endereco: det.endereco || a.endereco || ""
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
         if (navigator.onLine && serieAlvo) {
-          fetchComTimeoutSeguranca(API_PADRAO_URL, {
-            method: 'POST',
-            body: JSON.stringify(bodyObj)
-          }, 15000).then(r => r.text()).then(txt => {
-            if (txt && txt.startsWith('[')) salvarRespostaNoCacheInstantaneo('getAlunosParaEdicao', bodyObj, txt);
-          }).catch(() => {});
+          garantirFiliacaoEEnderecoDaTurmaEmSegundoPlano(serieAlvo);
         }
 
         return JSON.stringify(daTurma);
@@ -2820,14 +2902,12 @@
       });
     } catch (e) {}
 
-    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0) {
+    // Só registra Sync do Service Worker se a página estiver oculta/minimizada para NUNCA concorrer com a janela aberta!
+    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0 && document.visibilityState === 'hidden') {
       try {
         const reg = await navigator.serviceWorker.ready;
         if ('SyncManager' in window) {
           await reg.sync.register('sync-fila-eemti');
-        }
-        if ('periodicSync' in reg) {
-          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
         }
       } catch (e) {}
     }
@@ -2877,7 +2957,9 @@
       sincronizacaoEmAndamento = false;
       window.atualizarBadgeStatusConexaoGlobal();
       registrarDataHoraAtualizacaoBanco();
-      exibirAvisoFinalDeDadosSincronizados(itensDoBackground);
+      // Remove resumos duplicados caso existam
+      const resumosUnicos = Array.from(new Set(itensDoBackground));
+      exibirAvisoFinalDeDadosSincronizados(resumosUnicos);
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
       return true;
     }
@@ -2907,12 +2989,26 @@
   }
 
   // =========================================================================
-  // 9. INTERCEPTADOR DE FETCH
+  // 9. FILA OFFLINE COM ASSINATURA ÚNICA (ZERO DUPLICIDADE NO ENVIO!)
   // =========================================================================
+  function gerarAssinaturaUnicaPayload(payload) {
+    try {
+      const copia = JSON.parse(JSON.stringify(payload || {}));
+      if (copia.dados && copia.dados.data) {
+        // Ignora segundos na assinatura para bloquear cliques ou reenvios duplicados do mesmo lançamento
+        copia.dados.data = String(copia.dados.data).split(' ')[0];
+      }
+      return JSON.stringify(copia);
+    } catch (e) {
+      return String(Date.now());
+    }
+  }
+
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
     let alterou = false;
 
+    // 1. Limpa imediatamente qualquer fila legada que páginas antigas tenham criado para que a página não tente enviar por conta própria!
     FILAS_LEGADAS.forEach(chaveAntiga => {
       const itensAntigos = JSON.parse(localStorage.getItem(chaveAntiga) || '[]');
       if (Array.isArray(itensAntigos) && itensAntigos.length > 0) {
@@ -2925,25 +3021,44 @@
             payloadUnificado = { action: acaoInferida, dados: item.dados };
           }
           if (payloadUnificado) {
-            filaGlobal.push({
-              idFila: item.idFila || item.idTemp || item.idLocal || (Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
-              dataHora: item.dataHora || new Date().toLocaleString('pt-BR'),
-              url: item.url || API_PADRAO_URL,
-              payload: payloadUnificado,
-              resumoHtml: item.resumoHtml || (`<li>${item.resumo || resumirItemSincronizado(payloadUnificado)}</li>`)
-            });
-            alterou = true;
+            const assinatura = gerarAssinaturaUnicaPayload(payloadUnificado);
+            const jaNaFila = filaGlobal.some(f => gerarAssinaturaUnicaPayload(f.payload) === assinatura);
+            if (!jaNaFila && !assinaturasRecentementeEnviadas.has(assinatura)) {
+              filaGlobal.push({
+                idFila: item.idFila || item.idTemp || item.idLocal || (Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+                assinatura: assinatura,
+                dataHora: item.dataHora || new Date().toLocaleString('pt-BR'),
+                url: item.url || API_PADRAO_URL,
+                payload: payloadUnificado,
+                resumoHtml: item.resumoHtml || (`<li>${item.resumo || resumirItemSincronizado(payloadUnificado)}</li>`)
+              });
+              alterou = true;
+            }
           }
         });
         localStorage.removeItem(chaveAntiga);
       }
     });
 
+    // 2. Remove eventuais duplicatas dentro da própria filaGlobal
+    const vistas = new Set();
+    const filaSemDuplicatas = [];
+    filaGlobal.forEach(item => {
+      const ass = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
+      if (!vistas.has(ass) && !assinaturasRecentementeEnviadas.has(ass)) {
+        vistas.add(ass);
+        item.assinatura = ass;
+        filaSemDuplicatas.push(item);
+      } else {
+        alterou = true;
+      }
+    });
+
     if (alterou) {
-      localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaGlobal));
-      espelharFilaParaIndexedDB(filaGlobal);
+      localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaSemDuplicatas));
+      espelharFilaParaIndexedDB(filaSemDuplicatas);
     }
-    return filaGlobal;
+    return filaSemDuplicatas;
   }
 
   function resumirItemSincronizado(payload) {
@@ -2982,6 +3097,7 @@
       const action = bodyObj.action || '';
       const ehReservaDeAmbiente = ACOES_EXCLUSIVAS_ONLINE_RESERVAS.includes(action);
 
+      // MODO OFFLINE
       if (!navigator.onLine) {
         if (ehReservaDeAmbiente) {
           return new Response(JSON.stringify({
@@ -2995,13 +3111,25 @@
           return new Response(JSON.stringify({
             success: true,
             offline: true,
-            msg: 'Salvo no Modo Offline! O envio para o banco de dados ocorrerá automaticamente em segundo plano assim que houver internet.'
+            msg: 'Salvo no Modo Offline! O envio para o banco de dados ocorrerá automaticamente 1 única vez em segundo plano assim que houver internet.'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
         const respostaCache = obterRespostaDoCacheInstantaneo(action, bodyObj);
         if (respostaCache) {
           return new Response(respostaCache, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
+
+      // Se uma página (como registro-ocorrencias.html) tentar reenviar por conta própria um item que já está na fila do portal-core ou que acabou de ser enviado, bloqueia na hora!
+      if (ACOES_GRAVACAO_OFFLINE[action]) {
+        const assReq = gerarAssinaturaUnicaPayload(bodyObj);
+        if (assinaturasRecentementeEnviadas.has(assReq)) {
+          return new Response(JSON.stringify({
+            success: true,
+            jaExiste: true,
+            msg: 'Registro já sincronizado anteriormente!'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
       }
 
@@ -3013,6 +3141,12 @@
       }
 
       try {
+        if (ACOES_GRAVACAO_OFFLINE[action]) {
+          const assEnvioDireto = gerarAssinaturaUnicaPayload(bodyObj);
+          assinaturasRecentementeEnviadas.add(assEnvioDireto);
+          setTimeout(() => assinaturasRecentementeEnviadas.delete(assEnvioDireto), 45000);
+        }
+
         const response = await fetchComTimeoutSeguranca(url, options, 18000);
         const clone = response.clone();
 
@@ -3041,6 +3175,8 @@
         });
       } catch (errRede) {
         if (!ehReservaDeAmbiente && ACOES_GRAVACAO_OFFLINE[action]) {
+          const assFalha = gerarAssinaturaUnicaPayload(bodyObj);
+          assinaturasRecentementeEnviadas.delete(assFalha);
           window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
           return new Response(JSON.stringify({
             success: true,
@@ -3060,9 +3196,21 @@
   };
 
   window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
+    // Limpa filas legadas primeiro para não duplicar
+    FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
+
     const fila = unificarFilasOfflineNoStorage();
+    const assinatura = gerarAssinaturaUnicaPayload(payload);
+
+    // Impede enfileirar o mesmo registro mais de 1 vez!
+    if (fila.some(f => (f.assinatura || gerarAssinaturaUnicaPayload(f.payload)) === assinatura) || assinaturasRecentementeEnviadas.has(assinatura)) {
+      window.atualizarBadgeStatusConexaoGlobal();
+      return;
+    }
+
     fila.push({
       idFila: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      assinatura: assinatura,
       dataHora: new Date().toLocaleString('pt-BR'),
       url: url || API_PADRAO_URL,
       payload: payload,
@@ -3095,25 +3243,36 @@
     });
   }
 
+  // CONSUMO ATÔMICO DA FILA: Retira o item da fila ANTES de enviar para que nem o sw.js nem outra chamada possam enviá-lo repetido!
   window.sincronizarFilaOfflineGlobal = async function() {
     if (sincronizacaoEmAndamento || !navigator.onLine) return;
-
-    const jaFoiEnviadoPeloSW = await verificarSincronizacoesFeitasComAppFechado();
-    if (jaFoiEnviadoPeloSW) return;
-
-    const filaInicial = unificarFilasOfflineNoStorage();
-    if (filaInicial.length === 0) {
-      window.atualizarBadgeStatusConexaoGlobal();
-      return;
-    }
-
     sincronizacaoEmAndamento = true;
+
     const sincronizadosHtml = [];
 
     try {
-      for (let i = 0; i < filaInicial.length; i++) {
-        if (!navigator.onLine) break;
-        const item = filaInicial[i];
+      const jaFoiEnviadoPeloSW = await verificarSincronizacoesFeitasComAppFechado();
+      if (jaFoiEnviadoPeloSW) return;
+
+      let fila = unificarFilasOfflineNoStorage();
+      if (fila.length === 0) {
+        window.atualizarBadgeStatusConexaoGlobal();
+        return;
+      }
+
+      // Limpa o IndexedDB imediatamente enquanto a aba aberta está processando, impedindo que o Service Worker dispare em paralelo!
+      await espelharFilaParaIndexedDB([]);
+
+      while (fila.length > 0 && navigator.onLine) {
+        // Retira o primeiro item atomicamente da fila e já grava a fila reduzida no localStorage!
+        const item = fila.shift();
+        localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+
+        const assItem = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
+        if (assinaturasRecentementeEnviadas.has(assItem)) {
+          continue;
+        }
+        assinaturasRecentementeEnviadas.add(assItem);
 
         try {
           const res = await fetchComTimeoutSeguranca(item.url || API_PADRAO_URL, {
@@ -3127,15 +3286,23 @@
 
           if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
             sincronizadosHtml.push(item.resumoHtml);
-            const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
-              .filter(f => f.idFila !== item.idFila);
-            localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaAtual));
-            await espelharFilaParaIndexedDB(filaAtual);
+          } else {
+            // Se falhou no servidor, libera a assinatura e devolve para a fila
+            assinaturasRecentementeEnviadas.delete(assItem);
+            fila.unshift(item);
+            localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+            break;
           }
-        } catch (e) {
+        } catch (errEnvio) {
+          // Se a internet caiu no meio do envio, devolve o item para a fila para tentar depois
+          assinaturasRecentementeEnviadas.delete(assItem);
+          fila.unshift(item);
+          localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
           break;
         }
       }
+
+      await espelharFilaParaIndexedDB(fila);
     } finally {
       sincronizacaoEmAndamento = false;
       window.atualizarBadgeStatusConexaoGlobal();
@@ -3145,12 +3312,13 @@
       registrarDataHoraAtualizacaoBanco();
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
 
+      const unicosHtml = Array.from(new Set(sincronizadosHtml));
       window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
       if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
-        exibirAvisoFinalDeDadosSincronizados(sincronizadosHtml);
+        exibirAvisoFinalDeDadosSincronizados(unicosHtml);
       } else {
         const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
-        localStorage.setItem(LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(sincronizadosHtml)));
+        localStorage.setItem(LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(unicosHtml)));
       }
     }
   };
@@ -3180,7 +3348,7 @@
   window.addEventListener('online', () => {
     atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
-    setTimeout(window.sincronizarFilaOfflineGlobal, 300);
+    setTimeout(window.sincronizarFilaOfflineGlobal, 350);
   });
 
   window.addEventListener('offline', () => {
@@ -3190,8 +3358,13 @@
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+      const filaRestante = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
+      if (filaRestante.length > 0 && !sincronizacaoEmAndamento) {
+        espelharFilaParaIndexedDB(filaRestante).then(() => {
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+          }
+        });
       }
     } else if (document.visibilityState === 'visible') {
       verificarSincronizacoesFeitasComAppFechado();
