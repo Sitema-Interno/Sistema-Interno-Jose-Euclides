@@ -1,18 +1,20 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - LAYOUT PERFEITO + FOTOS OFFLINE
-// 1. CORRIGE TEXTO VERTICAL (NUNCA QUEBRA 1 LETRA POR LINHA NAS TABELAS)
-// 2. ABREVIA BOTÕES DE CHAMADA (P, F, FJ, A) E SÉRIES NOS HISTÓRICOS (1ª A, 2ª A)
-// 3. CORRIGE O BRASÃO DO ESTADO (brasaoestado.png.png) EM TODAS AS PÁGINAS
-// 4. SALVA FOTOS 3×4 DOS ALUNOS E CAPAS DE LIVROS EM CACHE PARA USO OFFLINE
-// 5. ABERTURA EM 1 MILISSEGUNDO DO CACHE + SINCRONIZAÇÃO COM APP FECHADO
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
+// 1. TOPO DAS PÁGINAS: "brasaoestado.png" | MARCA D'ÁGUA E PDF: "LOGO-removebg-preview.png"
+// 2. ZERO ROLAGEM HORIZONTAL NO CELULAR (AJUSTE INTELIGENTE DE COLUNAS E BOTÕES)
+// 3. CADASTRO DE ALUNOS: SEM COLUNA "STATUS DA FOTO", AÇÕES COMPACTAS (EDITAR/EXCLUIR)
+//    E CLIQUE NA LINHA ABRE MODAL COM TODAS AS INFORMAÇÕES DO ALUNO!
+// 4. BOTÃO "VOLTAR" REABRE O MÓDULO ANTERIOR | BOTÃO "INÍCIO" ABRE A INDEX ORIGINAL LIMPA
+// 5. RESPOSTA INSTANTÂNEA (1ms) PARA TODAS AS PÁGINAS (INCLUINDO RELATÓRIO DE TURMA)
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
   const LOG_SINCRONIZADOS_KEY = 'log_recem_sincronizados_eemti_v1';
   const SESSAO_JA_SINCRONIZADA_KEY = 'sessao_inicial_sincronizada_eemti_v1';
   const ULTIMA_ATUALIZACAO_STR_KEY = 'ultima_atualizacao_banco_eemti_str';
+  const ULTIMO_TOPICO_COLMEIA_KEY = 'ultimo_topico_colmeia_selecionado_eemti';
   const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
-  const IDB_VERSION = 2; // Versão 2 inclui store de fotos offline
+  const IDB_VERSION = 2;
   const API_PADRAO_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
 
   const FILAS_LEGADAS = [
@@ -92,7 +94,7 @@
   let mapaFotosAlunosCacheMemoria = {};
 
   // =========================================================================
-  // 0. RESPONSIVIDADE CORRIGIDA (SEM TEXTO VERTICAL LETRA POR LETRA!)
+  // 0. RESPONSIVIDADE TOTAL SEM ROLAGEM HORIZONTAL NO CELULAR
   // =========================================================================
   function injetarResponsividadeGlobalEEMTI() {
     if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
@@ -103,50 +105,48 @@
         max-width: 100vw !important;
         overflow-x: hidden !important;
       }
-      .main-container, .container, .container-fluid, .card {
+      .main-container, .container, .container-fluid, .card, .table-responsive {
         max-width: 100% !important;
+        overflow-x: hidden !important;
         box-sizing: border-box !important;
       }
 
-      /* Enquadramento de tabelas com rolagem horizontal suave quando necessário,
-         PROIBINDO quebrar palavras letra por letra na vertical! */
-      .table-responsive, .card > .w-100, .card > div > table.table {
-        max-width: 100% !important;
-      }
-      .card:has(table.table) {
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch;
-      }
+      /* Tabelas 100% contidas na largura da tela sem rolagem lateral e sem texto vertical! */
       table.table, .tabela-enquadrada {
         width: 100% !important;
+        max-width: 100% !important;
         table-layout: auto !important;
         border-collapse: collapse !important;
       }
       table.table th, table.table td, .tabela-enquadrada th, .tabela-enquadrada td {
         word-break: normal !important;
         overflow-wrap: break-word !important;
-        hyphens: none !important;
+        white-space: normal !important;
         vertical-align: middle !important;
       }
 
-      /* Impede que colunas de nomes de alunos ou detalhes fiquem espremidas em 1 letra por linha */
-      table.table th:nth-child(2), table.table td:nth-child(2),
-      table.table th:nth-child(3), table.table td:nth-child(3) {
-        min-width: 115px;
-      }
-      table.table th:first-child, table.table td:first-child {
-        min-width: 36px;
+      /* Oculta colunas desnecessárias marcadas pelo motor (ex: Status da Foto) */
+      .col-oculta-eemti {
+        display: none !important;
       }
 
-      /* Compacta espaço entre botões de ação em todo o sistema */
+      /* Linha de aluno clicável para abrir a Ficha Completa */
+      tr.linha-aluno-clicavel {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+      tr.linha-aluno-clicavel:hover {
+        background-color: #eff6ff !important;
+      }
+
+      /* Botões de ação super enxutos e alinhados */
       .d-flex.gap-2, .d-flex.gap-3, .btn-group {
-        gap: 5px !important;
+        gap: 4px !important;
       }
-      td .btn + .btn, td .btn + button, th .btn + .btn {
-        margin-left: 3px !important;
+      td .btn + .btn, td .btn + button {
+        margin-left: 2px !important;
       }
 
-      /* Selo de atualização discreto no topo (após botão Sair) */
       .badge-sync-header-eemti {
         display: inline-flex;
         align-items: center;
@@ -177,13 +177,12 @@
         border-color: #fecaca;
       }
 
-      /* Botões compactos P, F, FJ, A na chamada e atividades */
       .btn-chamada-compacto {
-        min-width: 34px !important;
-        padding: 5px 7px !important;
+        min-width: 32px !important;
+        padding: 4px 6px !important;
         font-weight: 800 !important;
-        font-size: 0.74rem !important;
-        border-radius: 7px !important;
+        font-size: 0.72rem !important;
+        border-radius: 6px !important;
         line-height: 1.1 !important;
       }
 
@@ -202,17 +201,17 @@
           gap: 10px !important;
         }
         .brand-escola img {
-          height: 60px !important;
+          height: 58px !important;
           width: auto !important;
         }
         .brand-titulo-principal {
-          font-size: 1.38rem !important;
+          font-size: 1.35rem !important;
         }
         .brand-subtitulo {
-          font-size: 0.56rem !important;
+          font-size: 0.55rem !important;
         }
         .brand-slogan {
-          font-size: 1.1rem !important;
+          font-size: 1.08rem !important;
         }
         .user-bar {
           flex-wrap: wrap !important;
@@ -223,44 +222,52 @@
           gap: 5px !important;
         }
         .main-container {
-          padding: 8px 6px 24px 6px !important;
+          padding: 6px 4px 24px 4px !important;
         }
         .card {
-          padding: 11px 9px !important;
+          padding: 10px 7px !important;
           border-radius: 12px !important;
           margin-bottom: 12px !important;
         }
         .nav-tabs {
           display: flex !important;
           flex-wrap: wrap !important;
-          gap: 4px !important;
+          gap: 3px !important;
         }
         .nav-tabs .nav-item {
           flex: 1 1 auto !important;
         }
         .nav-tabs .nav-link {
-          font-size: 0.74rem !important;
-          padding: 7px 8px !important;
+          font-size: 0.72rem !important;
+          padding: 6px 7px !important;
           text-align: center !important;
         }
         table.table th {
-          font-size: 0.66rem !important;
-          padding: 6px 4px !important;
-          line-height: 1.15 !important;
+          font-size: 0.62rem !important;
+          padding: 5px 3px !important;
+          line-height: 1.1 !important;
         }
         table.table td {
-          font-size: 0.72rem !important;
-          padding: 6px 4px !important;
-          line-height: 1.2 !important;
+          font-size: 0.68rem !important;
+          padding: 5px 3px !important;
+          line-height: 1.15 !important;
         }
         table.table td .btn {
-          font-size: 0.68rem !important;
-          padding: 4px 7px !important;
+          font-size: 0.64rem !important;
+          padding: 3px 6px !important;
           margin: 1px !important;
         }
         table.table td .badge {
-          font-size: 0.63rem !important;
-          padding: 3px 5px !important;
+          font-size: 0.6rem !important;
+          padding: 2px 4px !important;
+        }
+        table.table td img {
+          max-width: 38px !important;
+          max-height: 50px !important;
+        }
+        /* Oculta colunas secundárias no celular para caber 100% sem rolagem horizontal */
+        .col-oculta-mobile-eemti {
+          display: none !important;
         }
       }
     `;
@@ -270,10 +277,50 @@
   injetarResponsividadeGlobalEEMTI();
 
   // =========================================================================
-  // 1. COMPACTADOR VISUAL AUTOMÁTICO:
-  // - Transforma "Presente (P)", "Falta (F)", "Justificada (FJ)", "Atestado (A)" em "P", "F", "FJ", "A"
-  // - Abrevia "1ª SÉRIE A" -> "1ª A", "2ª SÉRIE B" -> "2ª B" APENAS nas tabelas e históricos
-  //   (mantendo "2ª SÉRIE A" intacto nos <select> de seleção!)
+  // 1. SEPARAÇÃO EXATA DAS DUAS IMAGENS:
+  // - TOPO DAS PÁGINAS (.brand-escola img): "brasaoestado.png"
+  // - MARCA D'ÁGUA DE FUNDO (.watermark-brasao-fundo) E PDF: "LOGO-removebg-preview.png"
+  // =========================================================================
+  function aplicarImagensOficiaisTopoEMarcaDagua() {
+    const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
+    const b64LogoMarcaDagua = localStorage.getItem('cache_logo_escola_marcadagua_b64');
+
+    // 1. Imagem do Topo (Brasão do Estado: brasaoestado.png)
+    document.querySelectorAll('.brand-escola img, header img#logoEscola').forEach(img => {
+      img.onerror = function() {
+        if (this.src.endsWith('brasaoestado.png') && !this.src.endsWith('brasaoestado.png.png')) {
+          this.src = 'brasaoestado.png.png';
+        } else if (b64BrasaoTopo && this.src !== b64BrasaoTopo) {
+          this.src = b64BrasaoTopo;
+        }
+      };
+      const srcAtual = String(img.getAttribute('src') || '');
+      if (!navigator.onLine && b64BrasaoTopo) {
+        if (img.src !== b64BrasaoTopo) img.src = b64BrasaoTopo;
+      } else if (!srcAtual.includes('brasaoestado.png') && !srcAtual.startsWith('data:image')) {
+        img.src = 'brasaoestado.png';
+      }
+    });
+
+    // 2. Imagem da Marca d'Água de Fundo (Logo da Escola: LOGO-removebg-preview.png)
+    document.querySelectorAll('img.watermark-brasao-fundo').forEach(img => {
+      img.onerror = function() {
+        if (b64LogoMarcaDagua && this.src !== b64LogoMarcaDagua) {
+          this.src = b64LogoMarcaDagua;
+        }
+      };
+      const srcAtual = String(img.getAttribute('src') || '');
+      if (!navigator.onLine && b64LogoMarcaDagua) {
+        if (img.src !== b64LogoMarcaDagua) img.src = b64LogoMarcaDagua;
+      } else if (!srcAtual.includes('LOGO-removebg-preview.png') && !srcAtual.startsWith('data:image')) {
+        img.src = 'LOGO-removebg-preview.png';
+      }
+    });
+  }
+
+  // =========================================================================
+  // 2. OTIMIZADOR DE TABELAS, GERENCIAMENTO DE ALUNOS (MODAL AO CLICAR NA LINHA)
+  //    E BOTÕES COMPACTOS (P, F, FJ, A / SÉRIES ABREVIADAS 1ª A, 2ª A)
   // =========================================================================
   window.abreviarSerieParaExibicao = function(textoSerie) {
     if (!textoSerie) return "";
@@ -282,10 +329,94 @@
       .replace(/\b([123][ªº°])\s*(?:SÉRIE|SERIE)\b/gi, '$1 SÉRIE');
   };
 
+  window.abrirModalFichaCompletaAlunoEEMTI = async function(nomeAlunoClicado, serieHint) {
+    const nomeLimpo = String(nomeAlunoClicado || "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (!nomeLimpo || typeof Swal === 'undefined') return;
+
+    const alunosCache = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+    const baseAl = alunosCache.find(a => a.nome === nomeLimpo) || {};
+    let infoDet = mapaFotosAlunosCacheMemoria['ALUNO_' + nomeLimpo] || {};
+
+    // Se ainda não tiver os dados completos de filiação/endereço em memória e estiver online, busca rápido
+    if ((!infoDet.mae && !infoDet.endereco) && navigator.onLine) {
+      try {
+        const resInd = await Promise.race([
+          fetchComTimeoutSeguranca(API_PADRAO_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'obterFotoAlunoIndividual', aluno: nomeLimpo })
+          }, 3500).then(r => r.json()),
+          new Promise(r => setTimeout(() => r(null), 3500))
+        ]);
+        if (resInd && resInd.success) {
+          infoDet = resInd;
+          salvarFotoNoIndexedDB('ALUNO_' + nomeLimpo, resInd);
+        }
+      } catch (e) {}
+    }
+
+    const fotoSrc = infoDet.foto || baseAl.foto || '';
+    const serieExib = infoDet.serie || baseAl.serie || serieHint || '-';
+    const anoExib = infoDet.ano || baseAl.ano || '2026';
+    const sexoExib = infoDet.sexo || baseAl.sexo || '-';
+    const bfExib = infoDet.bolsaFamilia || baseAl.bolsaFamilia || 'NÃO';
+    const pmExib = infoDet.peDeMeia || baseAl.peDeMeia || 'NÃO';
+    const maeExib = infoDet.mae || baseAl.mae || 'NÃO INFORMADO';
+    const telMaeExib = infoDet.telMae || baseAl.telMae || '-';
+    const paiExib = infoDet.pai || baseAl.pai || 'NÃO INFORMADO';
+    const telPaiExib = infoDet.telPai || baseAl.telPai || '-';
+    const locExib = infoDet.localidade || baseAl.localidade || '-';
+    const endExib = infoDet.endereco || baseAl.endereco || '-';
+
+    const htmlFoto = fotoSrc && String(fotoSrc).startsWith('data:image')
+      ? `<img src="${fotoSrc}" style="width:95px;height:126px;object-fit:cover;border-radius:10px;border:2px solid #15438c;box-shadow:0 4px 10px rgba(0,0,0,0.12);">`
+      : `<div style="width:95px;height:126px;border-radius:10px;border:2px dashed #94a3b8;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#64748b;font-size:2.2rem;"><i class="bi bi-person-bounding-box"></i></div>`;
+
+    Swal.fire({
+      title: `<span style="font-size:1.05rem;font-weight:800;color:#15438c;"><i class="bi bi-person-vcard-fill me-2"></i>Ficha Completa do(a) Aluno(a)</span>`,
+      html: `
+        <div class="text-start mt-2" style="font-size:0.84rem;">
+          <div class="d-flex align-items-center gap-3 p-2 rounded bg-light border mb-3">
+            ${htmlFoto}
+            <div>
+              <div class="fw-bold text-dark" style="font-size:0.98rem;line-height:1.2;">${nomeLimpo}</div>
+              <div class="mt-1">
+                <span class="badge bg-primary">${serieExib}</span>
+                <span class="badge bg-secondary">Ano: ${anoExib}</span>
+                <span class="badge bg-info text-dark">Sexo: ${sexoExib}</span>
+              </div>
+              <div class="mt-2 d-flex gap-1 flex-wrap">
+                <span class="badge ${bfExib === 'SIM' ? 'bg-success' : 'bg-secondary'}">Bolsa Família: ${bfExib}</span>
+                <span class="badge ${pmExib === 'SIM' ? 'bg-success' : 'bg-secondary'}">Pé-de-Meia: ${pmExib}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-2 rounded border mb-2">
+            <div class="fw-bold text-primary small mb-1"><i class="bi bi-people-fill me-1"></i>Filiação e Contatos</div>
+            <div><b>Mãe:</b> ${maeExib}</div>
+            <div><b>Tel. Mãe:</b> ${telMaeExib}</div>
+            <hr class="my-1">
+            <div><b>Pai:</b> ${paiExib}</div>
+            <div><b>Tel. Pai:</b> ${telPaiExib}</div>
+          </div>
+
+          <div class="p-2 rounded border">
+            <div class="fw-bold text-primary small mb-1"><i class="bi bi-geo-alt-fill me-1"></i>Localidade e Endereço</div>
+            <div><b>Localidade:</b> ${locExib}</div>
+            <div><b>Endereço:</b> ${endExib}</div>
+          </div>
+        </div>
+      `,
+      confirmButtonColor: '#15438c',
+      confirmButtonText: 'Fechar Ficha'
+    });
+  };
+
   function aplicarCompactacaoVisualNasTabelasEBotoes() {
-    // A) Compacta botões de Frequência da Secretaria para P, F, FJ, A
+    aplicarImagensOficiaisTopoEMarcaDagua();
+
+    // A) Compacta botões de Frequência da Secretaria (P, F, FJ, A) e de Atividades (R, NR, A no celular)
     document.querySelectorAll('table button, table .btn, table label.btn').forEach(btn => {
-      if (btn.children.length > 0 && !btn.querySelector('i')) return;
       const txt = (btn.textContent || '').trim();
       if (txt === 'Presente (P)' || txt === 'Presente') {
         btn.textContent = 'P';
@@ -304,9 +435,84 @@
         btn.title = 'Atestado (A)';
         btn.classList.add('btn-chamada-compacto');
       }
+
+      // Em Gerenciar Alunos: substitui o botão largo "Editar / Foto" apenas pelo ícone de edição compacto!
+      if (txt.includes('Editar / Foto') || txt === 'Editar') {
+        btn.innerHTML = `<i class="bi bi-pencil-square"></i>`;
+        btn.title = 'Editar Aluno / Foto 3x4';
+        btn.classList.add('px-2', 'py-1');
+      }
     });
 
-    // B) Abrevia "2ª SÉRIE A" para "2ª A" dentro de células de tabelas (td, badge), sem mexer nos <select>!
+    // B) Oculta a coluna "STATUS DA FOTO" em Gerenciar Alunos e colunas extras em telas pequenas
+    document.querySelectorAll('table.table').forEach(tabela => {
+      const ths = Array.from(tabela.querySelectorAll('thead th'));
+      let idxColStatusFoto = -1;
+      const indicesOcultarNoMobile = [];
+
+      ths.forEach((th, idx) => {
+        const tituloCol = (th.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase();
+        // REGRA SOLICITADA: Remove a coluna "STATUS DA FOTO" em qualquer tela!
+        if (tituloCol.includes('STATUS DA FOTO') || tituloCol === 'STATUS FOTO') {
+          idxColStatusFoto = idx;
+          th.classList.add('col-oculta-eemti');
+        }
+        // Colunas secundárias que podem ser ocultadas no celular para caber sem rolagem horizontal
+        if (
+          tituloCol.includes('BENEFÍCIOS') ||
+          tituloCol.includes('BENEFICIOS') ||
+          tituloCol === 'C.H' ||
+          tituloCol === 'ID' ||
+          tituloCol.includes('EDIÇÃO') ||
+          tituloCol.includes('EDITORA') ||
+          tituloCol.includes('BACKUP')
+        ) {
+          indicesOcultarNoMobile.push(idx);
+          th.classList.add('col-oculta-mobile-eemti');
+        }
+      });
+
+      const linhas = tabela.querySelectorAll('tbody tr');
+      linhas.forEach(tr => {
+        const tds = tr.children;
+        if (!tds || tds.length <= 1) return;
+
+        if (idxColStatusFoto >= 0 && tds[idxColStatusFoto]) {
+          tds[idxColStatusFoto].classList.add('col-oculta-eemti');
+        }
+        indicesOcultarNoMobile.forEach(iMob => {
+          if (tds[iMob]) tds[iMob].classList.add('col-oculta-mobile-eemti');
+        });
+
+        // Se for a tabela de Gerenciar Alunos (possui coluna FOTO 3X4 e NOME DO ALUNO):
+        // 1. Deixa na célula do nome apenas o Nome Principal limpo;
+        // 2. Torna a linha inteira clicável para abrir o Modal com todas as informações do aluno!
+        if (idxColStatusFoto >= 0 && tds[1] && !tr._eemtiFichaBound) {
+          tr._eemtiFichaBound = true;
+          tr.classList.add('linha-aluno-clicavel');
+          tr.title = 'Toque na linha para ver todas as informações do(a) aluno(a)';
+
+          const divBoldNome = tds[1].querySelector('.fw-bold, b, strong') || tds[1];
+          const nomeExtraido = (divBoldNome.textContent || '').replace(/\s+/g, ' ').trim();
+          const serieExtraida = tds[2] ? (tds[2].textContent || '').trim() : '';
+
+          // Limpa o excesso de linhas (Mãe/Telefone) de dentro da célula para a tabela ficar limpa e elegante
+          if (nomeExtraido) {
+            tds[1].innerHTML = `
+              <div class="fw-bold text-dark">${nomeExtraido}</div>
+              <small class="text-primary" style="font-size:0.65rem;"><i class="bi bi-info-circle me-1"></i>Toque p/ ver ficha</small>
+            `;
+          }
+
+          tr.addEventListener('click', function(ev) {
+            if (ev.target.closest('button, a, input, select, .btn')) return;
+            window.abrirModalFichaCompletaAlunoEEMTI(nomeExtraido, serieExtraida);
+          });
+        }
+      });
+    });
+
+    // C) Abrevia "2ª SÉRIE A" para "2ª A" dentro de células de tabelas (mantendo "2ª SÉRIE A" nos <select>)
     document.querySelectorAll('table td .badge, table td span, table td div, table td').forEach(el => {
       if (el.children.length === 0) {
         const original = el.textContent || '';
@@ -318,39 +524,12 @@
         }
       }
     });
-
-    // C) Garante que o Brasão do Estado ("brasaoestado.png.png") apareça mesmo se alguma imagem caiu no fallback do boneco flaticon
-    CorrigirBrasaoEstadoELogoNaTela();
   }
 
-  function CorrigirBrasaoEstadoELogoNaTela() {
-    const b64Brasao = localStorage.getItem('cache_brasao_oficial_eemti_b64');
-    document.querySelectorAll('.brand-escola img, img#logoEscola, img.watermark-brasao-fundo, img[src*="LOGO-removebg"], img[src*="brasaoestado"], img[src*="2941658.png"]').forEach(img => {
-      const srcAtual = String(img.getAttribute('src') || '');
-      // Remove o onerror antigo que colocava o boneco de óculos (2941658.png)
-      img.onerror = function() {
-        if (b64Brasao && this.src !== b64Brasao) {
-          this.src = b64Brasao;
-        } else if (!this.src.endsWith('brasaoestado.png.png')) {
-          this.src = 'brasaoestado.png.png';
-        }
-      };
-
-      if (srcAtual.includes('2941658.png') || srcAtual.includes('LOGO-removebg-preview.png') || (srcAtual.includes('brasaoestado') && !srcAtual.endsWith('brasaoestado.png.png'))) {
-        if (!navigator.onLine && b64Brasao) {
-          img.src = b64Brasao;
-        } else {
-          img.src = 'brasaoestado.png.png';
-        }
-      }
-    });
-  }
-
-  // Observa mudanças nas tabelas para aplicar P/F/FJ/A e "2ª A" em milissegundos assim que qualquer lista carregar!
   let timerCompactacao = null;
   const observerTabelas = new MutationObserver(() => {
     if (timerCompactacao) clearTimeout(timerCompactacao);
-    timerCompactacao = setTimeout(aplicarCompactacaoVisualNasTabelasEBotoes, 40);
+    timerCompactacao = setTimeout(aplicarCompactacaoVisualNasTabelasEBotoes, 35);
   });
 
   function iniciarObservadorVisualDOM() {
@@ -359,6 +538,11 @@
     observerTabelas.observe(document.body, { childList: true, subtree: true });
   }
 
+  // =========================================================================
+  // 3. SELO DE ATUALIZAÇÃO APÓS O BOTÃO SAIR + COMPORTAMENTO DE VOLTAR E INÍCIO
+  // - Botão "Voltar": volta para a página anterior (ou index com o último hexágono selecionado)
+  // - Botão "Início": limpa a seleção e abre a index.html original sem nada selecionado!
+  // =========================================================================
   function registrarDataHoraAtualizacaoBanco() {
     const agora = new Date();
     const dataBr = agora.toLocaleDateString('pt-BR');
@@ -377,7 +561,7 @@
       selo = document.createElement('span');
       selo.id = 'seloTopoSyncBancoEEMTI';
       selo.className = 'badge-sync-header-eemti';
-      selo.title = 'Clique aqui quando quiser buscar dados novos da planilha e atualizar o cache';
+      selo.title = 'Clique aqui quando quiser buscar informações novas da planilha e atualizar o cache';
       selo.onclick = () => {
         if (navigator.onLine) {
           atualizarSeloTopoSincronizacao('SINCRONIZANDO');
@@ -411,58 +595,135 @@
     const estaNaHome = path.endsWith('index.html') || path.endsWith('/') || path === '';
     const estaNoLogin = path.endsWith('login.html');
 
-    CorrigirBrasaoEstadoELogoNaTela();
+    aplicarImagensOficiaisTopoEMarcaDagua();
 
-    // Faz cache em Base64 do brasaoestado.png.png para funcionar 100% offline e nos PDFs
+    // Faz cache em Base64 das 2 imagens separadamente:
+    // 1. brasaoestado.png (exclusivo para o topo das páginas)
+    // 2. LOGO-removebg-preview.png (exclusivo para marca d'água de fundo e PDFs)
     if (navigator.onLine) {
-      window.converterImagemParaDataUrlPdf('brasaoestado.png.png', 300, 300).then(b64 => {
+      window.converterImagemParaDataUrlPdf('brasaoestado.png', 300, 300).then(b64 => {
         if (b64) {
-          try {
-            localStorage.setItem('cache_brasao_oficial_eemti_b64', b64);
-            localStorage.setItem('cache_logo_oficial_eemti_b64', b64);
-          } catch (e) {}
-          CorrigirBrasaoEstadoELogoNaTela();
+          try { localStorage.setItem('cache_brasao_estado_topo_b64', b64); } catch (e) {}
+          aplicarImagensOficiaisTopoEMarcaDagua();
+        } else {
+          window.converterImagemParaDataUrlPdf('brasaoestado.png.png', 300, 300).then(b64Alt => {
+            if (b64Alt) {
+              try { localStorage.setItem('cache_brasao_estado_topo_b64', b64Alt); } catch (e) {}
+              aplicarImagensOficiaisTopoEMarcaDagua();
+            }
+          });
+        }
+      });
+
+      window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 300, 300).then(b64Logo => {
+        if (b64Logo) {
+          try { localStorage.setItem('cache_logo_escola_marcadagua_b64', b64Logo); } catch (e) {}
+          aplicarImagensOficiaisTopoEMarcaDagua();
         }
       });
     }
 
     if (estaNoLogin) return;
 
+    // Na Home (index.html):
+    // Memoriza qual hexágono o professor clicou; se ele voltou pelo botão "Voltar", reabre a gaveta daquele hexágono!
+    // Se ele clicou em "Início" ou "Sair", abre a index.html original limpa (sem seleção)!
     if (estaNaHome) {
-      sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
-      if (typeof window.fecharPainelTopico === 'function') {
-        window.fecharPainelTopico();
+      const fnOrig = window.selecionarTopicoColmeia;
+      if (typeof fnOrig === 'function' && !fnOrig._eemtiWrapped) {
+        const novaFn = function(elementoHex, chaveTopico) {
+          const jaAtivo = elementoHex && elementoHex.classList && elementoHex.classList.contains('ativo');
+          fnOrig.apply(this, arguments);
+          if (jaAtivo) {
+            sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
+          } else if (chaveTopico) {
+            sessionStorage.setItem(ULTIMO_TOPICO_COLMEIA_KEY, chaveTopico);
+          }
+        };
+        novaFn._eemtiWrapped = true;
+        window.selecionarTopicoColmeia = novaFn;
+      }
+
+      const fnFechar = window.fecharPainelTopico;
+      if (typeof fnFechar === 'function' && !fnFechar._eemtiWrapped) {
+        const novaFechar = function() {
+          sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
+          fnFechar.apply(this, arguments);
+        };
+        novaFechar._eemtiWrapped = true;
+        window.fecharPainelTopico = novaFechar;
+      }
+
+      const deveRestaurarTopico = sessionStorage.getItem('restaurar_topico_ao_voltar_eemti') === 'SIM';
+      const ultimoTopico = sessionStorage.getItem(ULTIMO_TOPICO_COLMEIA_KEY);
+
+      if (deveRestaurarTopico && ultimoTopico) {
+        sessionStorage.removeItem('restaurar_topico_ao_voltar_eemti');
+        setTimeout(() => {
+          const seletores = Array.from(document.querySelectorAll('.hex-node'));
+          const hexAlvo = seletores.find(el => {
+            const onc = el.getAttribute('onclick') || '';
+            return onc.includes(`'${ultimoTopico}'`) && el.offsetParent !== null;
+          }) || seletores.find(el => (el.getAttribute('onclick') || '').includes(`'${ultimoTopico}'`));
+
+          if (hexAlvo && typeof window.selecionarTopicoColmeia === 'function' && !hexAlvo.classList.contains('ativo')) {
+            window.selecionarTopicoColmeia(hexAlvo, ultimoTopico);
+          }
+        }, 100);
+      } else {
+        // Se entrou direto ou clicou em Início/Sair, garante que a index fique sem nenhuma seleção!
+        if (typeof window.fecharPainelTopico === 'function') {
+          window.fecharPainelTopico();
+        }
       }
     }
 
     const userBar = document.querySelector('.user-bar');
-    if (userBar && !estaNaHome && !document.getElementById('btnVoltarPaginaAnteriorEEMTI')) {
-      const btnVoltar = document.createElement('button');
-      btnVoltar.type = 'button';
-      btnVoltar.id = 'btnVoltarPaginaAnteriorEEMTI';
-      btnVoltar.className = 'btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold';
-      btnVoltar.innerHTML = `<i class="bi bi-arrow-left-circle-fill me-1"></i>Voltar`;
-      btnVoltar.title = 'Voltar para a página inicial limpa';
-      btnVoltar.onclick = function() {
-        sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
-        window.location.href = 'index.html';
-      };
-
-      const btnRef = userBar.querySelector('a[href*="index.html"], button.btn-outline-danger');
-      if (btnRef) {
-        userBar.insertBefore(btnVoltar, btnRef);
-      } else {
-        userBar.appendChild(btnVoltar);
-      }
-    }
-
     if (userBar) {
+      // Botão "Início" e Logo do Topo: voltam para a index.html original LIMPA (sem nenhuma seleção)
+      document.querySelectorAll('a[href*="index.html"]').forEach(linkInicio => {
+        if (!linkInicio._eemtiInicioBound) {
+          linkInicio._eemtiInicioBound = true;
+          linkInicio.addEventListener('click', () => {
+            sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
+            sessionStorage.removeItem('restaurar_topico_ao_voltar_eemti');
+          });
+        }
+      });
+
+      // Botão "Voltar": volta para a página anterior (e se for a index.html, reabre o módulo que estava selecionado!)
+      if (!estaNaHome && !document.getElementById('btnVoltarPaginaAnteriorEEMTI')) {
+        const btnVoltar = document.createElement('button');
+        btnVoltar.type = 'button';
+        btnVoltar.id = 'btnVoltarPaginaAnteriorEEMTI';
+        btnVoltar.className = 'btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold';
+        btnVoltar.innerHTML = `<i class="bi bi-arrow-left-circle-fill me-1"></i>Voltar`;
+        btnVoltar.title = 'Voltar para a página/função anterior selecionada';
+        btnVoltar.onclick = function() {
+          sessionStorage.setItem('restaurar_topico_ao_voltar_eemti', 'SIM');
+          if (document.referrer && document.referrer.includes(window.location.host) && window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.location.href = 'index.html';
+          }
+        };
+
+        const btnRef = userBar.querySelector('a[href*="index.html"], button.btn-outline-danger');
+        if (btnRef) {
+          userBar.insertBefore(btnVoltar, btnRef);
+        } else {
+          userBar.appendChild(btnVoltar);
+        }
+      }
+
+      // Botão "Sair": limpa qualquer seleção e flag de sessão
       const btnSair = userBar.querySelector('button.btn-outline-danger');
       if (btnSair && !btnSair._eemtiCleanBound) {
         btnSair._eemtiCleanBound = true;
         btnSair.addEventListener('click', () => {
           sessionStorage.removeItem(SESSAO_JA_SINCRONIZADA_KEY);
-          sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
+          sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
+          sessionStorage.removeItem('restaurar_topico_ao_voltar_eemti');
         });
       }
     }
@@ -524,7 +785,7 @@
   }
 
   // =========================================================================
-  // 2. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 E CAPAS OFFLINE!
+  // 4. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 OFFLINE
   // =========================================================================
   function abrirBancoSyncIDB() {
     return new Promise(resolve => {
@@ -582,8 +843,6 @@
     if (!ACOES_LEITURA_CACHE_PURO.includes(action)) return;
     if (!textoJson) return;
 
-    // Se a resposta contiver fotos 3x4 de alunos (getAlunosParaEdicao, obterFotoAlunoIndividual, getFiltrosOcorrencias)
-    // ou capas de livros, salva cada foto no IndexedDB para aparecer 100% offline sem estourar o localStorage!
     try {
       const parsed = JSON.parse(textoJson);
       if (action === 'obterFotoAlunoIndividual' && parsed && parsed.success && bodyObj.aluno) {
@@ -592,15 +851,9 @@
         const serieChave = normalizarSeriePadraoCore((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || '');
         if (serieChave) salvarFotoNoIndexedDB('TURMA_EDICAO_' + serieChave, parsed);
         parsed.forEach(al => {
-          if (al && al.nome && al.foto) {
-            salvarFotoNoIndexedDB('ALUNO_' + String(al.nome).trim().toUpperCase(), {
-              success: true,
-              nome: al.nome,
-              serie: al.serie,
-              foto: al.foto,
-              mae: al.mae || '',
-              pai: al.pai || ''
-            });
+          if (al && al.nome) {
+            const ant = mapaFotosAlunosCacheMemoria['ALUNO_' + String(al.nome).trim().toUpperCase()] || {};
+            salvarFotoNoIndexedDB('ALUNO_' + String(al.nome).trim().toUpperCase(), Object.assign({}, ant, al, { success: true }));
           }
         });
       } else if ((action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive') && parsed && parsed.success && bodyObj.caminho) {
@@ -618,7 +871,6 @@
   }
 
   function obterRespostaDoCacheInstantaneo(action, bodyObj) {
-    // 1. Verifica se é consulta de Foto 3x4 ou Turma com Fotos já salva no IndexedDB em memória
     if (action === 'obterFotoAlunoIndividual' && bodyObj.aluno) {
       const chAl = 'ALUNO_' + String(bodyObj.aluno).trim().toUpperCase();
       if (mapaFotosAlunosCacheMemoria[chAl]) {
@@ -668,7 +920,7 @@
   }
 
   // =========================================================================
-  // 3. SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR O SISTEMA OU CLICANDO EM ATUALIZAR)
+  // 5. MOTOR DE SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR ONLINE OU CLICANDO EM ATUALIZAR)
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarManual = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -743,7 +995,6 @@
         }
       }
 
-      // Salva também todas as fotos 3x4 que já vieram em Base64 dentro de getFiltrosOcorrencias!
       if (resFiltrosRac && resFiltrosRac.success) {
         if (Array.isArray(resFiltrosRac.ocorrencias) && resFiltrosRac.ocorrencias.length > 0) {
           const catRac = resFiltrosRac.ocorrencias.map(o => ({
@@ -755,12 +1006,13 @@
         if (Array.isArray(resFiltrosRac.alunos)) {
           resFiltrosRac.alunos.forEach(al => {
             if (al && al.nome && al.foto && String(al.foto).startsWith('data:image')) {
-              salvarFotoNoIndexedDB('ALUNO_' + String(al.nome).trim().toUpperCase(), {
+              const ant = mapaFotosAlunosCacheMemoria['ALUNO_' + String(al.nome).trim().toUpperCase()] || {};
+              salvarFotoNoIndexedDB('ALUNO_' + String(al.nome).trim().toUpperCase(), Object.assign({}, ant, {
                 success: true,
                 nome: al.nome,
                 serie: normalizarSeriePadraoCore(al.serie),
                 foto: al.foto
-              });
+              }));
             }
           });
         }
@@ -922,6 +1174,55 @@
   };
 
   function construirRespostaOfflineInteligente(action, bodyObj) {
+    // Responde getAlunosParaEdicao em 1ms usando a lista de alunos + fotos em cache (destrava relatorio-turma-ocorrencias.html e cadastro-alunos.html!)
+    if (action === 'getAlunosParaEdicao') {
+      const serieAlvo = normalizarSeriePadraoCore((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || "");
+      const anoAlvo = String((bodyObj.dados && bodyObj.dados.ano) || bodyObj.ano || "2026").trim();
+
+      if (serieAlvo && mapaFotosAlunosCacheMemoria['TURMA_EDICAO_' + serieAlvo]) {
+        return JSON.stringify(mapaFotosAlunosCacheMemoria['TURMA_EDICAO_' + serieAlvo]);
+      }
+
+      const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      if (alunos.length > 0) {
+        const daTurma = alunos
+          .filter(a => !serieAlvo || normalizarSeriePadraoCore(a.serie) === serieAlvo)
+          .map((a, idx) => {
+            const det = mapaFotosAlunosCacheMemoria['ALUNO_' + a.nome] || {};
+            return {
+              linha: det.linha || (idx + 2),
+              ano: a.ano || anoAlvo,
+              serie: a.serie,
+              nome: a.nome,
+              fotoCaminho: det.fotoCaminho || "",
+              foto: det.foto || a.foto || "",
+              temCaminhoFoto: Boolean(det.foto || a.foto),
+              bolsaFamilia: det.bolsaFamilia || a.bolsaFamilia || "NÃO",
+              peDeMeia: det.peDeMeia || a.peDeMeia || "NÃO",
+              sexo: det.sexo || a.sexo || "-",
+              mae: det.mae || "",
+              telMae: det.telMae || "",
+              pai: det.pai || "",
+              telPai: det.telPai || "",
+              localidade: det.localidade || "",
+              endereco: det.endereco || ""
+            };
+          });
+
+        // Se estiver online, atualiza silenciosamente em 2º plano os detalhes da turma para a próxima vez
+        if (navigator.onLine && serieAlvo) {
+          fetchComTimeoutSeguranca(API_PADRAO_URL, {
+            method: 'POST',
+            body: JSON.stringify(bodyObj)
+          }, 15000).then(r => r.text()).then(txt => {
+            if (txt && txt.startsWith('[')) salvarRespostaNoCacheInstantaneo('getAlunosParaEdicao', bodyObj, txt);
+          }).catch(() => {});
+        }
+
+        return JSON.stringify(daTurma);
+      }
+    }
+
     if (action === 'getDadosHistorico') {
       const nomeBusca = String(bodyObj.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
@@ -1165,7 +1466,6 @@
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const ocorrencias = JSON.parse(localStorage.getItem('cache_rac_catalogo_v3') || '[]');
       if (series.length > 0 && alunos.length > 0) {
-        // Anexa as fotos do IndexedDB aos alunos para que المapeamento de Sala e Biblioteca tenham fotos 3x4 offline!
         const alunosComFoto = alunos.map(a => {
           const fMem = mapaFotosAlunosCacheMemoria['ALUNO_' + a.nome];
           return fMem && fMem.foto ? Object.assign({}, a, { foto: fMem.foto }) : a;
@@ -1326,7 +1626,7 @@
   }
 
   // =========================================================================
-  // 4. INTERCEPTADOR DE FETCH (RESPOSTAS EM 1ms + SÉRIES ABREVIADAS NOS HISTÓRICOS)
+  // 6. INTERCEPTADOR DE FETCH
   // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
@@ -1401,7 +1701,6 @@
       const action = bodyObj.action || '';
       const ehReservaDeAmbiente = ACOES_EXCLUSIVAS_ONLINE_RESERVAS.includes(action);
 
-      // 1. MODO OFFLINE
       if (!navigator.onLine) {
         if (ehReservaDeAmbiente) {
           return new Response(JSON.stringify({
@@ -1425,7 +1724,6 @@
         }
       }
 
-      // 2. RESPOSTA EM 1 MILISSEGUNDO DIRETO DO CACHE (INCLUINDO FOTOS E HISTÓRICOS!)
       if (!ehReservaDeAmbiente && (ACOES_LEITURA_CACHE_PURO.includes(action) || action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive')) {
         const cacheImediato = obterRespostaDoCacheInstantaneo(action, bodyObj);
         if (cacheImediato) {
@@ -1433,7 +1731,6 @@
         }
       }
 
-      // 3. EXECUÇÃO ONLINE (Quando é gravação ou 1ª leitura ainda não presente no cache)
       try {
         const response = await fetchComTimeoutSeguranca(url, options, 18000);
         const clone = response.clone();
@@ -1492,9 +1789,6 @@
     return unificarFilasOfflineNoStorage();
   };
 
-  // =========================================================================
-  // 5. ENVIO EM SEGUNDO PLANO SILENCIOSO
-  // =========================================================================
   function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
     if (typeof Swal === 'undefined') return;
@@ -1635,7 +1929,7 @@
   });
 
   // =========================================================================
-  // 6. GERADOR UNIVERSAL DE CABEÇALHO PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
+  // 7. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA EXCLUSIVAMENTE A LOGO DA ESCOLA!)
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
@@ -1668,10 +1962,9 @@
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    const b64BrasaoSalvo = localStorage.getItem('cache_brasao_oficial_eemti_b64');
-    const imgLogoDom = document.getElementById('logoEscola') || document.querySelector('.brand-escola img');
-    const srcLogo = b64BrasaoSalvo || ((imgLogoDom && imgLogoDom.src && !imgLogoDom.src.includes('2941658.png')) ? imgLogoDom.src : 'brasaoestado.png.png');
-    const logoB64 = await window.converterImagemParaDataUrlPdf(srcLogo, 200, 200);
+    // REGRA SOLICITADA: Nos PDFs usa SEMPRE o LOGO da escola (LOGO-removebg-preview.png), nunca o brasão do estado!
+    const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64');
+    const logoB64 = b64LogoEscola || await window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 200, 200);
 
     if (logoB64) {
       try { doc.addImage(logoB64, 'JPEG', margemEsq, 10, 20, 20); } catch (e) {}
