@@ -1,10 +1,10 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - LAYOUT COMPACTO MULTI-TELAS
-// 1. HISTÓRICO DE ELETIVAS: DATA | SÉRIE+DIA+TEMPO | ELETIVA+PROF | NOTA+%FREQ
-// 2. GERENCIAR ALUNOS: FOTO+SEXO | NOME+MÃE(TEL)+PAI(TEL) | SÉRIE+BF+PM + LEGENDA
-// 3. SITUAÇÃO DO ALUNO: COLUNA DE NOME LARGA + QUEBRA DE LINHA EM NOTA/FREQUÊNCIA
-// 4. BUSCA ATIVA: DATA | ALUNO+SÉRIE | MOTIVO+STATUS+AÇÃO | BOTÕES VISÍVEIS NO PC/MOBILE
-// 5. AEE: NOME+MATRÍCULA+NASCIMENTO | DEFICIÊNCIA+LAUDO+OBSERVAÇÃO/PARECER
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
+// 1. SUSPENSÕES (PDT): UNIFICA ALUNO+SÉRIE/PDT (COLUNA LARGA) E ORIGEM ACIMA DA DATA
+// 2. TODOS OS PDFS USAM "brasaoestado.png" (INTERCEPTADOR AUTOMÁTICO DE PDF)
+// 3. HISTÓRICO DE ELETIVAS: DATA | SÉRIE+DIA+TEMPO | ELETIVA+PROF | NOTA+%FREQ
+// 4. GERENCIAR ALUNOS: FOTO+SEXO | NOME+MÃE(TEL)+PAI(TEL) | SÉRIE+BF+PM + LEGENDA
+// 5. SITUAÇÃO DO ALUNO, BUSCA ATIVA E AEE COMPACTOS + PESQUISA VIVA EM 1ms
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -124,7 +124,6 @@
         vertical-align: middle !important;
       }
 
-      /* Permite que badges longas (como na página Situação do Aluno) quebrem linha suavemente */
       table.table td .badge {
         white-space: normal !important;
         line-height: 1.2 !important;
@@ -145,7 +144,6 @@
         background-color: #eff6ff !important;
       }
 
-      /* Botões P, F, FJ, A e R, NR, A com tamanho EXATO da letra */
       .btn-chamada-compacto {
         flex: 0 0 auto !important;
         width: auto !important;
@@ -182,15 +180,15 @@
 
       th.col-nome-larga-eemti,
       td.col-nome-larga-eemti {
-        width: 48% !important;
+        width: 44% !important;
         min-width: 145px !important;
         text-align: left !important;
       }
 
       th.col-secundaria-larga-eemti,
       td.col-secundaria-larga-eemti {
-        width: 38% !important;
-        min-width: 130px !important;
+        width: 34% !important;
+        min-width: 120px !important;
         text-align: left !important;
       }
 
@@ -381,7 +379,7 @@
         }
         th.col-secundaria-larga-eemti,
         td.col-secundaria-larga-eemti {
-          min-width: 105px !important;
+          min-width: 100px !important;
         }
         .col-oculta-mobile-eemti {
           display: none !important;
@@ -399,14 +397,15 @@
   injetarResponsividadeGlobalEEMTI();
 
   // =========================================================================
-  // 1. SEPARAÇÃO EXATA DAS DUAS IMAGENS:
-  // - TOPO DAS PÁGINAS (.brand-escola img): "brasaoestado.png"
-  // - MARCA D'ÁGUA DE FUNDO (.watermark-brasao-fundo) E PDF: "LOGO-removebg-preview.png"
+  // 1. SEPARAÇÃO EXATA DAS IMAGENS:
+  // - TOPO DAS PÁGINAS E TODOS OS PDFs: "brasaoestado.png"
+  // - MARCA D'ÁGUA DE FUNDO (.watermark-brasao-fundo): "LOGO-removebg-preview.png"
   // =========================================================================
   function aplicarImagensOficiaisTopoEMarcaDagua() {
     const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
     const b64LogoMarcaDagua = localStorage.getItem('cache_logo_escola_marcadagua_b64');
 
+    // Topo das páginas: brasaoestado.png
     document.querySelectorAll('.brand-escola img, header img#logoEscola').forEach(img => {
       img.onerror = function() {
         if (this.src.endsWith('brasaoestado.png') && !this.src.endsWith('brasaoestado.png.png')) {
@@ -423,6 +422,7 @@
       }
     });
 
+    // Marca d'água de fundo das páginas HTML: LOGO-removebg-preview.png
     document.querySelectorAll('img.watermark-brasao-fundo').forEach(img => {
       img.onerror = function() {
         if (b64LogoMarcaDagua && this.src !== b64LogoMarcaDagua) {
@@ -436,6 +436,30 @@
         img.src = 'LOGO-removebg-preview.png';
       }
     });
+  }
+
+  // Intercepta qualquer geração de PDF (mesmo em páginas que desenham cabeçalho próprio)
+  // para garantir que o brasão no topo esquerdo do PDF seja SEMPRE o "brasaoestado.png"!
+  function configurarInterceptadorBrasaoNosPdfs() {
+    if (!window.jspdf || !window.jspdf.jsPDF || window.jspdf.jsPDF._eemtiBrasaoHooked) return;
+    try {
+      const proto = window.jspdf.jsPDF.API || window.jspdf.jsPDF.prototype;
+      if (proto && typeof proto.addImage === 'function') {
+        const origAddImage = proto.addImage;
+        proto.addImage = function(imageData, format, x, y, w, h) {
+          const b64BrasaoEstado = localStorage.getItem('cache_brasao_estado_topo_b64');
+          const b64LogoAntiga = localStorage.getItem('cache_logo_escola_marcadagua_b64');
+
+          // Se for a imagem da logo/brasão do cabeçalho do PDF (canto superior esquerdo, x <= 25, y <= 20 e quadrada w === h)
+          const ehPosicaoLogoCabecalhoPdf = (typeof x === 'number' && x <= 25 && typeof y === 'number' && y <= 20 && Math.abs((w || 0) - (h || 0)) <= 4);
+          if (b64BrasaoEstado && (ehPosicaoLogoCabecalhoPdf || (b64LogoAntiga && imageData === b64LogoAntiga))) {
+            imageData = b64BrasaoEstado;
+          }
+          return origAddImage.apply(this, arguments);
+        };
+        window.jspdf.jsPDF._eemtiBrasaoHooked = true;
+      }
+    } catch (e) {}
   }
 
   // =========================================================================
@@ -570,7 +594,7 @@
     const parAluno = pares.find(p => p.titulo.includes('ALUNO') || p.titulo.includes('ESTUDANTE'));
     const path = window.location.pathname.toLowerCase();
 
-    if (parAluno && (path.includes('cadastro-alunos') || path.includes('situacao-aluno') || path.includes('aee') || path.includes('busca-ativa'))) {
+    if (parAluno && (path.includes('cadastro-alunos') || path.includes('situacao-aluno') || path.includes('aee') || path.includes('busca-ativa') || path.includes('atendimento'))) {
       const nomeBase = (tr.getAttribute('data-nome-aluno-limpo') || parAluno.valor.split('\n')[0]).trim();
       const parSerie = pares.find(p => p.titulo.includes('SÉRIE') || p.titulo.includes('TURMA'));
       const htmlExtras = pares
@@ -599,7 +623,7 @@
   }
 
   // =========================================================================
-  // 3. REORGANIZADOR DAS 5 PÁGINAS SOLICITADAS + BOTÕES COMPACTOS E LEGENDAS
+  // 3. REORGANIZADOR DAS TABELAS (INCLUINDO SUSPENSÕES PDT DA IMAGEM 1!)
   // =========================================================================
   function inserirLegendaAcimaDaTabela(tabela, tipoLegenda) {
     if (!tabela || !tabela.parentElement) return;
@@ -639,13 +663,13 @@
 
   function aplicarCompactacaoVisualNasTabelasEBotoes() {
     aplicarImagensOficiaisTopoEMarcaDagua();
+    configurarInterceptadorBrasaoNosPdfs();
 
     let temBotoesAtividade = false;
     let temBotoesChamadaSec = false;
     let tabelaAtividadeAlvo = null;
     let tabelaChamadaSecAlvo = null;
 
-    // A) Compacta botões P, F, FJ, A e R, NR, A para o tamanho EXATO da letra
     document.querySelectorAll('table button, table .btn, table label.btn').forEach(btn => {
       const txt = (btn.textContent || '').trim();
       const tbPai = btn.closest('table');
@@ -728,6 +752,9 @@
       let idxBeneficios = -1;
       let idxAluno = -1;
       let idxSerie = -1;
+      let idxSeriePdtSusp = -1;
+      let idxOrigemSusp = -1;
+      let idxInicioSusp = -1;
       let idxBimestre = -1;
       let idxData = -1;
       let idxDia = -1;
@@ -764,6 +791,10 @@
         if (t === 'STATUS' || t.includes('CATEGORIA DA ATIVIDADE')) {
           th.classList.add('col-status-compacta-eemti');
         }
+        if (t.includes('SÉRIE / PDT') || t.includes('SERIE / PDT')) idxSeriePdtSusp = idx;
+        if (t === 'ORIGEM' || t.includes('ORIGEM / INÍCIO')) idxOrigemSusp = idx;
+        if (t.includes('INÍCIO DA SUSPENSÃO') || t.includes('INICIO DA SUSPENSAO')) idxInicioSusp = idx;
+
         if (t === 'SÉRIE' || t === 'SERIE' || t === 'TURMA' || t === 'SÉRIE / TURMA' || t === 'SERIE / TURMA') idxSerie = idx;
         if (t.includes('BIMESTRE')) idxBimestre = idx;
         if (t === 'DATA' || t.includes('DATA / HORA') || t.includes('SEMESTRE') || t.includes('ANO / SEM')) idxData = idx;
@@ -795,10 +826,26 @@
       });
 
       // =====================================================================
-      // CASO 1: HISTÓRICO DE ELETIVAS DO ALUNO (historico-eletivas.html)
-      // Colunas desejadas:
-      // 1) Data/Semestre | 2) Série (+ Dia abaixo + Tempo Eletivo abaixo) | 3) Eletiva (+ Professor abaixo) | 4) Nota (+ % Frequência abaixo)
+      // CASO ESPECIAL NOVO: PAINEL DE ALUNOS NECESSITADOS DE SUSPENSÃO (PDT)
+      // - Unifica ALUNO(A) + SÉRIE / PDT em 1 coluna larga (ALUNO(A) / SÉRIE / PDT)
+      // - Coloca o selo de ORIGEM (Automática / Manual) ACIMA da caixa de data de INÍCIO DA SUSPENSÃO!
       // =====================================================================
+      const ehTabelaSuspensaoPdt = (idxAluno >= 0 && idxSeriePdtSusp >= 0 && idxOrigemSusp >= 0 && idxInicioSusp >= 0);
+      if (ehTabelaSuspensaoPdt) {
+        if (ths[idxSeriePdtSusp]) ths[idxSeriePdtSusp].classList.add('col-oculta-eemti');
+        if (ths[idxOrigemSusp]) ths[idxOrigemSusp].classList.add('col-oculta-eemti');
+        if (ths[idxAluno]) {
+          ths[idxAluno].textContent = 'ALUNO(A) / SÉRIE / PDT';
+          ths[idxAluno].classList.add('col-nome-larga-eemti');
+          ths[idxAluno].style.width = '40%';
+        }
+        if (ths[idxInicioSusp]) {
+          ths[idxInicioSusp].textContent = 'ORIGEM / INÍCIO (HOJE)';
+          ths[idxInicioSusp].style.width = '22%';
+        }
+      }
+
+      // CASO 1: HISTÓRICO DE ELETIVAS DO ALUNO
       const ehTabelaHistoricoEletivas = (
         pathLower.includes('historico-eletivas') ||
         (idxEletiva >= 0 && idxNota >= 0 && (idxFreqPerc >= 0 || idxFaltas >= 0))
@@ -819,13 +866,7 @@
         });
       }
 
-      // =====================================================================
-      // CASO 2: GERENCIAR ALUNOS (cadastro-alunos.html)
-      // - Legenda BF e PM acima da tabela
-      // - Coluna Foto: Masculino/Feminino embaixo da foto
-      // - Coluna Nome: Nome do Aluno + Pai (Contato) + Mãe (Contato)
-      // - Coluna Série: Série + BF (verde se recebe) + PM (verde se recebe)
-      // =====================================================================
+      // CASO 2: GERENCIAR ALUNOS
       const ehTabelaGerenciarAlunos = (idxFoto >= 0 && idxColStatusFoto >= 0);
       if (ehTabelaGerenciarAlunos) {
         inserirLegendaAcimaDaTabela(tabela, 'GERENCIAR_ALUNOS_BF_PM');
@@ -834,11 +875,7 @@
         if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].textContent = 'SÉRIE / BF / PM';
       }
 
-      // =====================================================================
-      // CASO 3: SITUAÇÃO DO ALUNO (situacao-aluno.html)
-      // - Coluna Nome larga (Nome + Resp + CPF)
-      // - Alimentar Nota e Alimentar Frequência quebram texto em 2 linhas para dar largura ao nome
-      // =====================================================================
+      // CASO 3: SITUAÇÃO DO ALUNO
       const ehTabelaSituacao = (idxMatCpf >= 0 && idxAluno >= 0 && pathLower.includes('situacao'));
       if (ehTabelaSituacao) {
         if (ths[idxMatCpf]) ths[idxMatCpf].classList.add('col-oculta-eemti');
@@ -847,13 +884,7 @@
         if (ths[idxAluno]) ths[idxAluno].style.width = '48%';
       }
 
-      // =====================================================================
-      // CASO 4: BUSCA ATIVA (busca-ativa.html)
-      // - Coluna Data
-      // - Coluna Aluno Larga: Nome do Aluno + Série embaixo (oculta coluna Série separada)
-      // - Coluna Motivo/Status/Ação Larga: Descrição do Motivo + Status abaixo + Ação abaixo/frente
-      // - Coluna Ações: Botões de Edição e Exclusão sempre visíveis na tela do computador e celular
-      // =====================================================================
+      // CASO 4: BUSCA ATIVA
       const ehTabelaBuscaAtiva = (pathLower.includes('busca-ativa') && idxAluno >= 0);
       if (ehTabelaBuscaAtiva) {
         if (idxSerie >= 0 && idxSerie !== idxAluno && ths[idxSerie]) ths[idxSerie].classList.add('col-oculta-eemti');
@@ -873,11 +904,7 @@
         });
       }
 
-      // =====================================================================
-      // CASO 5: AEE - ATENDIMENTO EDUCACIONAL ESPECIALIZADO (aee.html)
-      // - Coluna Aluno Larga: Nome do Aluno + Série + Matrícula + Data de Nascimento
-      // - Coluna Deficiência Larga: Deficiência/Necessidade + Laudo + Observação/Parecer
-      // =====================================================================
+      // CASO 5: AEE
       const ehTabelaAee = (pathLower.includes('aee') && idxAluno >= 0 && idxDeficiencia >= 0);
       if (ehTabelaAee) {
         if (ths[idxAluno]) {
@@ -895,9 +922,7 @@
         });
       }
 
-      // =====================================================================
       // CASO 6: HISTÓRICO INDIVIDUAL E CONSULTA DE OCORRÊNCIAS
-      // =====================================================================
       const ehTabelaHistoricoIndividual = (
         idxOcorrencia >= 0 &&
         idxData >= 0 &&
@@ -915,7 +940,8 @@
         idxOcorrencia >= 0 &&
         idxAluno >= 0 &&
         !ehTabelaHistoricoIndividual &&
-        !ehTabelaBuscaAtiva
+        !ehTabelaBuscaAtiva &&
+        !ehTabelaSuspensaoPdt
       );
       if (ehTabelaConsultaOcorrencias) {
         if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].classList.add('col-oculta-eemti');
@@ -934,12 +960,41 @@
         if (!tr._dadosOriginaisLinhaEEMTI) {
           tr._dadosOriginaisLinhaEEMTI = Array.from(tds).map((td, i) => ({
             titulo: ths[i] ? (ths[i].textContent || '').replace(/\s+/g, ' ').trim() : `Campo ${i + 1}`,
-            valor: (td.innerText || td.textContent || '').replace(/\s+/g, ' ').trim()
+            valor: (td.innerText || td.textContent || '').replace(/\s+/g, ' ').trim(),
+            html: td.innerHTML
           }));
         }
 
         if (idxAluno >= 0 && tds[idxAluno]) tds[idxAluno].classList.add('col-nome-larga-eemti');
         if (idxAcoesBotoes >= 0 && tds[idxAcoesBotoes]) tds[idxAcoesBotoes].classList.add('col-acoes-visivel-eemti');
+
+        // 0. Formata Linha de ALUNOS NECESSITADOS DE SUSPENSÃO (PDT - Imagem 1)
+        // - Unifica Aluno(a) + Série/PDT na Coluna 1 (Larga)
+        // - Coloca o selo de Origem (Automática/Manual) ACIMA da caixa de data na Coluna Início da Suspensão!
+        if (ehTabelaSuspensaoPdt && !tr._eemtiSuspensaoPdtFormatado) {
+          tr._eemtiSuspensaoPdtFormatado = true;
+          if (tds[idxSeriePdtSusp]) tds[idxSeriePdtSusp].classList.add('col-oculta-eemti');
+          if (tds[idxOrigemSusp]) tds[idxOrigemSusp].classList.add('col-oculta-eemti');
+
+          const nomeAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '-';
+          tr.setAttribute('data-nome-aluno-limpo', nomeAl);
+          const htmlSeriePdt = tds[idxSeriePdtSusp] ? tds[idxSeriePdtSusp].innerHTML : '';
+
+          tds[idxAluno].innerHTML = `
+            <div class="fw-bold text-dark" style="font-size:0.81rem;line-height:1.22;">${nomeAl}</div>
+            <div class="mt-1 pt-1 border-top border-light-subtle" style="line-height:1.15;">${htmlSeriePdt}</div>
+          `;
+
+          // Move o badge de Origem (Automática / Manual) para ficar ACIMA do input de data (sem perder o id do input!)
+          const tdDataSusp = tds[idxInicioSusp];
+          const htmlBadgeOrigem = tds[idxOrigemSusp] ? tds[idxOrigemSusp].innerHTML : '';
+          if (tdDataSusp && htmlBadgeOrigem && !tdDataSusp.querySelector('.div-origem-acima-data-eemti')) {
+            const divOrigemTopo = document.createElement('div');
+            divOrigemTopo.className = 'div-origem-acima-data-eemti mb-1';
+            divOrigemTopo.innerHTML = htmlBadgeOrigem;
+            tdDataSusp.insertBefore(divOrigemTopo, tdDataSusp.firstChild);
+          }
+        }
 
         // 1. Formata Linha do HISTÓRICO DE ELETIVAS
         if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxSerie >= 0 && !tr._eemtiHistEletFormatado) {
@@ -995,7 +1050,6 @@
           const infoCad = obterDadosCadastraisAlunoCache(nomeExtraido);
           const sexoExtenso = formatarSexoPorExtenso(infoCad.sexo);
 
-          // Coluna 0 (Foto 3x4): adiciona Masculino ou Feminino embaixo da foto!
           if (tds[idxFoto] && sexoExtenso && !tds[idxFoto].querySelector('.lbl-sexo-foto-eemti')) {
             const divSexo = document.createElement('div');
             divSexo.className = 'lbl-sexo-foto-eemti fw-bold text-secondary mt-1 text-center';
@@ -1004,7 +1058,6 @@
             tds[idxFoto].appendChild(divSexo);
           }
 
-          // Coluna 1 (Nome + Pai com contato + Mãe com contato)
           const maeNome = infoCad.mae || '';
           const maeTel = infoCad.telMae || '';
           const paiNome = infoCad.pai || '';
@@ -1032,7 +1085,6 @@
             ${linhasFiliacaoHtml}
           `;
 
-          // Coluna 2 (Série + BF verde se recebe + PM verde se recebe)
           if (idxSerie >= 0 && tds[idxSerie]) {
             const serieCurta = window.abreviarSerieParaExibicao(infoCad.serie || tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '-');
             const textoBenefOrig = idxBeneficios >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxBeneficios]?.valor || '').toUpperCase() : '';
@@ -1048,7 +1100,6 @@
             `;
           }
 
-          // Se houver um filtro exclusivo selecionado no autocompletar, mostra somente o aluno clicado!
           if (filtroExclusivoAlunoSelecionado && nomeExtraido !== filtroExclusivoAlunoSelecionado) {
             tr.style.display = 'none';
           }
@@ -1076,7 +1127,7 @@
           `;
         }
 
-        // 4. Formata Linha da BUSCA ATIVA (Data | Aluno+Série | Motivo+Status+Ação | Ações visíveis)
+        // 4. Formata Linha da BUSCA ATIVA
         if (ehTabelaBuscaAtiva && !tr._eemtiBuscaAtivaFormatada) {
           tr._eemtiBuscaAtivaFormatada = true;
           const idxColPrincipalMotivo = idxMotivoBuscaAtiva >= 0 ? idxMotivoBuscaAtiva : (idxStatusBuscaAtiva >= 0 ? idxStatusBuscaAtiva : -1);
@@ -1119,7 +1170,7 @@
           }
         }
 
-        // 5. Formata Linha do AEE (Nome+Série+Matrícula+Nasc | Deficiência+Laudo+Observação)
+        // 5. Formata Linha do AEE
         if (ehTabelaAee && !tr._eemtiAeeFormatada) {
           tr._eemtiAeeFormatada = true;
           [idxSerie, idxMatCpf, idxNascimento, idxLaudo, idxObs, idxData].forEach(cIdx => {
@@ -1208,7 +1259,6 @@
           `;
         }
 
-        // Clique na linha para abrir todos os detalhes ocultos/completos
         const ehLinhaLancamentoRapido = tr.querySelector('.btn-chamada-compacto, input[type="number"]');
         if (!ehLinhaLancamentoRapido && !tr._eemtiClickModalBound) {
           tr._eemtiClickModalBound = true;
@@ -1386,7 +1436,6 @@
         filtroExclusivoAlunoSelecionado = nomeEscolhido;
         menu.remove();
 
-        // Se o seletor de série ainda não estava na série do aluno, seleciona a série e dispara a busca!
         if (selSerieProximo && serieEscolhida) {
           Array.from(selSerieProximo.options).forEach(opt => {
             if (normalizarSeriePadraoCore(opt.value) === normalizarSeriePadraoCore(serieEscolhida)) {
@@ -1400,7 +1449,6 @@
         if (btnBuscar) {
           setTimeout(() => {
             btnBuscar.click();
-            // Após renderizar a turma, filtra para exibir SOMENTE o aluno clicado!
             setTimeout(() => filtrarLinhasDaTabelaPorTexto(cardPai, nomeEscolhido, true), 120);
             setTimeout(() => filtrarLinhasDaTabelaPorTexto(cardPai, nomeEscolhido, true), 350);
           }, 50);
@@ -1479,16 +1527,23 @@
     const estaNoLogin = path.endsWith('login.html');
 
     aplicarImagensOficiaisTopoEMarcaDagua();
+    configurarInterceptadorBrasaoNosPdfs();
 
     if (navigator.onLine) {
       window.converterImagemParaDataUrlPdf('brasaoestado.png', 300, 300).then(b64 => {
         if (b64) {
-          try { localStorage.setItem('cache_brasao_estado_topo_b64', b64); } catch (e) {}
+          try {
+            localStorage.setItem('cache_brasao_estado_topo_b64', b64);
+            localStorage.setItem('cache_brasao_oficial_eemti_b64', b64);
+          } catch (e) {}
           aplicarImagensOficiaisTopoEMarcaDagua();
         } else {
           window.converterImagemParaDataUrlPdf('brasaoestado.png.png', 300, 300).then(b64Alt => {
             if (b64Alt) {
-              try { localStorage.setItem('cache_brasao_estado_topo_b64', b64Alt); } catch (e) {}
+              try {
+                localStorage.setItem('cache_brasao_estado_topo_b64', b64Alt);
+                localStorage.setItem('cache_brasao_oficial_eemti_b64', b64Alt);
+              } catch (e) {}
               aplicarImagensOficiaisTopoEMarcaDagua();
             }
           });
@@ -2865,7 +2920,7 @@
   });
 
   // =========================================================================
-  // 9. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA EXCLUSIVAMENTE A LOGO DA ESCOLA!)
+  // 9. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "brasaoestado.png"!)
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
@@ -2893,13 +2948,17 @@
   };
 
   window.desenharCabecalhoPadraoEEMTI = async function(doc, opcoes = {}) {
+    configurarInterceptadorBrasaoNosPdfs();
     const largPagina = doc.internal.pageSize.getWidth();
     const margemEsq = 14;
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64');
-    const logoB64 = b64LogoEscola || await window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 200, 200);
+    // REGRA SOLICITADA: Em todos os PDFs usa o "brasaoestado.png" substituindo o LOGO antigo!
+    const b64BrasaoEstado = localStorage.getItem('cache_brasao_estado_topo_b64');
+    const logoB64 = b64BrasaoEstado ||
+                    await window.converterImagemParaDataUrlPdf('brasaoestado.png', 240, 240) ||
+                    await window.converterImagemParaDataUrlPdf('brasaoestado.png.png', 240, 240);
 
     if (logoB64) {
       try { doc.addImage(logoB64, 'JPEG', margemEsq, 10, 20, 20); } catch (e) {}
