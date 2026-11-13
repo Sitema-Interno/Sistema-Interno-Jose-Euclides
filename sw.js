@@ -1,7 +1,7 @@
-const CACHE_NAME = 'sistema-jose-euclides-v10';
+const CACHE_NAME = 'sistema-jose-euclides-v11';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
+const IDB_VERSION = 2;
 
-// Lista 100% fiel aos arquivos do seu VS Code (image_c5451e.png e image_c544e2.png)
 const URLS_TO_CACHE = [
   './',
   './index.html',
@@ -76,17 +76,17 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Estratégia Cache-First Ultra-Rápida para páginas e imagens (abre em milissegundos sem travar!)
-// e atualiza os arquivos do GitHub silenciosamente em segundo plano (Stale-While-Revalidate)
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
 
   let reqUrl = event.request.url;
-  // Se alguma página pedir "brasaoestado.png" (com um .png só), redireciona para "brasaoestado.png.png"
-  if (reqUrl.toLowerCase().endsWith('brasaoestado.png') && !reqUrl.toLowerCase().endsWith('brasaoestado.png.png')) {
-    reqUrl = reqUrl + '.png';
+  const lower = reqUrl.toLowerCase();
+
+  // Garante que qualquer página que peça brasaoestado.png ou o boneco 2941658.png receba brasaoestado.png.png
+  if ((lower.endsWith('brasaoestado.png') && !lower.endsWith('brasaoestado.png.png')) || lower.includes('2941658.png')) {
+    reqUrl = new URL('./brasaoestado.png.png', self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/')).href;
   }
 
   const requestFinal = reqUrl !== event.request.url ? new Request(reqUrl) : event.request;
@@ -103,7 +103,6 @@ self.addEventListener('fetch', event => {
         })
         .catch(() => cachedResponse);
 
-      // Se já tiver no cache, entrega em 1 milissegundo e atualiza o cache em 2º plano!
       return cachedResponse || fetchPromise;
     })
   );
@@ -116,11 +115,12 @@ let envioSwEmAndamento = false;
 
 function abrirBancoNoServiceWorker() {
   return new Promise(resolve => {
-    const req = indexedDB.open(IDB_SYNC_NAME, 1);
+    const req = indexedDB.open(IDB_SYNC_NAME, IDB_VERSION);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
       if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
+      if (!db.objectStoreNames.contains('fotos_offline')) db.createObjectStore('fotos_offline', { keyPath: 'chave' });
     };
     req.onsuccess = e => resolve(e.target.result);
     req.onerror = () => resolve(null);
