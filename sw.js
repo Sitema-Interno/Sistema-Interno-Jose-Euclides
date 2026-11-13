@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v12';
+const CACHE_NAME = 'sistema-jose-euclides-v14';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 const IDB_VERSION = 2;
 
@@ -10,6 +10,7 @@ const URLS_TO_CACHE = [
   './portal-core.js',
   './LOGO-removebg-preview.png',
   './brasaoestado.png',
+  './brasaoestado.png.png',
   './icon-192.png',
   './icon-512.png',
   './acompanhamento.html',
@@ -84,7 +85,6 @@ self.addEventListener('fetch', event => {
   let reqUrl = event.request.url;
   const lower = reqUrl.toLowerCase();
 
-  // Se alguma página cair no ícone antigo do flaticon (2941658.png), entrega o brasaoestado.png
   if (lower.includes('2941658.png')) {
     reqUrl = new URL('./brasaoestado.png', self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/')).href;
   }
@@ -109,7 +109,8 @@ self.addEventListener('fetch', event => {
 });
 
 // =========================================================================
-// BACKGROUND SYNC: ENVIA DIRETO PARA A PLANILHA COM O APP FECHADO OU MINIMIZADO
+// MOTOR BACKGROUND SYNC: ENVIA OCORRÊNCIAS, FREQUÊNCIAS E ATIVIDADES
+// MESMO COM O APLICATIVO FECHADO OU MINIMIZADO!
 // =========================================================================
 let envioSwEmAndamento = false;
 
@@ -127,37 +128,76 @@ function abrirBancoNoServiceWorker() {
   });
 }
 
-async function processarFilaEmSegundoPlanoSW(forcarMesmoComJanela = false) {
+// Retira atomicamente 1 item da fila_pendente no IndexedDB ANTES de enviar (impede duplicidade!)
+async function retirarProximoItemDaFilaIDB(db) {
+  return new Promise(resolve => {
+    try {
+      const tx = db.transaction('fila_pendente', 'readwrite');
+      const store = tx.objectStore('fila_pendente');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const todos = req.result || [];
+        if (todos.length === 0) {
+          resolve(null);
+          return;
+        }
+        const primeiro = todos[0];
+        store.delete(primeiro.idFila);
+        tx.oncomplete = () => resolve(primeiro);
+        tx.onerror = () => resolve(null);
+      };
+      req.onerror = () => resolve(null);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+async function devolverItemParaFilaIDB(db, item) {
+  return new Promise(resolve => {
+    try {
+      const tx = db.transaction('fila_pendente', 'readwrite');
+      tx.objectStore('fila_pendente').put(item);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (e) {
+      resolve();
+    }
+  });
+}
+
+async function registrarConcluidoNoIDB(db, item) {
+  return new Promise(resolve => {
+    try {
+      const tx = db.transaction('relatorio_concluido', 'readwrite');
+      tx.objectStore('relatorio_concluido').add({
+        idFila: item.idFila,
+        assinatura: item.assinatura || '',
+        dataHoraSync: new Date().toLocaleString('pt-BR'),
+        resumoHtml: item.resumoHtml
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (e) {
+      resolve();
+    }
+  });
+}
+
+async function processarFilaEmSegundoPlanoSW() {
   if (envioSwEmAndamento) return;
-
-  if (!forcarMesmoComJanela) {
-    const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const algumVisivel = clientes.some(c => c.visibilityState === 'visible');
-    if (algumVisivel) return;
-  }
-
   envioSwEmAndamento = true;
 
   try {
     const db = await abrirBancoNoServiceWorker();
     if (!db) return;
 
-    const itensPendentes = await new Promise(resolve => {
-      try {
-        const tx = db.transaction('fila_pendente', 'readonly');
-        const req = tx.objectStore('fila_pendente').getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => resolve([]);
-      } catch (e) {
-        resolve([]);
-      }
-    });
-
-    if (itensPendentes.length === 0) return;
-
     let enviouAlgum = false;
 
-    for (const item of itensPendentes) {
+    while (true) {
+      const item = await retirarProximoItemDaFilaIDB(db);
+      if (!item) break;
+
       try {
         const res = await fetch(item.url, {
           method: 'POST',
@@ -173,19 +213,14 @@ async function processarFilaEmSegundoPlanoSW(forcarMesmoComJanela = false) {
 
         if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
           enviouAlgum = true;
-          await new Promise(resolve => {
-            const tx = db.transaction(['fila_pendente', 'relatorio_concluido'], 'readwrite');
-            tx.objectStore('fila_pendente').delete(item.idFila);
-            tx.objectStore('relatorio_concluido').add({
-              idFila: item.idFila,
-              dataHoraSync: new Date().toLocaleString('pt-BR'),
-              resumoHtml: item.resumoHtml
-            });
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => resolve();
-          });
+          await registrarConcluidoNoIDB(db, item);
+        } else {
+          await devolverItemParaFilaIDB(db, item);
+          break;
         }
-      } catch (err) {
+      } catch (errRede) {
+        // Se a internet oscilou/caiu, devolve o item para a fila para enviar assim que reconectar
+        await devolverItemParaFilaIDB(db, item);
         break;
       }
     }
@@ -203,18 +238,18 @@ async function processarFilaEmSegundoPlanoSW(forcarMesmoComJanela = false) {
 
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-fila-eemti') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW(true));
+    event.waitUntil(processarFilaEmSegundoPlanoSW());
   }
 });
 
 self.addEventListener('periodicsync', event => {
   if (event.tag === 'periodic-sync-fila-eemti') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW(true));
+    event.waitUntil(processarFilaEmSegundoPlanoSW());
   }
 });
 
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'DISPARAR_SYNC_AGORA') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW(true));
+    event.waitUntil(processarFilaEmSegundoPlanoSW());
   }
 });
