@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v6';
+const CACHE_NAME = 'sistema-jose-euclides-v8';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 
 const URLS_TO_CACHE = [
@@ -11,17 +11,23 @@ const URLS_TO_CACHE = [
   './ocorrencias.html',
   './registro-ocorrencias.html',
   './atividades.html',
+  './atividade-disciplinas.html',
   './frequencia-secretaria.html',
   './frequencia-eletivas.html',
   './historico-eletivas.html',
   './historico.html',
+  './historico-ocorrencias.html',
   './notas-turma.html',
+  './notas-registros.html',
   './mapeamento.html',
   './mapeamento-sala.html',
   './reservas.html',
   './atendimento.html',
+  './atendimento-alunos.html',
   './notas.html',
+  './gestao-notas.html',
   './matricula.html',
+  './matricula-eletivas.html',
   './cadastro-disciplinas.html',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
@@ -54,7 +60,7 @@ self.addEventListener('activate', event => {
 
 // Interceptação Network-First com atualização automática do GitHub
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
+  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
 
@@ -85,8 +91,10 @@ self.addEventListener('fetch', event => {
 });
 
 // =========================================================================
-// BACKGROUND SYNC: SINCRONIZA A FILA MESMO COM O APLICATIVO FECHADO!
+// BACKGROUND SYNC: ENVIA DIRETO PARA A PLANILHA COM O APP FECHADO OU MINIMIZADO
 // =========================================================================
+let envioSwEmAndamento = false;
+
 function abrirBancoNoServiceWorker() {
   return new Promise(resolve => {
     const req = indexedDB.open(IDB_SYNC_NAME, 1);
@@ -101,57 +109,87 @@ function abrirBancoNoServiceWorker() {
 }
 
 async function processarFilaEmSegundoPlanoSW() {
-  const db = await abrirBancoNoServiceWorker();
-  if (!db) return;
+  if (envioSwEmAndamento) return;
+  envioSwEmAndamento = true;
 
-  // Se já houver uma aba aberta e visível fazendo a sincronização, deixa a aba controlar para evitar duplicidade
-  const clientesAbertos = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (clientesAbertos.length > 0) {
-    return;
-  }
+  try {
+    const db = await abrirBancoNoServiceWorker();
+    if (!db) return;
 
-  const itensPendentes = await new Promise(resolve => {
-    try {
-      const tx = db.transaction('fila_pendente', 'readonly');
-      const req = tx.objectStore('fila_pendente').getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => resolve([]);
-    } catch (e) {
-      resolve([]);
-    }
-  });
-
-  if (itensPendentes.length === 0) return;
-
-  for (const item of itensPendentes) {
-    try {
-      const res = await fetch(item.url, {
-        method: 'POST',
-        body: JSON.stringify(item.payload)
-      });
-      const json = await res.json();
-
-      if (json && (json.success || json.msg)) {
-        // Remove da fila pendente e grava no relatório de concluídos para mostrar o aviso quando o professor abrir o app!
-        await new Promise(resolve => {
-          const tx = db.transaction(['fila_pendente', 'relatorio_concluido'], 'readwrite');
-          tx.objectStore('fila_pendente').delete(item.idFila);
-          tx.objectStore('relatorio_concluido').add({
-            dataHoraSync: new Date().toLocaleString('pt-BR'),
-            resumoHtml: item.resumoHtml
-          });
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => resolve();
-        });
+    const itensPendentes = await new Promise(resolve => {
+      try {
+        const tx = db.transaction('fila_pendente', 'readonly');
+        const req = tx.objectStore('fila_pendente').getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      } catch (e) {
+        resolve([]);
       }
-    } catch (err) {
-      break;
+    });
+
+    if (itensPendentes.length === 0) return;
+
+    let enviouAlgum = false;
+
+    for (const item of itensPendentes) {
+      try {
+        // Segue o redirecionamento 302 do Google Apps Script mesmo com o app fechado!
+        const res = await fetch(item.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(item.payload),
+          redirect: 'follow',
+          credentials: 'omit'
+        });
+
+        const texto = await res.text();
+        let json = null;
+        try { json = JSON.parse(texto); } catch (e) {}
+
+        if ((json && (json.success || json.msg)) || (res.ok && texto.includes('"success":true'))) {
+          enviouAlgum = true;
+          await new Promise(resolve => {
+            const tx = db.transaction(['fila_pendente', 'relatorio_concluido'], 'readwrite');
+            tx.objectStore('fila_pendente').delete(item.idFila);
+            tx.objectStore('relatorio_concluido').add({
+              idFila: item.idFila,
+              dataHoraSync: new Date().toLocaleString('pt-BR'),
+              resumoHtml: item.resumoHtml
+            });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+          });
+        }
+      } catch (err) {
+        break;
+      }
     }
+
+    if (enviouAlgum) {
+      const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clientes.forEach(cliente => {
+        cliente.postMessage({ type: 'SYNC_BACKGROUND_CONCLUIDO' });
+      });
+    }
+  } finally {
+    envioSwEmAndamento = false;
   }
 }
 
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-fila-eemti') {
+    event.waitUntil(processarFilaEmSegundoPlanoSW());
+  }
+});
+
+self.addEventListener('periodicsync', event => {
+  if (event.tag === 'periodic-sync-fila-eemti') {
+    event.waitUntil(processarFilaEmSegundoPlanoSW());
+  }
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'DISPARAR_SYNC_AGORA') {
     event.waitUntil(processarFilaEmSegundoPlanoSW());
   }
 });
