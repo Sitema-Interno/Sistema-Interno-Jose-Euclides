@@ -1,11 +1,10 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - LAYOUT PROFISSIONAL E PESQUISA VIVA
-// 1. BOTÕES P, F, FJ, A e R, NR, A DO TAMANHO EXATO DA LETRA (COLUNA DO ALUNO LARGA)
-// 2. SITUAÇÃO DO ALUNO: NOME -> Resp: ... -> CPF do aluno: ... (SEM MATRÍCULA)
-// 3. CONSULTA DE OCORRÊNCIAS: ALUNO (+ SÉRIE ABAIXO) | OCORRÊNCIA (+ GRAVIDADE ABAIXO)
-// 4. HISTÓRICO INDIVIDUAL: SEM COLUNAS BIMESTRE/SÉRIE -> DATA | OCORRÊNCIA (+ GRAVIDADE + PROF) | OBS
-// 5. CLIQUE NA LINHA EM QUALQUER TABELA ABRE MODAL COM TODAS AS INFORMAÇÕES COMPLETAS
-// 6. FILTRO EM TEMPO REAL AO DIGITAR + AUTOCOMPLETAR GLOBAL EM TODAS AS PÁGINAS
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - LAYOUT COMPACTO MULTI-TELAS
+// 1. HISTÓRICO DE ELETIVAS: DATA | SÉRIE+DIA+TEMPO | ELETIVA+PROF | NOTA+%FREQ
+// 2. GERENCIAR ALUNOS: FOTO+SEXO | NOME+MÃE(TEL)+PAI(TEL) | SÉRIE+BF+PM + LEGENDA
+// 3. SITUAÇÃO DO ALUNO: COLUNA DE NOME LARGA + QUEBRA DE LINHA EM NOTA/FREQUÊNCIA
+// 4. BUSCA ATIVA: DATA | ALUNO+SÉRIE | MOTIVO+STATUS+AÇÃO | BOTÕES VISÍVEIS NO PC/MOBILE
+// 5. AEE: NOME+MATRÍCULA+NASCIMENTO | DEFICIÊNCIA+LAUDO+OBSERVAÇÃO/PARECER
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -92,9 +91,10 @@
   let sincronizacaoEmAndamento = false;
   let prefetchEmAndamento = false;
   let mapaFotosAlunosCacheMemoria = {};
+  let filtroExclusivoAlunoSelecionado = '';
 
   // =========================================================================
-  // 0. ESTILOS GLOBAIS: BOTÕES DO TAMANHO EXATO DA LETRA + COLUNA ALUNO LARGA
+  // 0. ESTILOS GLOBAIS: SEM ROLAGEM LATERAL E COM DISTRIBUIÇÃO PROPORCIONAL
   // =========================================================================
   function injetarResponsividadeGlobalEEMTI() {
     if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
@@ -124,11 +124,19 @@
         vertical-align: middle !important;
       }
 
+      /* Permite que badges longas (como na página Situação do Aluno) quebrem linha suavemente */
+      table.table td .badge {
+        white-space: normal !important;
+        line-height: 1.2 !important;
+        text-align: center !important;
+        display: inline-block !important;
+        max-width: 100% !important;
+      }
+
       .col-oculta-eemti {
         display: none !important;
       }
 
-      /* Qualquer linha de dados clicável para ver todos os detalhes */
       tr.linha-tabela-clicavel-eemti {
         cursor: pointer;
         transition: background-color 0.15s ease;
@@ -137,7 +145,7 @@
         background-color: #eff6ff !important;
       }
 
-      /* Botões P, F, FJ, A e R, NR, A com tamanho EXATO da letra (sem esticar!) */
+      /* Botões P, F, FJ, A e R, NR, A com tamanho EXATO da letra */
       .btn-chamada-compacto {
         flex: 0 0 auto !important;
         width: auto !important;
@@ -155,7 +163,6 @@
         margin: 1px !important;
       }
 
-      /* Container dos botões P, F, FJ, A compacto e alinhado à direita/centro */
       td:has(.btn-chamada-compacto),
       th.col-status-compacta-eemti {
         width: 1% !important;
@@ -173,12 +180,26 @@
         width: auto !important;
       }
 
-      /* Coluna do Nome do Aluno sempre larga e confortável */
       th.col-nome-larga-eemti,
       td.col-nome-larga-eemti {
-        width: 58% !important;
-        min-width: 155px !important;
+        width: 48% !important;
+        min-width: 145px !important;
         text-align: left !important;
+      }
+
+      th.col-secundaria-larga-eemti,
+      td.col-secundaria-larga-eemti {
+        width: 38% !important;
+        min-width: 130px !important;
+        text-align: left !important;
+      }
+
+      th.col-acoes-visivel-eemti,
+      td.col-acoes-visivel-eemti {
+        width: 1% !important;
+        min-width: 68px !important;
+        white-space: nowrap !important;
+        text-align: center !important;
       }
 
       .d-flex.gap-2, .d-flex.gap-3, .btn-group {
@@ -238,7 +259,6 @@
         border-color: #fecaca;
       }
 
-      /* Menu flutuante de Autocompletar ao digitar */
       .menu-autocompletar-eemti {
         position: absolute;
         left: 0;
@@ -326,18 +346,18 @@
           text-align: center !important;
         }
         table.table th {
-          font-size: 0.63rem !important;
+          font-size: 0.62rem !important;
           padding: 5px 3px !important;
           line-height: 1.1 !important;
         }
         table.table td {
-          font-size: 0.71rem !important;
-          padding: 6px 4px !important;
-          line-height: 1.22 !important;
+          font-size: 0.7rem !important;
+          padding: 6px 3px !important;
+          line-height: 1.2 !important;
         }
         table.table td .btn:not(.btn-chamada-compacto) {
-          font-size: 0.65rem !important;
-          padding: 3px 6px !important;
+          font-size: 0.64rem !important;
+          padding: 3px 5px !important;
           margin: 1px !important;
         }
         .btn-chamada-compacto {
@@ -348,12 +368,20 @@
           font-size: 0.7rem !important;
         }
         table.table td .badge {
-          font-size: 0.6rem !important;
-          padding: 2px 5px !important;
+          font-size: 0.58rem !important;
+          padding: 2px 4px !important;
         }
         table.table td img {
-          max-width: 38px !important;
-          max-height: 50px !important;
+          max-width: 40px !important;
+          max-height: 52px !important;
+        }
+        th.col-nome-larga-eemti,
+        td.col-nome-larga-eemti {
+          min-width: 120px !important;
+        }
+        th.col-secundaria-larga-eemti,
+        td.col-secundaria-larga-eemti {
+          min-width: 105px !important;
         }
         .col-oculta-mobile-eemti {
           display: none !important;
@@ -411,7 +439,7 @@
   }
 
   // =========================================================================
-  // 2. MODAIS DE DETALHES AO CLICAR NA LINHA (ALUNO OU QUALQUER REGISTRO DE TABELA)
+  // 2. FUNÇÕES DE FORMATAÇÃO E MODAIS DE DETALHES AO CLICAR NA LINHA
   // =========================================================================
   window.abreviarSerieParaExibicao = function(textoSerie) {
     if (!textoSerie) return "";
@@ -423,7 +451,6 @@
   function extrairApenasCpfFormatado(textoBruto) {
     if (!textoBruto) return "Não informado";
     const str = String(textoBruto);
-    // Procura um CPF com pontuação (000.000.000-00) ou sequência de 11 dígitos
     const mPontuado = str.match(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/);
     if (mPontuado) return mPontuado[0];
 
@@ -439,13 +466,26 @@
     return "Não informado";
   }
 
+  function formatarSexoPorExtenso(sexoBruto) {
+    const s = String(sexoBruto || '').trim().toUpperCase();
+    if (s.startsWith('M')) return 'Masculino';
+    if (s.startsWith('F')) return 'Feminino';
+    return '';
+  }
+
+  function obterDadosCadastraisAlunoCache(nomeAluno) {
+    const nomeLimpo = String(nomeAluno || '').replace(/\s+/g, ' ').trim().toUpperCase();
+    const alunosCache = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+    const baseAl = alunosCache.find(a => a.nome === nomeLimpo) || {};
+    const det = mapaFotosAlunosCacheMemoria['ALUNO_' + nomeLimpo] || {};
+    return Object.assign({}, baseAl, det);
+  }
+
   window.abrirModalFichaCompletaAlunoEEMTI = async function(nomeAlunoClicado, serieHint, extrasLinhaHtml) {
     const nomeLimpo = String(nomeAlunoClicado || "").replace(/\s+/g, " ").trim().toUpperCase();
     if (!nomeLimpo || typeof Swal === 'undefined') return;
 
-    const alunosCache = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
-    const baseAl = alunosCache.find(a => a.nome === nomeLimpo) || {};
-    let infoDet = mapaFotosAlunosCacheMemoria['ALUNO_' + nomeLimpo] || {};
+    let infoDet = obterDadosCadastraisAlunoCache(nomeLimpo);
 
     if ((!infoDet.mae && !infoDet.endereco) && navigator.onLine) {
       try {
@@ -457,45 +497,47 @@
           new Promise(r => setTimeout(() => r(null), 3500))
         ]);
         if (resInd && resInd.success) {
-          infoDet = resInd;
-          salvarFotoNoIndexedDB('ALUNO_' + nomeLimpo, resInd);
+          infoDet = Object.assign({}, infoDet, resInd);
+          salvarFotoNoIndexedDB('ALUNO_' + nomeLimpo, infoDet);
         }
       } catch (e) {}
     }
 
-    const fotoSrc = infoDet.foto || baseAl.foto || '';
-    const serieExib = infoDet.serie || baseAl.serie || serieHint || '-';
-    const anoExib = infoDet.ano || baseAl.ano || '2026';
-    const sexoExib = infoDet.sexo || baseAl.sexo || '-';
-    const bfExib = infoDet.bolsaFamilia || baseAl.bolsaFamilia || 'NÃO';
-    const pmExib = infoDet.peDeMeia || baseAl.peDeMeia || 'NÃO';
-    const maeExib = infoDet.mae || baseAl.mae || 'NÃO INFORMADO';
-    const telMaeExib = infoDet.telMae || baseAl.telMae || '-';
-    const paiExib = infoDet.pai || baseAl.pai || 'NÃO INFORMADO';
-    const telPaiExib = infoDet.telPai || baseAl.telPai || '-';
-    const locExib = infoDet.localidade || baseAl.localidade || '-';
-    const endExib = infoDet.endereco || baseAl.endereco || '-';
+    const fotoSrc = infoDet.foto || '';
+    const serieExib = infoDet.serie || serieHint || '-';
+    const anoExib = infoDet.ano || '2026';
+    const sexoExib = formatarSexoPorExtenso(infoDet.sexo) || infoDet.sexo || '-';
+    const bfExib = String(infoDet.bolsaFamilia || 'NÃO').toUpperCase();
+    const pmExib = String(infoDet.peDeMeia || 'NÃO').toUpperCase();
+    const maeExib = infoDet.mae || 'NÃO INFORMADO';
+    const telMaeExib = infoDet.telMae || '-';
+    const paiExib = infoDet.pai || 'NÃO INFORMADO';
+    const telPaiExib = infoDet.telPai || '-';
+    const locExib = infoDet.localidade || '-';
+    const endExib = infoDet.endereco || '-';
 
     const htmlFoto = fotoSrc && String(fotoSrc).startsWith('data:image')
       ? `<img src="${fotoSrc}" style="width:92px;height:122px;object-fit:cover;border-radius:10px;border:2px solid #15438c;box-shadow:0 4px 10px rgba(0,0,0,0.12);">`
       : `<div style="width:92px;height:122px;border-radius:10px;border:2px dashed #94a3b8;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#64748b;font-size:2.2rem;"><i class="bi bi-person-bounding-box"></i></div>`;
 
     Swal.fire({
-      title: `<span style="font-size:1.02rem;font-weight:800;color:#15438c;"><i class="bi bi-person-vcard-fill me-2"></i>Informações Completas do(a) Aluno(a)</span>`,
+      title: `<span style="font-size:1.02rem;font-weight:800;color:#15438c;"><i class="bi bi-person-vcard-fill me-2"></i>Ficha Completa do(a) Aluno(a)</span>`,
       html: `
         <div class="text-start mt-2" style="font-size:0.83rem;">
           <div class="d-flex align-items-center gap-3 p-2 rounded bg-light border mb-3">
-            ${htmlFoto}
+            <div class="text-center">
+              ${htmlFoto}
+              <div class="fw-bold text-secondary mt-1" style="font-size:0.7rem;">${sexoExib}</div>
+            </div>
             <div>
               <div class="fw-bold text-dark" style="font-size:0.96rem;line-height:1.2;">${nomeLimpo}</div>
               <div class="mt-1">
                 <span class="badge bg-primary">${serieExib}</span>
                 <span class="badge bg-secondary">Ano: ${anoExib}</span>
-                <span class="badge bg-info text-dark">Sexo: ${sexoExib}</span>
               </div>
               <div class="mt-2 d-flex gap-1 flex-wrap">
-                <span class="badge ${bfExib === 'SIM' ? 'bg-success' : 'bg-secondary'}">Bolsa Família: ${bfExib}</span>
-                <span class="badge ${pmExib === 'SIM' ? 'bg-success' : 'bg-secondary'}">Pé-de-Meia: ${pmExib}</span>
+                <span class="badge ${bfExib === 'SIM' ? 'bg-success' : 'bg-secondary'}">BF (Bolsa Família): ${bfExib}</span>
+                <span class="badge ${pmExib === 'SIM' ? 'bg-success' : 'bg-secondary'}">PM (Pé-de-Meia): ${pmExib}</span>
               </div>
             </div>
           </div>
@@ -504,8 +546,8 @@
 
           <div class="p-2 rounded border mb-2">
             <div class="fw-bold text-primary small mb-1"><i class="bi bi-people-fill me-1"></i>Filiação e Contatos</div>
-            <div><b>Mãe:</b> ${maeExib} • <b>Tel.:</b> ${telMaeExib}</div>
-            <div class="mt-1"><b>Pai:</b> ${paiExib} • <b>Tel.:</b> ${telPaiExib}</div>
+            <div><b>Mãe:</b> ${maeExib} • <b>Contato:</b> ${telMaeExib}</div>
+            <div class="mt-1"><b>Pai:</b> ${paiExib} • <b>Contato:</b> ${telPaiExib}</div>
           </div>
 
           <div class="p-2 rounded border">
@@ -520,19 +562,19 @@
     });
   };
 
-  function abrirModalGenericoDaLinhaDaTabela(tr, ths) {
+  function abrirModalGenericoDaLinhaDaTabela(tr) {
     if (typeof Swal === 'undefined') return;
     const pares = tr._dadosOriginaisLinhaEEMTI || [];
     if (pares.length === 0) return;
 
-    // Se a linha tiver um aluno identificado e estivermos em Gerenciar Alunos ou Situação do Aluno, abre a Ficha Completa do Aluno + os dados da linha!
     const parAluno = pares.find(p => p.titulo.includes('ALUNO') || p.titulo.includes('ESTUDANTE'));
     const path = window.location.pathname.toLowerCase();
-    if (parAluno && (path.includes('cadastro-alunos') || path.includes('situacao-aluno') || path.includes('aee'))) {
-      const nomeBase = parAluno.valor.split('\n')[0].replace(/Toque p\/ ver ficha/gi, '').trim();
+
+    if (parAluno && (path.includes('cadastro-alunos') || path.includes('situacao-aluno') || path.includes('aee') || path.includes('busca-ativa'))) {
+      const nomeBase = (tr.getAttribute('data-nome-aluno-limpo') || parAluno.valor.split('\n')[0]).trim();
       const parSerie = pares.find(p => p.titulo.includes('SÉRIE') || p.titulo.includes('TURMA'));
       const htmlExtras = pares
-        .filter(p => !p.titulo.includes('AÇÕES') && !p.titulo.includes('FOTO'))
+        .filter(p => !p.titulo.includes('AÇÕES') && !p.titulo.includes('FOTO') && p.valor)
         .map(p => `<div class="mb-1"><b>${p.titulo}:</b> ${p.valor}</div>`)
         .join('');
       window.abrirModalFichaCompletaAlunoEEMTI(nomeBase, parSerie ? parSerie.valor : '', htmlExtras);
@@ -557,7 +599,7 @@
   }
 
   // =========================================================================
-  // 3. REORGANIZADOR INTELIGENTE DE TABELAS E BOTÕES
+  // 3. REORGANIZADOR DAS 5 PÁGINAS SOLICITADAS + BOTÕES COMPACTOS E LEGENDAS
   // =========================================================================
   function inserirLegendaAcimaDaTabela(tabela, tipoLegenda) {
     if (!tabela || !tabela.parentElement) return;
@@ -583,6 +625,13 @@
         <span class="item-leg"><span class="badge bg-warning text-dark">FJ</span> Falta Justificada</span>
         <span class="item-leg"><span class="badge bg-info text-dark">A</span> Atestado</span>
       `;
+    } else if (tipoLegenda === 'GERENCIAR_ALUNOS_BF_PM') {
+      divLeg.innerHTML = `
+        <span class="text-primary fw-bolder"><i class="bi bi-info-circle-fill me-1"></i>Legenda de Benefícios:</span>
+        <span class="item-leg"><span class="badge bg-success">BF</span> Recebe Bolsa Família</span>
+        <span class="item-leg"><span class="badge bg-success">PM</span> Recebe Pé-de-Meia</span>
+        <span class="item-leg text-muted small">(Cinza = Não recebe • Clique na linha do aluno para abrir a ficha completa)</span>
+      `;
     }
 
     tabela.parentElement.insertBefore(divLeg, tabela);
@@ -596,7 +645,7 @@
     let tabelaAtividadeAlvo = null;
     let tabelaChamadaSecAlvo = null;
 
-    // A) Compacta botões P, F, FJ, A e R, NR, A para o tamanho EXATO da letra!
+    // A) Compacta botões P, F, FJ, A e R, NR, A para o tamanho EXATO da letra
     document.querySelectorAll('table button, table .btn, table label.btn').forEach(btn => {
       const txt = (btn.textContent || '').trim();
       const tbPai = btn.closest('table');
@@ -668,79 +717,187 @@
       inserirLegendaAcimaDaTabela(tabelaChamadaSecAlvo, 'CHAMADA_SEC');
     }
 
-    // B) Reorganização Inteligente de Colunas em Todas as Páginas
     const pathLower = window.location.pathname.toLowerCase();
 
     document.querySelectorAll('table.table').forEach(tabela => {
       const ths = Array.from(tabela.querySelectorAll('thead th'));
       if (ths.length === 0) return;
 
+      let idxFoto = -1;
       let idxColStatusFoto = -1;
+      let idxBeneficios = -1;
       let idxAluno = -1;
       let idxSerie = -1;
       let idxBimestre = -1;
       let idxData = -1;
+      let idxDia = -1;
+      let idxTempo = -1;
+      let idxEletiva = -1;
+      let idxProfessor = -1;
+      let idxCh = -1;
+      let idxNota = -1;
+      let idxFaltas = -1;
+      let idxFreqPerc = -1;
       let idxOcorrencia = -1;
       let idxGravidade = -1;
-      let idxProfessor = -1;
       let idxObs = -1;
       let idxMatCpf = -1;
+      let idxNascimento = -1;
+      let idxDeficiencia = -1;
+      let idxLaudo = -1;
       let idxResp = -1;
-      let idxStatusChamada = -1;
-      const indicesOcultarNoMobile = [];
+      let idxMotivoBuscaAtiva = -1;
+      let idxStatusBuscaAtiva = -1;
+      let idxAcaoBuscaAtiva = -1;
+      let idxAcoesBotoes = -1;
 
       ths.forEach((th, idx) => {
         const t = (th.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase();
 
+        if (t.includes('FOTO 3X4') || t === 'FOTO') idxFoto = idx;
         if (t.includes('STATUS DA FOTO') || t === 'STATUS FOTO') idxColStatusFoto = idx;
+        if (t.includes('BENEFÍCIOS') || t.includes('BENEFICIOS')) idxBeneficios = idx;
         if (t.includes('ALUNO') || t.includes('ESTUDANTE')) {
           idxAluno = idx;
           th.classList.add('col-nome-larga-eemti');
         }
         if (t === 'STATUS' || t.includes('CATEGORIA DA ATIVIDADE')) {
-          idxStatusChamada = idx;
           th.classList.add('col-status-compacta-eemti');
         }
         if (t === 'SÉRIE' || t === 'SERIE' || t === 'TURMA' || t === 'SÉRIE / TURMA' || t === 'SERIE / TURMA') idxSerie = idx;
         if (t.includes('BIMESTRE')) idxBimestre = idx;
-        if (t === 'DATA' || t.includes('DATA / HORA')) idxData = idx;
+        if (t === 'DATA' || t.includes('DATA / HORA') || t.includes('SEMESTRE') || t.includes('ANO / SEM')) idxData = idx;
+        if (t.includes('DIA')) idxDia = idx;
+        if (t.includes('TEMPO')) idxTempo = idx;
+        if (t.includes('ELETIVA')) idxEletiva = idx;
+        if (t.includes('PROFESSOR') || t.includes('REGISTRADO POR')) idxProfessor = idx;
+        if (t === 'C.H' || t.includes('CARGA')) idxCh = idx;
+        if (t.includes('NOTA')) idxNota = idx;
+        if (t.includes('FALTA')) idxFaltas = idx;
+        if (t.includes('FREQ') && !t.includes('ALIMENTAR')) idxFreqPerc = idx;
         if (t.includes('OCORRÊNCIA') || t.includes('OCORRENCIA')) idxOcorrencia = idx;
         if (t.includes('GRAVIDADE')) idxGravidade = idx;
-        if (t.includes('PROFESSOR') || t.includes('REGISTRADO POR')) idxProfessor = idx;
-        if (t.includes('OBSERVA')) idxObs = idx;
+        if (t.includes('OBSERVA') || t.includes('PARECER')) idxObs = idx;
         if (t.includes('MATRÍCULA') || t.includes('MATRICULA') || t.includes('CPF')) idxMatCpf = idx;
+        if (t.includes('NASCIMENTO') || t.includes('DATA NASC')) idxNascimento = idx;
+        if (t.includes('DEFICIÊNCIA') || t.includes('DEFICIENCIA') || t.includes('NECESSIDADE')) idxDeficiencia = idx;
+        if (t.includes('LAUDO')) idxLaudo = idx;
         if (t.includes('RESPONSÁVEL') || t.includes('RESPONSAVEL')) idxResp = idx;
-
-        if (
-          t.includes('BENEFÍCIOS') ||
-          t.includes('BENEFICIOS') ||
-          t === 'C.H' ||
-          t === 'ID' ||
-          t.includes('EDIÇÃO') ||
-          t.includes('EDITORA') ||
-          t.includes('BACKUP')
-        ) {
-          indicesOcultarNoMobile.push(idx);
-          th.classList.add('col-oculta-mobile-eemti');
+        if (t.includes('DESCRIÇÃO') || t.includes('DESCRICAO') || t.includes('MOTIVO') || t.includes('SITUAÇÃO')) idxMotivoBuscaAtiva = idx;
+        if (t.includes('STATUS') || t.includes('RESULTADO')) idxStatusBuscaAtiva = idx;
+        if (t.includes('AÇÃO') || t.includes('ACAO') || t.includes('ENCAMINHAMENTO')) {
+          if (!t.includes('AÇÕES') && !t.includes('ACOES')) idxAcaoBuscaAtiva = idx;
+        }
+        if (t.includes('AÇÕES') || t.includes('ACOES') || t === 'OPÇÕES') {
+          idxAcoesBotoes = idx;
+          th.classList.add('col-acoes-visivel-eemti');
         }
       });
 
-      if (idxColStatusFoto >= 0 && ths[idxColStatusFoto]) {
-        ths[idxColStatusFoto].classList.add('col-oculta-eemti');
+      // =====================================================================
+      // CASO 1: HISTÓRICO DE ELETIVAS DO ALUNO (historico-eletivas.html)
+      // Colunas desejadas:
+      // 1) Data/Semestre | 2) Série (+ Dia abaixo + Tempo Eletivo abaixo) | 3) Eletiva (+ Professor abaixo) | 4) Nota (+ % Frequência abaixo)
+      // =====================================================================
+      const ehTabelaHistoricoEletivas = (
+        pathLower.includes('historico-eletivas') ||
+        (idxEletiva >= 0 && idxNota >= 0 && (idxFreqPerc >= 0 || idxFaltas >= 0))
+      );
+      if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxSerie >= 0) {
+        if (idxData >= 0 && ths[idxData]) ths[idxData].textContent = 'DATA / SEM.';
+        if (ths[idxSerie]) ths[idxSerie].textContent = 'SÉRIE / DIA / TEMPO';
+        if (ths[idxEletiva]) {
+          ths[idxEletiva].textContent = 'ELETIVA / PROFESSOR(A)';
+          ths[idxEletiva].classList.add('col-nome-larga-eemti');
+        }
+        if (idxNota >= 0 && ths[idxNota]) ths[idxNota].textContent = 'NOTA / % FREQ.';
+
+        [idxDia, idxTempo, idxProfessor, idxCh, idxFaltas, idxFreqPerc].forEach(cIdx => {
+          if (cIdx >= 0 && cIdx !== idxData && cIdx !== idxSerie && cIdx !== idxEletiva && cIdx !== idxNota && ths[cIdx]) {
+            ths[cIdx].classList.add('col-oculta-eemti');
+          }
+        });
       }
 
-      // 1. PÁGINA SITUAÇÃO DO ALUNO:
-      // Oculta colunas Matrícula/CPF e Responsável, e formata:
-      // Nome do Aluno -> Resp: Nome do Responsável -> CPF do aluno: ... (sem Matrícula!)
+      // =====================================================================
+      // CASO 2: GERENCIAR ALUNOS (cadastro-alunos.html)
+      // - Legenda BF e PM acima da tabela
+      // - Coluna Foto: Masculino/Feminino embaixo da foto
+      // - Coluna Nome: Nome do Aluno + Pai (Contato) + Mãe (Contato)
+      // - Coluna Série: Série + BF (verde se recebe) + PM (verde se recebe)
+      // =====================================================================
+      const ehTabelaGerenciarAlunos = (idxFoto >= 0 && idxColStatusFoto >= 0);
+      if (ehTabelaGerenciarAlunos) {
+        inserirLegendaAcimaDaTabela(tabela, 'GERENCIAR_ALUNOS_BF_PM');
+        if (ths[idxColStatusFoto]) ths[idxColStatusFoto].classList.add('col-oculta-eemti');
+        if (idxBeneficios >= 0 && ths[idxBeneficios]) ths[idxBeneficios].classList.add('col-oculta-eemti');
+        if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].textContent = 'SÉRIE / BF / PM';
+      }
+
+      // =====================================================================
+      // CASO 3: SITUAÇÃO DO ALUNO (situacao-aluno.html)
+      // - Coluna Nome larga (Nome + Resp + CPF)
+      // - Alimentar Nota e Alimentar Frequência quebram texto em 2 linhas para dar largura ao nome
+      // =====================================================================
       const ehTabelaSituacao = (idxMatCpf >= 0 && idxAluno >= 0 && pathLower.includes('situacao'));
       if (ehTabelaSituacao) {
         if (ths[idxMatCpf]) ths[idxMatCpf].classList.add('col-oculta-eemti');
         if (idxResp >= 0 && ths[idxResp]) ths[idxResp].classList.add('col-oculta-eemti');
+        if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].style.width = '12%';
+        if (ths[idxAluno]) ths[idxAluno].style.width = '48%';
       }
 
-      // 2. PÁGINA HISTÓRICO INDIVIDUAL DE OCORRÊNCIAS (historico-ocorrencias.html):
-      // Oculta colunas Bimestre, Série, Gravidade e Professor -> Deixa apenas:
-      // Coluna 1: Data | Coluna 2: Ocorrência (+ Gravidade abaixo + Professor mais abaixo) | Coluna 3: Observações
+      // =====================================================================
+      // CASO 4: BUSCA ATIVA (busca-ativa.html)
+      // - Coluna Data
+      // - Coluna Aluno Larga: Nome do Aluno + Série embaixo (oculta coluna Série separada)
+      // - Coluna Motivo/Status/Ação Larga: Descrição do Motivo + Status abaixo + Ação abaixo/frente
+      // - Coluna Ações: Botões de Edição e Exclusão sempre visíveis na tela do computador e celular
+      // =====================================================================
+      const ehTabelaBuscaAtiva = (pathLower.includes('busca-ativa') && idxAluno >= 0);
+      if (ehTabelaBuscaAtiva) {
+        if (idxSerie >= 0 && idxSerie !== idxAluno && ths[idxSerie]) ths[idxSerie].classList.add('col-oculta-eemti');
+        if (ths[idxAluno]) {
+          ths[idxAluno].textContent = 'ALUNO(A) / SÉRIE';
+          ths[idxAluno].classList.add('col-nome-larga-eemti');
+        }
+        const idxColPrincipalMotivo = idxMotivoBuscaAtiva >= 0 ? idxMotivoBuscaAtiva : (idxStatusBuscaAtiva >= 0 ? idxStatusBuscaAtiva : -1);
+        if (idxColPrincipalMotivo >= 0 && ths[idxColPrincipalMotivo]) {
+          ths[idxColPrincipalMotivo].textContent = 'MOTIVO / STATUS / AÇÃO';
+          ths[idxColPrincipalMotivo].classList.add('col-secundaria-larga-eemti');
+        }
+        [idxStatusBuscaAtiva, idxAcaoBuscaAtiva, idxResp].forEach(cIdx => {
+          if (cIdx >= 0 && cIdx !== idxColPrincipalMotivo && cIdx !== idxAcoesBotoes && ths[cIdx]) {
+            ths[cIdx].classList.add('col-oculta-eemti');
+          }
+        });
+      }
+
+      // =====================================================================
+      // CASO 5: AEE - ATENDIMENTO EDUCACIONAL ESPECIALIZADO (aee.html)
+      // - Coluna Aluno Larga: Nome do Aluno + Série + Matrícula + Data de Nascimento
+      // - Coluna Deficiência Larga: Deficiência/Necessidade + Laudo + Observação/Parecer
+      // =====================================================================
+      const ehTabelaAee = (pathLower.includes('aee') && idxAluno >= 0 && idxDeficiencia >= 0);
+      if (ehTabelaAee) {
+        if (ths[idxAluno]) {
+          ths[idxAluno].textContent = 'ALUNO(A) / MATRÍCULA / NASC.';
+          ths[idxAluno].classList.add('col-nome-larga-eemti');
+        }
+        if (ths[idxDeficiencia]) {
+          ths[idxDeficiencia].textContent = 'DEFICIÊNCIA / LAUDO / PARECER';
+          ths[idxDeficiencia].classList.add('col-secundaria-larga-eemti');
+        }
+        [idxSerie, idxMatCpf, idxNascimento, idxLaudo, idxObs, idxData].forEach(cIdx => {
+          if (cIdx >= 0 && cIdx !== idxAluno && cIdx !== idxDeficiencia && cIdx !== idxAcoesBotoes && ths[cIdx]) {
+            ths[cIdx].classList.add('col-oculta-eemti');
+          }
+        });
+      }
+
+      // =====================================================================
+      // CASO 6: HISTÓRICO INDIVIDUAL E CONSULTA DE OCORRÊNCIAS
+      // =====================================================================
       const ehTabelaHistoricoIndividual = (
         idxOcorrencia >= 0 &&
         idxData >= 0 &&
@@ -754,12 +911,11 @@
         if (idxProfessor >= 0 && ths[idxProfessor]) ths[idxProfessor].classList.add('col-oculta-eemti');
       }
 
-      // 3. PÁGINA CONSULTAR / REGISTRAR OCORRÊNCIAS (registro-ocorrencias.html / consulta-ocorrencias-aluno.html):
-      // Coluna Aluno (+ Série abaixo) | Coluna Ocorrência (+ Gravidade abaixo + Professor abaixo)
       const ehTabelaConsultaOcorrencias = (
         idxOcorrencia >= 0 &&
         idxAluno >= 0 &&
-        !ehTabelaHistoricoIndividual
+        !ehTabelaHistoricoIndividual &&
+        !ehTabelaBuscaAtiva
       );
       if (ehTabelaConsultaOcorrencias) {
         if (idxSerie >= 0 && ths[idxSerie]) ths[idxSerie].classList.add('col-oculta-eemti');
@@ -767,12 +923,14 @@
         if (idxProfessor >= 0 && ths[idxProfessor]) ths[idxProfessor].classList.add('col-oculta-eemti');
       }
 
+      // =====================================================================
+      // PROCESSAMENTO DAS LINHAS (TBODY TR) DE CADA TABELA
+      // =====================================================================
       const linhas = tabela.querySelectorAll('tbody tr');
       linhas.forEach(tr => {
         const tds = tr.children;
         if (!tds || tds.length <= 1) return;
 
-        // Salva os dados originais de todas as colunas da linha antes de mesclar para exibir no Modal quando clicar na linha!
         if (!tr._dadosOriginaisLinhaEEMTI) {
           tr._dadosOriginaisLinhaEEMTI = Array.from(tds).map((td, i) => ({
             titulo: ths[i] ? (ths[i].textContent || '').replace(/\s+/g, ' ').trim() : `Campo ${i + 1}`,
@@ -780,20 +938,123 @@
           }));
         }
 
-        if (idxAluno >= 0 && tds[idxAluno]) {
-          tds[idxAluno].classList.add('col-nome-larga-eemti');
-        }
-        if (idxColStatusFoto >= 0 && tds[idxColStatusFoto]) {
-          tds[idxColStatusFoto].classList.add('col-oculta-eemti');
-        }
-        indicesOcultarNoMobile.forEach(iMob => {
-          if (tds[iMob]) tds[iMob].classList.add('col-oculta-mobile-eemti');
-        });
+        if (idxAluno >= 0 && tds[idxAluno]) tds[idxAluno].classList.add('col-nome-larga-eemti');
+        if (idxAcoesBotoes >= 0 && tds[idxAcoesBotoes]) tds[idxAcoesBotoes].classList.add('col-acoes-visivel-eemti');
 
-        // Aplica layout de 3 linhas na página Situação do Aluno:
-        // 1. Nome do aluno
-        // 2. Resp: Nome do responsável
-        // 3. CPF do aluno: ... (sem matrícula!)
+        // 1. Formata Linha do HISTÓRICO DE ELETIVAS
+        if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxSerie >= 0 && !tr._eemtiHistEletFormatado) {
+          tr._eemtiHistEletFormatado = true;
+          [idxDia, idxTempo, idxProfessor, idxCh, idxFaltas, idxFreqPerc].forEach(cIdx => {
+            if (cIdx >= 0 && cIdx !== idxData && cIdx !== idxSerie && cIdx !== idxEletiva && cIdx !== idxNota && tds[cIdx]) {
+              tds[cIdx].classList.add('col-oculta-eemti');
+            }
+          });
+
+          const valSerie = window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '-');
+          const valDia = idxDia >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxDia]?.valor || '') : '';
+          const valTempo = idxTempo >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxTempo]?.valor || '') : '';
+
+          tds[idxSerie].innerHTML = `
+            <div class="fw-bold text-primary" style="font-size:0.76rem;">${valSerie}</div>
+            ${valDia && valDia !== '-' ? `<div class="text-dark fw-semibold mt-1" style="font-size:0.65rem;">${valDia}</div>` : ''}
+            ${valTempo && valTempo !== '-' ? `<div class="text-muted" style="font-size:0.63rem;">${valTempo}</div>` : ''}
+          `;
+
+          const valElet = tr._dadosOriginaisLinhaEEMTI[idxEletiva]?.valor || '-';
+          const valProf = idxProfessor >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxProfessor]?.valor || '') : '';
+
+          tds[idxEletiva].classList.add('col-nome-larga-eemti');
+          tds[idxEletiva].innerHTML = `
+            <div class="fw-bold text-dark" style="font-size:0.78rem;line-height:1.22;">${valElet}</div>
+            ${valProf ? `<div class="text-secondary mt-1" style="font-size:0.67rem;"><i class="bi bi-person-workspace me-1"></i><b>Prof.:</b> ${valProf}</div>` : ''}
+          `;
+
+          if (idxNota >= 0 && tds[idxNota]) {
+            const valNota = tr._dadosOriginaisLinhaEEMTI[idxNota]?.valor || '-';
+            let valFreq = idxFreqPerc >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxFreqPerc]?.valor || '') : '';
+            const matchPerc = valFreq.match(/(\d+%)/);
+            if (matchPerc) valFreq = matchPerc[1];
+
+            tds[idxNota].innerHTML = `
+              <div class="fw-bolder text-dark" style="font-size:0.84rem;">${valNota}</div>
+              ${valFreq ? `<div class="mt-1"><span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.63rem;">${valFreq}</span></div>` : ''}
+            `;
+          }
+        }
+
+        // 2. Formata Linha do GERENCIAR ALUNOS (Foto+Sexo | Nome+Pai/Mãe | Série+BF+PM)
+        if (ehTabelaGerenciarAlunos && !tr._eemtiGerenciarFormatado) {
+          tr._eemtiGerenciarFormatado = true;
+          if (tds[idxColStatusFoto]) tds[idxColStatusFoto].classList.add('col-oculta-eemti');
+          if (idxBeneficios >= 0 && tds[idxBeneficios]) tds[idxBeneficios].classList.add('col-oculta-eemti');
+
+          const divBoldNome = tds[1].querySelector('.fw-bold, b, strong') || tds[1];
+          const nomeExtraido = (divBoldNome.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase();
+          tr.setAttribute('data-nome-aluno-limpo', nomeExtraido);
+
+          const infoCad = obterDadosCadastraisAlunoCache(nomeExtraido);
+          const sexoExtenso = formatarSexoPorExtenso(infoCad.sexo);
+
+          // Coluna 0 (Foto 3x4): adiciona Masculino ou Feminino embaixo da foto!
+          if (tds[idxFoto] && sexoExtenso && !tds[idxFoto].querySelector('.lbl-sexo-foto-eemti')) {
+            const divSexo = document.createElement('div');
+            divSexo.className = 'lbl-sexo-foto-eemti fw-bold text-secondary mt-1 text-center';
+            divSexo.style.fontSize = '0.62rem';
+            divSexo.textContent = sexoExtenso;
+            tds[idxFoto].appendChild(divSexo);
+          }
+
+          // Coluna 1 (Nome + Pai com contato + Mãe com contato)
+          const maeNome = infoCad.mae || '';
+          const maeTel = infoCad.telMae || '';
+          const paiNome = infoCad.pai || '';
+          const paiTel = infoCad.telPai || '';
+
+          const textoOrigCol1 = tr._dadosOriginaisLinhaEEMTI[1]?.valor || '';
+          let linhasFiliacaoHtml = '';
+
+          if (paiNome || maeNome) {
+            if (paiNome) {
+              linhasFiliacaoHtml += `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;"><b>Pai:</b> ${paiNome}${paiTel ? ' • <b>Tel:</b> ' + paiTel : ''}</div>`;
+            }
+            if (maeNome) {
+              linhasFiliacaoHtml += `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;"><b>Mãe:</b> ${maeNome}${maeTel ? ' • <b>Tel:</b> ' + maeTel : ''}</div>`;
+            }
+          } else {
+            const restoFiliacao = textoOrigCol1.replace(nomeExtraido, '').trim();
+            if (restoFiliacao) {
+              linhasFiliacaoHtml = `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;">${restoFiliacao}</div>`;
+            }
+          }
+
+          tds[1].innerHTML = `
+            <div class="fw-bold text-dark" style="font-size:0.8rem;line-height:1.2;">${nomeExtraido}</div>
+            ${linhasFiliacaoHtml}
+          `;
+
+          // Coluna 2 (Série + BF verde se recebe + PM verde se recebe)
+          if (idxSerie >= 0 && tds[idxSerie]) {
+            const serieCurta = window.abreviarSerieParaExibicao(infoCad.serie || tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '-');
+            const textoBenefOrig = idxBeneficios >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxBeneficios]?.valor || '').toUpperCase() : '';
+            const recebeBF = String(infoCad.bolsaFamilia || '').toUpperCase() === 'SIM' || textoBenefOrig.includes('BF: SIM');
+            const recebePM = String(infoCad.peDeMeia || '').toUpperCase() === 'SIM' || textoBenefOrig.includes('PM: SIM');
+
+            tds[idxSerie].innerHTML = `
+              <div class="mb-1"><span class="badge bg-light text-dark border fw-bold" style="font-size:0.66rem;">${serieCurta}</span></div>
+              <div class="d-flex justify-content-center gap-1 flex-wrap">
+                <span class="badge ${recebeBF ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary'}" title="Bolsa Família: ${recebeBF ? 'SIM' : 'NÃO'}" style="font-size:0.6rem;">BF</span>
+                <span class="badge ${recebePM ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary'}" title="Pé-de-Meia: ${recebePM ? 'SIM' : 'NÃO'}" style="font-size:0.6rem;">PM</span>
+              </div>
+            `;
+          }
+
+          // Se houver um filtro exclusivo selecionado no autocompletar, mostra somente o aluno clicado!
+          if (filtroExclusivoAlunoSelecionado && nomeExtraido !== filtroExclusivoAlunoSelecionado) {
+            tr.style.display = 'none';
+          }
+        }
+
+        // 3. Formata Linha da SITUAÇÃO DO ALUNO
         if (ehTabelaSituacao && !tr._eemtiSituacaoFormatada) {
           tr._eemtiSituacaoFormatada = true;
           if (tds[idxMatCpf]) tds[idxMatCpf].classList.add('col-oculta-eemti');
@@ -802,6 +1063,8 @@
           const tdAluno = tds[idxAluno];
           const rawNome = tr._dadosOriginaisLinhaEEMTI[idxAluno] ? tr._dadosOriginaisLinhaEEMTI[idxAluno].valor : '';
           const nomeSozinho = rawNome.split('Resp.:')[0].split('Resp:')[0].trim();
+          tr.setAttribute('data-nome-aluno-limpo', nomeSozinho);
+
           const rawMatCpf = tr._dadosOriginaisLinhaEEMTI[idxMatCpf] ? tr._dadosOriginaisLinhaEEMTI[idxMatCpf].valor : '';
           const rawResp = (idxResp >= 0 && tr._dadosOriginaisLinhaEEMTI[idxResp]) ? tr._dadosOriginaisLinhaEEMTI[idxResp].valor : '';
           const cpfLimpo = extrairApenasCpfFormatado(rawMatCpf || rawNome);
@@ -813,8 +1076,84 @@
           `;
         }
 
-        // Aplica layout na página Histórico Individual de Ocorrências:
-        // Coluna Ocorrência -> Descrição + Gravidade abaixo + Professor mais abaixo
+        // 4. Formata Linha da BUSCA ATIVA (Data | Aluno+Série | Motivo+Status+Ação | Ações visíveis)
+        if (ehTabelaBuscaAtiva && !tr._eemtiBuscaAtivaFormatada) {
+          tr._eemtiBuscaAtivaFormatada = true;
+          const idxColPrincipalMotivo = idxMotivoBuscaAtiva >= 0 ? idxMotivoBuscaAtiva : (idxStatusBuscaAtiva >= 0 ? idxStatusBuscaAtiva : -1);
+
+          if (idxSerie >= 0 && idxSerie !== idxAluno && tds[idxSerie]) tds[idxSerie].classList.add('col-oculta-eemti');
+          [idxStatusBuscaAtiva, idxAcaoBuscaAtiva, idxResp].forEach(cIdx => {
+            if (cIdx >= 0 && cIdx !== idxColPrincipalMotivo && cIdx !== idxAcoesBotoes && tds[cIdx]) {
+              tds[cIdx].classList.add('col-oculta-eemti');
+            }
+          });
+
+          const nomeAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '-';
+          tr.setAttribute('data-nome-aluno-limpo', nomeAl);
+          const serieAl = idxSerie >= 0 ? window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '') : '';
+
+          tds[idxAluno].innerHTML = `
+            <div class="fw-bold text-dark" style="font-size:0.79rem;line-height:1.2;">${nomeAl}</div>
+            ${serieAl ? `<div class="mt-1"><span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.62rem;">${serieAl}</span></div>` : ''}
+          `;
+
+          if (idxColPrincipalMotivo >= 0 && tds[idxColPrincipalMotivo]) {
+            const motivoTxt = idxMotivoBuscaAtiva >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxMotivoBuscaAtiva]?.valor || '-') : '-';
+            const statusTxt = (idxStatusBuscaAtiva >= 0 && idxStatusBuscaAtiva !== idxMotivoBuscaAtiva)
+              ? (tr._dadosOriginaisLinhaEEMTI[idxStatusBuscaAtiva]?.valor || '')
+              : '';
+            const acaoTxt = (idxAcaoBuscaAtiva >= 0 && idxAcaoBuscaAtiva !== idxMotivoBuscaAtiva && idxAcaoBuscaAtiva !== idxStatusBuscaAtiva)
+              ? (tr._dadosOriginaisLinhaEEMTI[idxAcaoBuscaAtiva]?.valor || '')
+              : '';
+
+            const corStatus = statusTxt.toUpperCase().includes('RESOLVID') ? 'bg-success' : 'bg-warning text-dark';
+
+            tds[idxColPrincipalMotivo].classList.add('col-secundaria-larga-eemti');
+            tds[idxColPrincipalMotivo].innerHTML = `
+              <div class="fw-bold text-dark" style="font-size:0.76rem;line-height:1.22;">${motivoTxt}</div>
+              <div class="mt-1 d-flex align-items-center flex-wrap gap-1">
+                ${statusTxt ? `<span class="badge ${corStatus}" style="font-size:0.6rem;">${statusTxt}</span>` : ''}
+                ${acaoTxt ? `<span class="text-secondary small" style="font-size:0.66rem;">• <b>Ação:</b> ${acaoTxt}</span>` : ''}
+              </div>
+            `;
+          }
+        }
+
+        // 5. Formata Linha do AEE (Nome+Série+Matrícula+Nasc | Deficiência+Laudo+Observação)
+        if (ehTabelaAee && !tr._eemtiAeeFormatada) {
+          tr._eemtiAeeFormatada = true;
+          [idxSerie, idxMatCpf, idxNascimento, idxLaudo, idxObs, idxData].forEach(cIdx => {
+            if (cIdx >= 0 && cIdx !== idxAluno && cIdx !== idxDeficiencia && cIdx !== idxAcoesBotoes && tds[cIdx]) {
+              tds[cIdx].classList.add('col-oculta-eemti');
+            }
+          });
+
+          const nomeAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '-';
+          tr.setAttribute('data-nome-aluno-limpo', nomeAl);
+          const serieAl = idxSerie >= 0 ? window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '') : '';
+          const matAl = idxMatCpf >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxMatCpf]?.valor || '-') : '-';
+          const nascAl = idxNascimento >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxNascimento]?.valor || '-') : '-';
+
+          tds[idxAluno].innerHTML = `
+            <div class="fw-bold text-dark" style="font-size:0.79rem;line-height:1.2;">${nomeAl} ${serieAl ? `<span class="badge bg-primary ms-1" style="font-size:0.58rem;">${serieAl}</span>` : ''}</div>
+            <div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;"><b>Matrícula:</b> ${matAl}</div>
+            <div class="text-muted" style="font-size:0.65rem;line-height:1.2;"><b>Data Nasc.:</b> ${nascAl}</div>
+          `;
+
+          const defTxt = tr._dadosOriginaisLinhaEEMTI[idxDeficiencia]?.valor || '-';
+          const laudoTxt = idxLaudo >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxLaudo]?.valor || '-') : '-';
+          const obsTxt = idxObs >= 0 ? (tr._dadosOriginaisLinhaEEMTI[idxObs]?.valor || '') : '';
+          const temLaudoSim = laudoTxt.toUpperCase().includes('SIM');
+
+          tds[idxDeficiencia].classList.add('col-secundaria-larga-eemti');
+          tds[idxDeficiencia].innerHTML = `
+            <div class="fw-bold text-primary" style="font-size:0.76rem;line-height:1.2;">${defTxt}</div>
+            <div class="mt-1"><span class="badge ${temLaudoSim ? 'bg-success' : 'bg-secondary'}" style="font-size:0.6rem;">Laudo: ${laudoTxt}</span></div>
+            ${obsTxt && obsTxt !== '-' ? `<div class="text-muted mt-1" style="font-size:0.66rem;line-height:1.22;"><b>Obs./Parecer:</b> ${obsTxt}</div>` : ''}
+          `;
+        }
+
+        // 6. Formata Linha do HISTÓRICO INDIVIDUAL DE OCORRÊNCIAS
         if (ehTabelaHistoricoIndividual && !tr._eemtiHistOcoFormatado) {
           tr._eemtiHistOcoFormatado = true;
           if (idxBimestre >= 0 && tds[idxBimestre]) tds[idxBimestre].classList.add('col-oculta-eemti');
@@ -840,7 +1179,7 @@
           `;
         }
 
-        // Aplica layout na tabela de Consultar Ocorrências (Aluno + Série abaixo | Ocorrência + Gravidade + Prof abaixo)
+        // 7. Formata Linha da CONSULTA DE OCORRÊNCIAS
         if (ehTabelaConsultaOcorrencias && !tr._eemtiConsOcoFormatado) {
           tr._eemtiConsOcoFormatado = true;
           if (idxSerie >= 0 && tds[idxSerie]) tds[idxSerie].classList.add('col-oculta-eemti');
@@ -849,6 +1188,7 @@
 
           const tdAl = tds[idxAluno];
           const nomeAl = tr._dadosOriginaisLinhaEEMTI[idxAluno]?.valor || '-';
+          tr.setAttribute('data-nome-aluno-limpo', nomeAl);
           const serieAl = idxSerie >= 0 ? window.abreviarSerieParaExibicao(tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '') : '';
 
           tdAl.innerHTML = `
@@ -868,21 +1208,7 @@
           `;
         }
 
-        // Gerenciar Alunos: limpa texto extra e deixa o nome largo
-        if (idxColStatusFoto >= 0 && tds[1] && !tr._eemtiGerenciarFormatado) {
-          tr._eemtiGerenciarFormatado = true;
-          const divBoldNome = tds[1].querySelector('.fw-bold, b, strong') || tds[1];
-          const nomeExtraido = (divBoldNome.textContent || '').replace(/\s+/g, ' ').trim();
-          if (nomeExtraido) {
-            tds[1].innerHTML = `
-              <div class="fw-bold text-dark">${nomeExtraido}</div>
-              <small class="text-primary" style="font-size:0.64rem;"><i class="bi bi-info-circle me-1"></i>Toque p/ ver ficha</small>
-            `;
-          }
-        }
-
-        // Torna TODAS as linhas de tabelas informativas clicáveis para mostrar os detalhes completos!
-        // (Não aplica em linhas de chamada rápida P/F/FJ/A ou lançamento R/NR/A para não atrapalhar o clique rápido do professor)
+        // Clique na linha para abrir todos os detalhes ocultos/completos
         const ehLinhaLancamentoRapido = tr.querySelector('.btn-chamada-compacto, input[type="number"]');
         if (!ehLinhaLancamentoRapido && !tr._eemtiClickModalBound) {
           tr._eemtiClickModalBound = true;
@@ -890,13 +1216,13 @@
           tr.title = 'Clique na linha para visualizar todas as informações completas';
           tr.addEventListener('click', function(ev) {
             if (ev.target.closest('button, a, input, select, label, .btn')) return;
-            abrirModalGenericoDaLinhaDaTabela(tr, ths);
+            abrirModalGenericoDaLinhaDaTabela(tr);
           });
         }
       });
     });
 
-    // C) Abrevia "2ª SÉRIE A" para "2ª A" dentro de células de tabelas (mantendo "2ª SÉRIE A" nos <select>)
+    // Abrevia "2ª SÉRIE A" para "2ª A" dentro de células de tabelas (mantendo "2ª SÉRIE A" nos <select>)
     document.querySelectorAll('table td .badge, table td span, table td div, table td').forEach(el => {
       if (el.children.length === 0) {
         const original = el.textContent || '';
@@ -909,15 +1235,39 @@
       }
     });
 
-    // D) Ativa o Filtro em Tempo Real ao Digitar + Autocompletar em todos os campos de pesquisa da página!
     configurarPesquisaVivaEmTempoRealEmTodosInputs();
   }
 
   // =========================================================================
-  // 4. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL (FILTRA À MEDIDA QUE DIGITA!)
+  // 4. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL + FILTRO EXCLUSIVO DO ALUNO CLICADO
   // =========================================================================
   function limparAcentosComparacao(str) {
     return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+  }
+
+  function filtrarLinhasDaTabelaPorTexto(containerEscopo, termoBusca, igualdadeEstritaNome = false) {
+    const termo = limparAcentosComparacao(termoBusca);
+    const tabelasAlvo = (containerEscopo || document).querySelectorAll('table.table tbody');
+
+    tabelasAlvo.forEach(tbody => {
+      const linhas = tbody.querySelectorAll('tr');
+      if (linhas.length <= 1 && linhas[0] && linhas[0].children.length <= 1) return;
+
+      linhas.forEach(tr => {
+        if (!termo) {
+          tr.style.display = '';
+          return;
+        }
+        const nomeAtributo = limparAcentosComparacao(tr.getAttribute('data-nome-aluno-limpo') || '');
+        const textoLinha = limparAcentosComparacao(tr.innerText || tr.textContent || '');
+
+        if (igualdadeEstritaNome && nomeAtributo) {
+          tr.style.display = (nomeAtributo === termo) ? '' : 'none';
+        } else {
+          tr.style.display = textoLinha.includes(termo) ? '' : 'none';
+        }
+      });
+    });
   }
 
   function configurarPesquisaVivaEmTempoRealEmTodosInputs() {
@@ -959,31 +1309,16 @@
 
       inp._eemtiLiveFilterBound = true;
 
-      // 1. Filtra instantaneamente qualquer tabela visível na página à medida que o professor digita!
       inp.addEventListener('input', function() {
         const termo = limparAcentosComparacao(this.value);
+        if (!termo) {
+          filtroExclusivoAlunoSelecionado = '';
+        }
 
-        // Encontra a tabela mais próxima (dentro do mesmo card/aba ou na página)
         const containerEscopo = this.closest('.tab-pane, .card, .main-container') || document;
-        const tabelasAlvo = containerEscopo.querySelectorAll('table.table tbody');
+        filtrarLinhasDaTabelaPorTexto(containerEscopo, termo, false);
 
-        tabelasAlvo.forEach(tbody => {
-          const linhas = tbody.querySelectorAll('tr');
-          if (linhas.length <= 1 && linhas[0] && linhas[0].children.length <= 1) return;
-
-          linhas.forEach(tr => {
-            if (!termo) {
-              tr.style.display = '';
-              return;
-            }
-            const textoLinha = limparAcentosComparacao(tr.innerText || tr.textContent || '');
-            tr.style.display = textoLinha.includes(termo) ? '' : 'none';
-          });
-        });
-
-        // 2. Se for um campo de busca individual de aluno (ex: Histórico Individual, Histórico Eletivas, Gerenciar Alunos sem turma carregada)
-        // mostra sugestões instantâneas de alunos do cache conforme digita!
-        const ehBuscaDeAluno = placeholder.includes('ALUNO') || placeholder.includes('NOME') || labelTxt.includes('ALUNO');
+        const ehBuscaDeAluno = placeholder.includes('ALUNO') || placeholder.includes('NOME') || labelTxt.includes('ALUNO') || labelTxt.includes('PESQUISAR NA TURMA');
         if (ehBuscaDeAluno && !inp.getAttribute('list')) {
           mostrarSugestoesAutocompletarAluno(inp, termo);
         }
@@ -998,20 +1333,12 @@
       return;
     }
 
-    // Se já houver uma tabela grande preenchida na tela sendo filtrada (mais de 3 linhas), não precisa abrir menu flutuante por cima
     const cardPai = inp.closest('.card, .tab-pane') || document;
-    const linhasVisiveisNaTabela = cardPai.querySelectorAll('table.table tbody tr').length;
-    if (linhasVisiveisNaTabela > 3) {
-      if (menu) menu.remove();
-      return;
-    }
-
     const alunosCache = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
     if (alunosCache.length === 0) return;
 
-    // Verifica se há algum <select> de série selecionado na página para filtrar apenas os alunos daquela série se aplicável
     const selSerieProximo = cardPai.querySelector('select[id*="Serie"], select[id*="serie"], select[id*="Turma"]');
-    const serieFiltro = (selSerieProximo && selSerieProximo.value && !selSerieProximo.value.includes('Todas'))
+    const serieFiltro = (selSerieProximo && selSerieProximo.value && !selSerieProximo.value.includes('Todas') && !selSerieProximo.value.includes('Selecione'))
       ? normalizarSeriePadraoCore(selSerieProximo.value)
       : '';
 
@@ -1056,10 +1383,11 @@
         const nomeEscolhido = this.getAttribute('data-nome');
         const serieEscolhida = this.getAttribute('data-serie');
         inp.value = nomeEscolhido;
+        filtroExclusivoAlunoSelecionado = nomeEscolhido;
         menu.remove();
 
-        // Se houver seletor de série ainda vazio (como na imagem 390 de Gerenciar Alunos), já seleciona a série do aluno e clica em Buscar!
-        if (selSerieProximo && !selSerieProximo.value && serieEscolhida) {
+        // Se o seletor de série ainda não estava na série do aluno, seleciona a série e dispara a busca!
+        if (selSerieProximo && serieEscolhida) {
           Array.from(selSerieProximo.options).forEach(opt => {
             if (normalizarSeriePadraoCore(opt.value) === normalizarSeriePadraoCore(serieEscolhida)) {
               selSerieProximo.value = opt.value;
@@ -1068,13 +1396,16 @@
           });
         }
 
-        inp.dispatchEvent(new Event('input', { bubbles: true }));
-        inp.dispatchEvent(new Event('change', { bubbles: true }));
-
-        // Se houver botão de Buscar/Consultar ao lado ou abaixo, dispara automaticamente!
         const btnBuscar = cardPai.querySelector('button[onclick*="buscar"], button[onclick*="Buscar"], button[onclick*="consultar"], button[onclick*="carregar"], button.btn-principal');
         if (btnBuscar) {
-          setTimeout(() => btnBuscar.click(), 80);
+          setTimeout(() => {
+            btnBuscar.click();
+            // Após renderizar a turma, filtra para exibir SOMENTE o aluno clicado!
+            setTimeout(() => filtrarLinhasDaTabelaPorTexto(cardPai, nomeEscolhido, true), 120);
+            setTimeout(() => filtrarLinhasDaTabelaPorTexto(cardPai, nomeEscolhido, true), 350);
+          }, 50);
+        } else {
+          filtrarLinhasDaTabelaPorTexto(cardPai, nomeEscolhido, true);
         }
       });
     });
