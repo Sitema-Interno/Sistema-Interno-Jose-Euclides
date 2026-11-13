@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v11';
+const CACHE_NAME = 'sistema-jose-euclides-v12';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 const IDB_VERSION = 2;
 
@@ -9,6 +9,7 @@ const URLS_TO_CACHE = [
   './manifest.json',
   './portal-core.js',
   './LOGO-removebg-preview.png',
+  './brasaoestado.png',
   './brasaoestado.png.png',
   './icon-192.png',
   './icon-512.png',
@@ -84,9 +85,9 @@ self.addEventListener('fetch', event => {
   let reqUrl = event.request.url;
   const lower = reqUrl.toLowerCase();
 
-  // Garante que qualquer página que peça brasaoestado.png ou o boneco 2941658.png receba brasaoestado.png.png
-  if ((lower.endsWith('brasaoestado.png') && !lower.endsWith('brasaoestado.png.png')) || lower.includes('2941658.png')) {
-    reqUrl = new URL('./brasaoestado.png.png', self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/')).href;
+  // Se alguma página cair no ícone antigo do flaticon (2941658.png), entrega o brasaoestado.png
+  if (lower.includes('2941658.png')) {
+    reqUrl = new URL('./brasaoestado.png', self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/')).href;
   }
 
   const requestFinal = reqUrl !== event.request.url ? new Request(reqUrl) : event.request;
