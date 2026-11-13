@@ -1,15 +1,18 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO COMPLETA + RESPONSIVIDADE
-// 1. PRÉ-CARREGAMENTO NO LOGIN (ALUNOS, DISCIPLINAS, ELETIVAS, MATRÍCULAS E OCORRÊNCIAS)
-// 2. ATUALIZAÇÃO AUTOMÁTICA EM NOVOS CADASTROS, EDIÇÕES OU EXCLUSÕES
-// 3. SINCRONIZAÇÃO OFFLINE COM O APP FECHADO/MINIMIZADO (SW.JS + INDEXEDDB)
-// 4. MOTOR UNIVERSAL DE AJUSTE DE TELAS (CELULAR, TABLET E COMPUTADOR)
-// 5. CABEÇALHO INSTITUCIONAL PADRÃO COM BRASÃO E FOTO 3×4 PARA PDF
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO ULTRA-RÁPIDA (CACHE-FIRST)
+// 1. ABERTURA E FILTROS INSTANTÂNEOS (0ms) + ATUALIZAÇÃO SILENCIOSA EM 2º PLANO
+// 2. TODAS AS PÁGINAS FUNCIONAM OFFLINE (EXCETO RESERVAS DE AMBIENTES)
+// 3. SELO "ATUALIZADO COM O BANCO: DATA/HORA" + BOTÃO "VOLTAR" (MEMÓRIA DO ÚLTIMO MÓDULO)
+// 4. FIM DO LOOP DE SINCRONIZAÇÃO INFINITA + TIMEOUT DE SEGURANÇA (15s)
+// 5. RESPONSIVIDADE UNIVERSAL (CELULAR, TABLET E PC) + CABEÇALHO PDF PADRÃO
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
   const LOG_SINCRONIZADOS_KEY = 'log_recem_sincronizados_eemti_v1';
   const TIMESTAMP_PREFETCH_KEY = 'ultimo_prefetch_completo_eemti_ts';
+  const ULTIMA_ATUALIZACAO_STR_KEY = 'ultima_atualizacao_banco_eemti_str';
+  const ULTIMO_TOPICO_COLMEIA_KEY = 'ultimo_topico_colmeia_selecionado_eemti';
+  const CACHE_UNIVERSAL_ACTIONS_KEY = 'cache_universal_actions_eemti_v1';
   const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
   const API_PADRAO_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
 
@@ -24,16 +27,37 @@
   const KEY_MATRICULAS_ELETIVAS_OFFLINE = 'cache_matriculas_eletivas_global_v1';
   const KEY_CATALOGO_ELETIVAS_OFFLINE = 'cache_catalogo_eletivas_global_v1';
   const KEY_TODAS_OCORRENCIAS_OFFLINE = 'cache_rac_todas_ocorrencias_v1';
+  const KEY_AMBIENTES_OFFLINE = 'cache_ambientes_escola_v1';
 
+  // Todas as ações de gravação que funcionam Offline (exceto Reservas de Ambientes)
   const ACOES_GRAVACAO_OFFLINE = {
     'salvarOcorrencia': 'Ocorrência Disciplinar (RAC)',
+    'excluirOcorrencia': 'Exclusão de Ocorrência (RAC)',
     'salvarAtividadeDisciplinas': 'Atividade Contínua (Disciplina/Eletiva)',
     'salvarAtividadeEletivas': 'Atividade de Eletiva',
     'salvarFrequenciaSecretaria': 'Frequência da Secretaria (Manhã/Tarde)',
     'salvarFrequencia': 'Frequência de Eletiva',
-    'salvarMapeamentoSala': 'Mapeamento de Sala de Aula'
+    'excluirFrequencia': 'Exclusão de Frequência de Eletiva',
+    'salvarMapeamentoSala': 'Mapeamento de Sala de Aula',
+    'salvarAtendimentoAluno': 'Atendimento ao Responsável (PDT)',
+    'salvarSuspensaoManual': 'Suspensão Disciplinar Manual',
+    'salvarNotas': 'Notas de Eletivas',
+    'salvarNotasEletiva': 'Notas de Eletivas',
+    'salvarSituacaoAluno': 'Situação do Aluno',
+    'salvarAee': 'Registro AEE',
+    'salvarBuscaAtiva': 'Ficha de Busca Ativa',
+    'salvarEmprestimoLivroBiblioteca': 'Empréstimo de Livro (Biblioteca)',
+    'registrarDevolucaoLivroBiblioteca': 'Devolução de Livro (Biblioteca)'
   };
 
+  // Ações da página de Reservas de Ambientes (sempre exigem tempo real online)
+  const ACOES_EXCLUSIVAS_ONLINE_RESERVAS = [
+    'listarReservas',
+    'salvarReserva',
+    'excluirReserva'
+  ];
+
+  // Ações de cadastro/edição que disparam atualização silenciosa do banco em 2º plano
   const ACOES_MUTACAO_CADASTROS = [
     'salvarOcorrencia', 'excluirOcorrencia',
     'salvarAtividadeDisciplinas', 'salvarAtividadeEletivas',
@@ -43,15 +67,33 @@
     'excluirAluno', 'migrarAlunosSelecionados', 'salvarMatricula', 'cadastrarEletiva',
     'atualizarEletiva', 'editarEletiva', 'excluirEletiva', 'salvarDisciplinaCadastro',
     'excluirDisciplinaCadastro', 'salvarConfig', 'excluirConfig', 'salvarPDT', 'excluirPDT',
-    'salvarMapeamentoSala'
+    'salvarMapeamentoSala', 'salvarDiasLetivosMes', 'salvarNotas', 'salvarNotasEletiva',
+    'salvarSituacaoAluno', 'excluirSituacaoAluno', 'salvarAee', 'excluirAee',
+    'salvarBuscaAtiva', 'excluirBuscaAtiva', 'salvarLivroBiblioteca', 'salvarLivrosLoteBiblioteca',
+    'excluirLivroBiblioteca', 'salvarEmprestimoLivroBiblioteca', 'registrarDevolucaoLivroBiblioteca'
+  ];
+
+  // Ações de leitura que devem abrir INSTANTANEAMENTE do cache local (0ms) e atualizar em 2º plano!
+  const ACOES_LEITURA_INSTANTANEA = [
+    'getFiltrosOcorrencias', 'buscarOcorrencias',
+    'listarFrequenciaSecretaria', 'getFiltrosFrequencia', 'getFiltrosIniciais',
+    'getEletivasProfessor', 'getEletivasPorAno', 'getAlunosFrequencia', 'buscarAlunos',
+    'listarDisciplinasCadastradas', 'listarAtividadesUnificadas',
+    'listarPDT', 'listarTodosMapeamentos', 'buscarMapeamentoSala',
+    'getAlunosParaPainelSuspensao', 'listarAtendimentosAlunos',
+    'getDadosMatricula', 'getRelatorioMatriculas', 'getAlunosComNotas',
+    'listarConfig', 'listarSituacaoAlunos', 'listarAee', 'listarBuscaAtiva',
+    'listarLivrosBiblioteca', 'listarDadosEmprestimosBiblioteca',
+    'buscarDadosSimulados', 'getMonitoramentoEletivas', 'listarFuncionarios',
+    'getProfessores', 'buscarEletivasCadastradas', 'getAlunosParaEdicao',
+    'getDadosHistorico', 'getHistoricoEletivasAluno', 'obterFotoAlunoIndividual'
   ];
 
   let sincronizacaoEmAndamento = false;
   let prefetchEmAndamento = false;
 
   // =========================================================================
-  // 0. MOTOR UNIVERSAL DE RESPONSIVIDADE (CELULAR, TABLET E COMPUTADOR)
-  // Injeta regras globais em todas as páginas HTML para eliminar corte lateral!
+  // 0. RESPONSIVIDADE GLOBAL + BARRA SUPERIOR COM "ATUALIZADO EM" E "VOLTAR"
   // =========================================================================
   function injetarResponsividadeGlobalEEMTI() {
     if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
@@ -62,22 +104,45 @@
         max-width: 100vw !important;
         overflow-x: hidden !important;
       }
-
-      /* Garante que containers e cards nunca ultrapassem a largura da tela */
       .main-container, .container, .container-fluid, .card {
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
-
-      /* Enquadramento inteligente de tabelas em qualquer dispositivo */
       .table-responsive {
         width: 100% !important;
         max-width: 100% !important;
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
       }
-
-      /* Ajustes para TABLETS (769px até 1024px) */
+      .badge-sync-header-eemti {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #0f766e;
+        background: #f0fdfa;
+        border: 1px solid #99f6e4;
+        padding: 4px 10px;
+        border-radius: 50px;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+      .badge-sync-header-eemti:hover {
+        background: #ccfbf1;
+      }
+      .badge-sync-header-eemti.sincronizando {
+        color: #1d4ed8;
+        background: #eff6ff;
+        border-color: #bfdbfe;
+      }
+      .badge-sync-header-eemti.offline {
+        color: #b91c1c;
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
       @media (max-width: 1024px) {
         .top-header {
           padding: 14px 16px 8px 16px !important;
@@ -97,8 +162,6 @@
           white-space: normal !important;
         }
       }
-
-      /* Ajustes para CELULARES (até 768px) */
       @media (max-width: 768px) {
         .top-header {
           flex-direction: column !important;
@@ -133,6 +196,10 @@
           border-radius: 16px !important;
           gap: 6px !important;
         }
+        .badge-sync-header-eemti {
+          font-size: 0.62rem !important;
+          padding: 3px 8px !important;
+        }
         .main-container {
           padding: 8px 6px 28px 6px !important;
         }
@@ -160,8 +227,6 @@
           text-align: center !important;
           width: 100% !important;
         }
-
-        /* Tabelas 100% ajustadas na tela do celular sem cortar colunas */
         table.table {
           width: 100% !important;
           table-layout: fixed !important;
@@ -185,7 +250,6 @@
           white-space: normal !important;
           vertical-align: middle !important;
         }
-        /* Empilha botões de ação dentro de células estreitas no celular */
         table.table td.text-nowrap,
         table.table td:last-child {
           white-space: normal !important;
@@ -217,7 +281,147 @@
   }
 
   injetarResponsividadeGlobalEEMTI();
-  window.addEventListener('DOMContentLoaded', injetarResponsividadeGlobalEEMTI);
+
+  function registrarDataHoraAtualizacaoBanco() {
+    const agora = new Date();
+    const dataBr = agora.toLocaleDateString('pt-BR');
+    const horaBr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const strFinal = `${dataBr} às ${horaBr}`;
+    localStorage.setItem(ULTIMA_ATUALIZACAO_STR_KEY, strFinal);
+    atualizarSeloTopoSincronizacao();
+  }
+
+  function atualizarSeloTopoSincronizacao(estadoEspecial) {
+    const userBar = document.querySelector('.user-bar');
+    if (!userBar) return;
+
+    let selo = document.getElementById('seloTopoSyncBancoEEMTI');
+    if (!selo) {
+      selo = document.createElement('span');
+      selo.id = 'seloTopoSyncBancoEEMTI';
+      selo.className = 'badge-sync-header-eemti';
+      selo.title = 'Clique para atualizar os dados com a planilha em 2º plano';
+      selo.onclick = () => {
+        if (navigator.onLine) {
+          atualizarSeloTopoSincronizacao('SINCRONIZANDO');
+          window.sincronizarFilaOfflineGlobal();
+          window.executarPreCarregamentoTotalOffline(true);
+        } else {
+          atualizarSeloTopoSincronizacao('OFFLINE');
+        }
+      };
+      userBar.insertBefore(selo, userBar.firstChild);
+    }
+
+    const ultStr = localStorage.getItem(ULTIMA_ATUALIZACAO_STR_KEY) || 'Aguardando...';
+
+    if (!navigator.onLine || estadoEspecial === 'OFFLINE') {
+      selo.className = 'badge-sync-header-eemti offline';
+      selo.innerHTML = `<i class="bi bi-wifi-off"></i> Offline (Base: ${ultStr})`;
+    } else if (estadoEspecial === 'SINCRONIZANDO') {
+      selo.className = 'badge-sync-header-eemti sincronizando';
+      selo.innerHTML = `<span class="spinner-border spinner-border-sm" style="width:0.65rem;height:0.65rem;"></span> Sincronizando banco...`;
+    } else {
+      selo.className = 'badge-sync-header-eemti';
+      selo.innerHTML = `<i class="bi bi-cloud-check-fill"></i> Atualizado: ${ultStr}`;
+    }
+  }
+
+  // Injeta o botão "Voltar" ao lado do botão Início/Sair e restaura o último módulo da colmeia no index.html!
+  function configurarNavegacaoInteligenteEBotaoVoltar() {
+    const path = window.location.pathname.toLowerCase();
+    const estaNaHome = path.endsWith('index.html') || path.endsWith('/') || path === '';
+    const estaNoLogin = path.endsWith('login.html');
+    if (estaNoLogin) return;
+
+    // 1. Garante que a Logo oficial (LOGO-removebg-preview.png) apareça com cache-busting inteligente
+    document.querySelectorAll('img[src*="LOGO-removebg-preview.png"], .brand-escola img').forEach(img => {
+      const b64Salva = localStorage.getItem('cache_logo_oficial_eemti_b64');
+      if (!navigator.onLine && b64Salva) {
+        img.src = b64Salva;
+      } else if (navigator.onLine && img.getAttribute('src') && img.getAttribute('src').includes('LOGO-removebg-preview.png')) {
+        // Faz download silencioso e guarda a nova logo para funcionar offline e atualizar o cache
+        window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png?v=' + new Date().toISOString().slice(0, 13), 300, 300).then(b64 => {
+          if (b64) {
+            try { localStorage.setItem('cache_logo_oficial_eemti_b64', b64); } catch (e) {}
+            img.src = b64;
+          }
+        });
+      }
+    });
+
+    atualizarSeloTopoSincronizacao();
+
+    // 2. Se estiver na Home (index.html): memoriza qualquer clique nos hexágonos e reabre o último tópico ao voltar!
+    if (estaNaHome) {
+      const fnOrig = window.selecionarTopicoColmeia;
+      if (typeof fnOrig === 'function' && !fnOrig._eemtiWrapped) {
+        const novaFn = function(elementoHex, chaveTopico) {
+          const jaAtivo = elementoHex && elementoHex.classList && elementoHex.classList.contains('ativo');
+          fnOrig.apply(this, arguments);
+          if (jaAtivo) {
+            sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
+          } else if (chaveTopico) {
+            sessionStorage.setItem(ULTIMO_TOPICO_COLMEIA_KEY, chaveTopico);
+          }
+        };
+        novaFn._eemtiWrapped = true;
+        window.selecionarTopicoColmeia = novaFn;
+      }
+
+      const fnFecharOrig = window.fecharPainelTopico;
+      if (typeof fnFecharOrig === 'function' && !fnFecharOrig._eemtiWrapped) {
+        const novaFechar = function() {
+          sessionStorage.removeItem(ULTIMO_TOPICO_COLMEIA_KEY);
+          fnFecharOrig.apply(this, arguments);
+        };
+        novaFechar._eemtiWrapped = true;
+        window.fecharPainelTopico = novaFechar;
+      }
+
+      // Se o professor acabou de voltar de uma subpágina, reabre automaticamente a gaveta do módulo que ele estava usando!
+      const ultimoTopico = sessionStorage.getItem(ULTIMO_TOPICO_COLMEIA_KEY);
+      if (ultimoTopico) {
+        setTimeout(() => {
+          const seletores = Array.from(document.querySelectorAll('.hex-node'));
+          const hexAlvo = seletores.find(el => {
+            const onc = el.getAttribute('onclick') || '';
+            return onc.includes(`'${ultimoTopico}'`) && el.offsetParent !== null;
+          }) || seletores.find(el => (el.getAttribute('onclick') || '').includes(`'${ultimoTopico}'`));
+
+          if (hexAlvo && typeof window.selecionarTopicoColmeia === 'function' && !hexAlvo.classList.contains('ativo')) {
+            window.selecionarTopicoColmeia(hexAlvo, ultimoTopico);
+          }
+        }, 120);
+      }
+      return;
+    }
+
+    // 3. Se estiver em qualquer subpágina: adiciona o botão "Voltar" ao lado do botão Início/Sair!
+    const userBar = document.querySelector('.user-bar');
+    if (userBar && !document.getElementById('btnVoltarPaginaAnteriorEEMTI')) {
+      const btnVoltar = document.createElement('button');
+      btnVoltar.type = 'button';
+      btnVoltar.id = 'btnVoltarPaginaAnteriorEEMTI';
+      btnVoltar.className = 'btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold';
+      btnVoltar.innerHTML = `<i class="bi bi-arrow-left-circle-fill me-1"></i>Voltar`;
+      btnVoltar.title = 'Voltar para a página ou função anterior';
+      btnVoltar.onclick = function() {
+        if (document.referrer && document.referrer.includes(window.location.host) && window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = 'index.html';
+        }
+      };
+
+      const btnInicioOuSair = userBar.querySelector('a[href*="index.html"], button.btn-outline-danger');
+      if (btnInicioOuSair) {
+        userBar.insertBefore(btnVoltar, btnInicioOuSair);
+      } else {
+        userBar.appendChild(btnVoltar);
+      }
+    }
+  }
 
   function obterNomeUsuarioLogadoCore() {
     try {
@@ -257,8 +461,53 @@
     }
   }
 
+  // Salva e recupera respostas completas por chave de requisição para que TODAS as páginas funcionem offline e abram em 0ms!
+  function gerarChaveCacheRequisicao(action, bodyObj) {
+    const copia = Object.assign({}, bodyObj || {});
+    delete copia.usuarioLogado;
+    return `cache_req_v2_${action}_${JSON.stringify(copia).slice(0, 180)}`;
+  }
+
+  function salvarRespostaNoCacheInstantaneo(action, bodyObj, textoJson) {
+    if (!ACOES_LEITURA_INSTANTANEA.includes(action)) return;
+    if (!textoJson || textoJson.length > 350000) return; // Evita estourar quota com imagens gigantes
+    try {
+      const ch = gerarChaveCacheRequisicao(action, bodyObj);
+      localStorage.setItem(ch, textoJson);
+    } catch (e) {
+      liberarEspacoStorageAntigo();
+    }
+  }
+
+  function obterRespostaDoCacheInstantaneo(action, bodyObj) {
+    if (!ACOES_LEITURA_INSTANTANEA.includes(action)) return null;
+    try {
+      const ch = gerarChaveCacheRequisicao(action, bodyObj);
+      const direto = localStorage.getItem(ch);
+      if (direto) return direto;
+    } catch (e) {}
+    return construirRespostaOfflineInteligente(action, bodyObj);
+  }
+
+  // Fetch com Timeout de Segurança (evita travar infinitamente se a rede oscilar)
+  async function fetchComTimeoutSeguranca(url, opcoes, timeoutMs = 18000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const opcoesFinais = Object.assign({}, opcoes, {
+        signal: controller.signal,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        redirect: 'follow'
+      });
+      return await _fetchNativo(url, opcoesFinais);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // =========================================================================
-  // 1. MOTOR DE PRÉ-CARREGAMENTO TOTAL NO LOGIN / INÍCIO (PRE-FETCH OFFLINE)
+  // 1. MOTOR DE PRÉ-CARREGAMENTO TOTAL EM SEGUNDO PLANO (PRE-FETCH OFFLINE)
+  // Baixa os dados de todas as páginas principais para uso imediato e offline!
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarImediato = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -272,27 +521,44 @@
     const jaTemAlunos = Boolean(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI));
     const jaTemEletivas = Boolean(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE));
 
-    if (!forcarImediato && jaTemAlunos && jaTemEletivas && (agora - ultimoTs < 600000)) {
+    if (!forcarImediato && jaTemAlunos && jaTemEletivas && (agora - ultimoTs < 300000)) {
+      atualizarSeloTopoSincronizacao();
       return;
     }
 
     prefetchEmAndamento = true;
+    atualizarSeloTopoSincronizacao('SINCRONIZANDO');
 
     try {
-      const [resFreqSec, resFiltrosRac, resDisc, resMatElet, resBim, resOcoRac] = await Promise.all([
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarFrequenciaSecretaria' }) }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDisciplinasCadastradas' }) }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getDadosMatricula' }) }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => null),
-        _fetchNativo(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null)
+      // Lote 1: Bases essenciais (Alunos, Séries, Ocorrências, Disciplinas, Eletivas, Bimestres, PDT e Mapeamentos)
+      const [
+        resFreqSec,
+        resFiltrosRac,
+        resDisc,
+        resMatElet,
+        resBim,
+        resOcoRac,
+        resPdt,
+        resMapas
+      ] = await Promise.all([
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarFrequenciaSecretaria' }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDisciplinasCadastradas' }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getDadosMatricula' }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => null),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarTodosMapeamentos' }) }).then(r => r.json()).catch(() => null)
       ]);
 
       if (resFreqSec && resFreqSec.success) {
+        salvarRespostaNoCacheInstantaneo('listarFrequenciaSecretaria', { action: 'listarFrequenciaSecretaria' }, JSON.stringify(resFreqSec));
         if (Array.isArray(resFreqSec.series) && resFreqSec.series.length > 0) {
           const seriesNorm = resFreqSec.series.map(s => normalizarSeriePadraoCore(s)).filter(Boolean);
           salvarNoLocalStorageSeguro(window.KEY_SERIES_UNIVERSAL_EEMTI, seriesNorm);
           salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_ser', seriesNorm);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_ser', seriesNorm);
+          salvarNoLocalStorageSeguro('cache_mapa_series_v4', seriesNorm);
         }
         if (Array.isArray(resFreqSec.alunosDetalhados) && resFreqSec.alunosDetalhados.length > 0) {
           const alunosNorm = resFreqSec.alunosDetalhados.map(a => ({
@@ -307,6 +573,7 @@
           salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alunosNorm);
           salvarNoLocalStorageSeguro('cache_freq_sec_alunos_det_v4', alunosNorm);
           salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_alunos', alunosNorm);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_alunos', alunosNorm);
         }
         if (resFreqSec.diasLetivosMes) {
           salvarNoLocalStorageSeguro('cache_freq_sec_dias_letivos_v4', resFreqSec.diasLetivosMes);
@@ -324,14 +591,6 @@
           })).filter(o => o.descricao);
           salvarNoLocalStorageSeguro('cache_rac_catalogo_v3', catRac);
         }
-        if (Array.isArray(resFiltrosRac.alunos) && resFiltrosRac.alunos.length > 0 && (!resFreqSec || !resFreqSec.alunosDetalhados)) {
-          const alLeve = resFiltrosRac.alunos.map(a => ({
-            nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
-            serie: normalizarSeriePadraoCore(a.serie)
-          })).filter(x => x.nome && x.serie);
-          salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alLeve);
-          salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_alunos', alLeve);
-        }
       }
 
       if (Array.isArray(resOcoRac)) {
@@ -347,6 +606,7 @@
 
       if (resDisc && resDisc.success && Array.isArray(resDisc.disciplinas) && resDisc.disciplinas.length > 0) {
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_disc', resDisc.disciplinas);
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_disc', resDisc.disciplinas);
         if (Array.isArray(resDisc.listaDetalhada)) {
           salvarNoLocalStorageSeguro('cache_aba_exclusiva_disciplinas_v2', resDisc.listaDetalhada);
         }
@@ -359,9 +619,11 @@
           fimIso: String(b.col3 || "").includes('-') ? String(b.col3).trim() : ""
         })).filter(b => b.nome);
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_bim', bimFormatados);
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_bim', bimFormatados);
       }
 
       if (resMatElet && resMatElet.success) {
+        salvarRespostaNoCacheInstantaneo('getDadosMatricula', { action: 'getDadosMatricula' }, JSON.stringify(resMatElet));
         const catalogoNorm = (resMatElet.catalogo || []).map(c => ({
           id: c.id || "",
           semestre: String(c.ano || c.semestre || "").trim(),
@@ -391,6 +653,7 @@
 
         salvarNoLocalStorageSeguro(KEY_CATALOGO_ELETIVAS_OFFLINE, pacoteFiltrosFrequenciaEletiva);
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_elet', catalogoNorm);
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_elet', catalogoNorm);
 
         if (Array.isArray(resMatElet.historico)) {
           const matriculasLeves = resMatElet.historico.map(m => ({
@@ -414,12 +677,52 @@
             }
           });
           salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_al_elet', mapaPorEletivaAtiv);
+          salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_al_elet', mapaPorEletivaAtiv);
         }
       }
 
+      if (resPdt && Array.isArray(resPdt.lista)) {
+        const novoMapaPdt = {};
+        resPdt.lista.forEach(item => {
+          const s = normalizarSeriePadraoCore(item.serie);
+          const p = String(item.professor || "").trim().toUpperCase();
+          if (s && p) novoMapaPdt[s] = p;
+        });
+        salvarNoLocalStorageSeguro('cache_mapa_pdt_v4', novoMapaPdt);
+      }
+
+      if (resMapas && Array.isArray(resMapas.lista)) {
+        const mapaConsolidado = {};
+        resMapas.lista.forEach(item => {
+          const sNorm = normalizarSeriePadraoCore(item.serie);
+          if (sNorm) {
+            mapaConsolidado[sNorm] = {
+              serie: sNorm,
+              pdt: item.pdt || "NÃO ATRIBUÍDO",
+              colunas: Number(item.colunas) || 6,
+              linhas: Number(item.linhas) || 7,
+              posicoes: item.posicoes || {},
+              ultimaAtualizacao: item.ultimaAtualizacao || "-"
+            };
+          }
+        });
+        salvarNoLocalStorageSeguro('cache_todos_mapas_salvos_v4', mapaConsolidado);
+      }
+
+      // Lote 2 em segundo plano: Suspensões/Atendimentos, Atividades, Situação/AEE/Busca Ativa e Biblioteca
+      Promise.all([
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getAlunosParaPainelSuspensao' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('getAlunosParaPainelSuspensao', { action: 'getAlunosParaPainelSuspensao' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAtendimentosAlunos' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAtendimentosAlunos', { action: 'listarAtendimentosAlunos' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAtividadesUnificadas' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAtividadesUnificadas', { action: 'listarAtividadesUnificadas' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarSituacaoAlunos' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarSituacaoAlunos', { action: 'listarSituacaoAlunos' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAee' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAee', { action: 'listarAee' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarBuscaAtiva' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarBuscaAtiva', { action: 'listarBuscaAtiva' }, t)).catch(() => {})
+      ]).catch(() => {});
+
       localStorage.setItem(TIMESTAMP_PREFETCH_KEY, String(Date.now()));
+      registrarDataHoraAtualizacaoBanco();
     } catch (errPrefetch) {
-      // Silencioso em segundo plano
+      atualizarSeloTopoSincronizacao();
     } finally {
       prefetchEmAndamento = false;
     }
@@ -448,7 +751,7 @@
       if (catSalvo) return JSON.stringify(catSalvo);
     }
 
-    if (action === 'getEletivasProfessor') {
+    if (action === 'getEletivasProfessor' || action === 'getEletivasPorAno') {
       const catSalvo = JSON.parse(localStorage.getItem(KEY_CATALOGO_ELETIVAS_OFFLINE) || 'null');
       if (catSalvo && Array.isArray(catSalvo.catalogo)) {
         const anoB = String(bodyObj.ano || "").trim();
@@ -484,14 +787,16 @@
         }
       });
       const listaFinal = Object.values(encontradosMap).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-      return JSON.stringify(listaFinal);
+      if (listaFinal.length > 0) return JSON.stringify(listaFinal);
     }
 
     if (action === 'getFiltrosOcorrencias') {
       const series = JSON.parse(localStorage.getItem(window.KEY_SERIES_UNIVERSAL_EEMTI) || '[]');
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const ocorrencias = JSON.parse(localStorage.getItem('cache_rac_catalogo_v3') || '[]');
-      return JSON.stringify({ success: true, series: series, alunos: alunos, ocorrencias: ocorrencias });
+      if (series.length > 0 || alunos.length > 0) {
+        return JSON.stringify({ success: true, series: series, alunos: alunos, ocorrencias: ocorrencias });
+      }
     }
 
     if (action === 'listarFrequenciaSecretaria') {
@@ -499,26 +804,64 @@
       const alunos = JSON.parse(localStorage.getItem('cache_freq_sec_alunos_det_v4') || localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const frequencias = JSON.parse(localStorage.getItem('cache_freq_sec_lancamentos_v4') || '[]');
       const diasLetivos = JSON.parse(localStorage.getItem('cache_freq_sec_dias_letivos_v4') || 'null');
-      return JSON.stringify({
-        success: true,
-        series: series,
-        alunosDetalhados: alunos,
-        frequencias: frequencias,
-        diasLetivosMes: diasLetivos
-      });
+      if (series.length > 0 || alunos.length > 0) {
+        return JSON.stringify({
+          success: true,
+          series: series,
+          alunosDetalhados: alunos,
+          frequencias: frequencias,
+          diasLetivosMes: diasLetivos
+        });
+      }
     }
 
     if (action === 'listarDisciplinasCadastradas') {
       const disc = JSON.parse(localStorage.getItem('cache_ativ_rapido_v3_disc') || '[]');
       const det = JSON.parse(localStorage.getItem('cache_aba_exclusiva_disciplinas_v2') || '[]');
-      return JSON.stringify({ success: true, disciplinas: disc, listaDetalhada: det });
+      if (disc.length > 0) {
+        return JSON.stringify({ success: true, disciplinas: disc, listaDetalhada: det });
+      }
+    }
+
+    if (action === 'listarPDT') {
+      const mapaPdt = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+      const chaves = Object.keys(mapaPdt);
+      if (chaves.length > 0) {
+        return JSON.stringify({ success: true, lista: chaves.map((s, idx) => ({ linha: idx + 2, serie: s, professor: mapaPdt[s] })) });
+      }
+    }
+
+    if (action === 'listarTodosMapeamentos') {
+      const mapaSalvos = JSON.parse(localStorage.getItem('cache_todos_mapas_salvos_v4') || '{}');
+      const vals = Object.values(mapaSalvos);
+      if (vals.length > 0) {
+        return JSON.stringify({ success: true, lista: vals });
+      }
+    }
+
+    if (action === 'buscarMapeamentoSala') {
+      const sAlvo = normalizarSeriePadraoCore(bodyObj.serie || "");
+      const mapaSalvos = JSON.parse(localStorage.getItem('cache_todos_mapas_salvos_v4') || '{}');
+      if (mapaSalvos[sAlvo]) {
+        return JSON.stringify({ success: true, encontrado: true, dados: mapaSalvos[sAlvo] });
+      }
+    }
+
+    if (action === 'obterFotoAlunoIndividual') {
+      // Se já tiver no cache universal, responde rápido sem travar o PDF de Suspensão!
+      const chFoto = gerarChaveCacheRequisicao(action, bodyObj);
+      const salvo = localStorage.getItem(chFoto);
+      if (salvo) return salvo;
+      if (!navigator.onLine) {
+        return JSON.stringify({ success: true, foto: "" });
+      }
     }
 
     return null;
   }
 
   // =========================================================================
-  // 2. PONTE INDEXEDDB E BACKGROUND SYNC (COM O APP FECHADO OU MINIMIZADO)
+  // 2. PONTE INDEXEDDB E BACKGROUND SYNC (SEM TRAVAMENTO INFINITO)
   // =========================================================================
   function abrirBancoSyncIDB() {
     return new Promise(resolve => {
@@ -548,16 +891,11 @@
       });
     } catch (e) {}
 
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0) {
       try {
         const reg = await navigator.serviceWorker.ready;
-        if (filaArray && filaArray.length > 0) {
-          if ('SyncManager' in window) {
-            await reg.sync.register('sync-fila-eemti');
-          }
-          if (reg.active) {
-            reg.active.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
-          }
+        if ('SyncManager' in window) {
+          await reg.sync.register('sync-fila-eemti');
         }
       } catch (e) {}
     }
@@ -566,7 +904,6 @@
   async function verificarSincronizacoesFeitasComAppFechado() {
     const db = await abrirBancoSyncIDB();
     let itensDoBackground = [];
-    let idsJaEnviadosNoSW = new Set();
 
     if (db) {
       await new Promise(resolve => {
@@ -582,7 +919,6 @@
             if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
               reqRel.result.forEach(r => {
                 itensDoBackground.push(r.resumoHtml || r);
-                if (r.idFila) idsJaEnviadosNoSW.add(r.idFila);
               });
               const txClear = db.transaction('relatorio_concluido', 'readwrite');
               txClear.objectStore('relatorio_concluido').clear();
@@ -606,7 +942,9 @@
     }
 
     if (itensDoBackground.length > 0) {
+      sincronizacaoEmAndamento = false;
       window.atualizarBadgeStatusConexaoGlobal();
+      registrarDataHoraAtualizacaoBanco();
       exibirAvisoFinalDeDadosSincronizados(itensDoBackground);
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 600);
       return true;
@@ -637,7 +975,8 @@
   }
 
   // =========================================================================
-  // 3. UNIFICAÇÃO DE FILAS E INTERCEPTADOR INTELIGENTE DE FETCH
+  // 3. INTERCEPTADOR DE FETCH ULTRA-RÁPIDO (STALE-WHILE-REVALIDATE)
+  // Abre imediatamente do cache (0ms) e atualiza em 2º plano sem travar a tela!
   // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
@@ -709,8 +1048,17 @@
       } catch (e) {}
 
       const action = bodyObj.action || '';
+      const ehReservaDeAmbiente = ACOES_EXCLUSIVAS_ONLINE_RESERVAS.includes(action);
 
+      // 1. MODO OFFLINE (Todas as páginas funcionam Offline, exceto Reservas de Ambientes)
       if (!navigator.onLine) {
+        if (ehReservaDeAmbiente) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'O módulo de Reservas de Ambientes exige conexão com a internet em tempo real para verificar conflitos de horário.'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
         if (ACOES_GRAVACAO_OFFLINE[action]) {
           window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
           return new Response(JSON.stringify({
@@ -720,49 +1068,65 @@
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
-        const respostaPreCarregada = construirRespostaOfflineInteligente(action, bodyObj);
-        if (respostaPreCarregada) {
-          return new Response(respostaPreCarregada, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        const respostaCache = obterRespostaDoCacheInstantaneo(action, bodyObj);
+        if (respostaCache) {
+          return new Response(respostaCache, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
       }
 
+      // 2. ABERTURA E FILTRO INSTANTÂNEO (0ms) QUANDO JÁ TEM CACHE LOCAL!
+      // Se for uma ação de leitura/filtro (e não for Reservas), entrega na mesma hora o que já está no cache
+      // e atualiza em segundo plano para nunca travar a tela do professor!
+      if (!ehReservaDeAmbiente && ACOES_LEITURA_INSTANTANEA.includes(action)) {
+        const cacheImediato = obterRespostaDoCacheInstantaneo(action, bodyObj);
+        if (cacheImediato) {
+          // Atualiza em 2º plano de forma invisível!
+          fetchComTimeoutSeguranca(url, options, 15000).then(resBg => resBg.text()).then(txtBg => {
+            if (txtBg && (txtBg.startsWith('{') || txtBg.startsWith('['))) {
+              salvarRespostaNoCacheInstantaneo(action, bodyObj, txtBg);
+              registrarDataHoraAtualizacaoBanco();
+            }
+          }).catch(() => {});
+
+          return new Response(cacheImediato, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
+
+      // 3. EXECUÇÃO ONLINE DIRETA (Quando é Gravação, Login, Reserva ou 1ª leitura sem cache)
       try {
-        const response = await _fetchNativo(url, options);
+        atualizarSeloTopoSincronizacao('SINCRONIZANDO');
+        const response = await fetchComTimeoutSeguranca(url, options, 18000);
         const clone = response.clone();
 
-        if (action === 'buscarOcorrencias') {
-          clone.json().then(listaOco => {
-            if (Array.isArray(listaOco)) {
-              const f = bodyObj.filtros || {};
-              if (f.ignorarRestricao === true && !f.serie && !f.aluno) {
-                salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, listaOco.slice(0, 800));
-              }
-              const nomeProf = obterNomeUsuarioLogadoCore();
-              if (nomeProf) {
-                const minhas = listaOco.filter(r => {
-                  const p = String(r.professor || "").trim().toUpperCase();
-                  return p === nomeProf || p.includes(nomeProf) || nomeProf.includes(p);
-                });
-                if (minhas.length > 0 || !f.ignorarRestricao) {
-                  salvarNoLocalStorageSeguro('cache_rac_minhas_oco_' + nomeProf.replace(/\s+/g, '_'), minhas.slice(0, 250));
+        clone.text().then(textoResp => {
+          if (textoResp && (textoResp.startsWith('{') || textoResp.startsWith('['))) {
+            salvarRespostaNoCacheInstantaneo(action, bodyObj, textoResp);
+            registrarDataHoraAtualizacaoBanco();
+
+            try {
+              const resJson = JSON.parse(textoResp);
+              if (action === 'buscarOcorrencias' && Array.isArray(resJson)) {
+                const f = bodyObj.filtros || {};
+                if (f.ignorarRestricao === true && !f.serie && !f.aluno) {
+                  salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resJson.slice(0, 800));
                 }
               }
-            }
-          }).catch(() => {});
-        }
-
-        if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
-          clone.json().then(resJson => {
-            if (resJson && (resJson.success || resJson.msg)) {
-              localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
-              setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
-            }
-          }).catch(() => {});
-        }
+              if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
+                if (resJson && (resJson.success || resJson.msg)) {
+                  localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
+                  setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
+                }
+              }
+            } catch (e) {}
+          } else {
+            atualizarSeloTopoSincronizacao();
+          }
+        }).catch(() => atualizarSeloTopoSincronizacao());
 
         return response;
       } catch (errRede) {
-        if (ACOES_GRAVACAO_OFFLINE[action]) {
+        atualizarSeloTopoSincronizacao();
+        if (!ehReservaDeAmbiente && ACOES_GRAVACAO_OFFLINE[action]) {
           window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
           return new Response(JSON.stringify({
             success: true,
@@ -771,7 +1135,7 @@
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
-        const fallbackPreCarregado = construirRespostaOfflineInteligente(action, bodyObj);
+        const fallbackPreCarregado = obterRespostaDoCacheInstantaneo(action, bodyObj);
         if (fallbackPreCarregado) {
           return new Response(fallbackPreCarregado, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
@@ -800,7 +1164,7 @@
   };
 
   // =========================================================================
-  // 4. SINCRONIZAÇÃO EM SEGUNDO PLANO (SEM TRAVAR A TELA DO PROFESSOR)
+  // 4. SINCRONIZAÇÃO EM 2º PLANO (COM PROTEÇÃO CONTRA LOOP INFINITO!)
   // =========================================================================
   function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
@@ -809,7 +1173,7 @@
     Swal.fire({
       title: 'Dados Offline Sincronizados!',
       html: `
-        <p class="small text-muted mb-2">A sincronização automática foi concluída! Os seguintes registros já foram enviados e salvos no banco de dados:</p>
+        <p class="small text-muted mb-2">A sincronização em segundo plano foi concluída! Os seguintes registros já estão salvos na planilha:</p>
         <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
           ${listaHtmlSincronizados.join('')}
         </ul>
@@ -836,36 +1200,45 @@
     const totalParaEnviar = filaInicial.length;
     const sincronizadosHtml = [];
 
-    window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (0/${totalParaEnviar})...`);
+    try {
+      window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (0/${totalParaEnviar})...`);
 
-    for (let i = 0; i < filaInicial.length; i++) {
-      if (!navigator.onLine) break;
-      const item = filaInicial[i];
-      window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (${i + 1}/${totalParaEnviar})...`);
+      for (let i = 0; i < filaInicial.length; i++) {
+        if (!navigator.onLine) break;
+        const item = filaInicial[i];
+        window.atualizarBadgeStatusConexaoGlobal(`Sincronizando em 2º plano (${i + 1}/${totalParaEnviar})...`);
 
-      try {
-        const res = await _fetchNativo(item.url || API_PADRAO_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(item.payload),
-          redirect: 'follow'
-        });
-        const json = await res.json();
+        try {
+          const res = await fetchComTimeoutSeguranca(item.url || API_PADRAO_URL, {
+            method: 'POST',
+            body: JSON.stringify(item.payload)
+          }, 15000);
 
-        if (json && (json.success || json.msg)) {
-          sincronizadosHtml.push(item.resumoHtml);
-          const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
-            .filter(f => f.idFila !== item.idFila);
-          localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaAtual));
-          await espelharFilaParaIndexedDB(filaAtual);
+          const texto = await res.text();
+          let json = null;
+          try { json = JSON.parse(texto); } catch (e) {}
+
+          // Se gravou com sucesso OU se a resposta HTTP foi 200 OK do Apps Script, remove imediatamente da fila para nunca ficar em loop!
+          if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
+            sincronizadosHtml.push(item.resumoHtml);
+            const filaAtual = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]')
+              .filter(f => f.idFila !== item.idFila);
+            localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaAtual));
+            await espelharFilaParaIndexedDB(filaAtual);
+          }
+        } catch (e) {
+          // Se der timeout, para o ciclo atual e oculta o spinner até a próxima tentativa
+          break;
         }
-      } catch (e) {}
+      }
+    } finally {
+      // GARANTIA ABSOLUTA: Sempre desliga o spinner ao terminar!
+      sincronizacaoEmAndamento = false;
+      window.atualizarBadgeStatusConexaoGlobal();
     }
 
-    sincronizacaoEmAndamento = false;
-    window.atualizarBadgeStatusConexaoGlobal();
-
     if (sincronizadosHtml.length > 0) {
+      registrarDataHoraAtualizacaoBanco();
       localStorage.removeItem(TIMESTAMP_PREFETCH_KEY);
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
 
@@ -891,7 +1264,7 @@
     }
     if (!badge) return;
 
-    if (textoProgressoEmSegundoPlano) {
+    if (textoProgressoEmSegundoPlano && sincronizacaoEmAndamento) {
       badge.style.display = 'block';
       badge.style.backgroundColor = '#15438c';
       badge.style.color = '#ffffff';
@@ -908,22 +1281,21 @@
       badge.style.display = 'block';
       badge.style.backgroundColor = '#f59e0b';
       badge.style.color = '#0f172a';
-      badge.innerHTML = `<i class="bi bi-cloud-arrow-up-fill me-2"></i>Na fila (${fila.length}) — Sincronizando em 2º plano...`;
+      badge.innerHTML = `<i class="bi bi-cloud-arrow-up-fill me-2"></i>Na fila (${fila.length}) — Clique para enviar`;
     } else {
       badge.style.display = 'none';
     }
   };
 
   window.addEventListener('online', () => {
+    atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
-    }
-    setTimeout(window.sincronizarFilaOfflineGlobal, 400);
+    setTimeout(window.sincronizarFilaOfflineGlobal, 300);
     window.executarPreCarregamentoTotalOffline(false);
   });
 
   window.addEventListener('offline', () => {
+    atualizarSeloTopoSincronizacao('OFFLINE');
     window.atualizarBadgeStatusConexaoGlobal();
   });
 
@@ -934,15 +1306,18 @@
   });
 
   window.addEventListener('DOMContentLoaded', async () => {
+    injetarResponsividadeGlobalEEMTI();
+    configurarNavegacaoInteligenteEBotaoVoltar();
+
     const jaEnviouFechado = await verificarSincronizacoesFeitasComAppFechado();
     unificarFilasOfflineNoStorage();
     window.atualizarBadgeStatusConexaoGlobal();
 
     if (navigator.onLine) {
       if (!jaEnviouFechado) {
-        setTimeout(window.sincronizarFilaOfflineGlobal, 400);
+        setTimeout(window.sincronizarFilaOfflineGlobal, 300);
       }
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 900);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 700);
     }
   });
 
@@ -952,6 +1327,7 @@
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
       if (!srcOuBase64) return resolve(null);
+      if (String(srcOuBase64).startsWith('data:image')) return resolve(srcOuBase64);
       const img = new Image();
       img.crossOrigin = 'Anonymous';
       img.onload = function() {
@@ -965,10 +1341,10 @@
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           resolve(canvas.toDataURL('image/jpeg', 0.92));
         } catch (e) {
-          resolve(String(srcOuBase64).startsWith('data:image') ? srcOuBase64 : null);
+          resolve(null);
         }
       };
-      img.onerror = () => resolve(String(srcOuBase64).startsWith('data:image') ? srcOuBase64 : null);
+      img.onerror = () => resolve(null);
       img.src = srcOuBase64;
     });
   };
@@ -979,8 +1355,9 @@
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
+    const b64CacheLogo = localStorage.getItem('cache_logo_oficial_eemti_b64');
     const imgLogoDom = document.getElementById('logoEscola') || document.querySelector('.brand-escola img');
-    const srcLogo = (imgLogoDom && imgLogoDom.src) ? imgLogoDom.src : 'LOGO-removebg-preview.png';
+    const srcLogo = b64CacheLogo || ((imgLogoDom && imgLogoDom.src) ? imgLogoDom.src : 'LOGO-removebg-preview.png');
     const logoB64 = await window.converterImagemParaDataUrlPdf(srcLogo, 200, 200);
 
     if (logoB64) {
