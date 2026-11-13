@@ -1,11 +1,11 @@
 // =========================================================================
 // MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
-// 1. TOPO DAS PÁGINAS: "brasaoestado.png" | MARCA D'ÁGUA E PDF: "LOGO-removebg-preview.png"
-// 2. ZERO ROLAGEM HORIZONTAL NO CELULAR (AJUSTE INTELIGENTE DE COLUNAS E BOTÕES)
-// 3. CADASTRO DE ALUNOS: SEM COLUNA "STATUS DA FOTO", AÇÕES COMPACTAS (EDITAR/EXCLUIR)
-//    E CLIQUE NA LINHA ABRE MODAL COM TODAS AS INFORMAÇÕES DO ALUNO!
-// 4. BOTÃO "VOLTAR" REABRE O MÓDULO ANTERIOR | BOTÃO "INÍCIO" ABRE A INDEX ORIGINAL LIMPA
-// 5. RESPOSTA INSTANTÂNEA (1ms) PARA TODAS AS PÁGINAS (INCLUINDO RELATÓRIO DE TURMA)
+// 1. ATIVIDADES (R, NR, A) E CHAMADA (P, F, FJ, A) COM LEGENDA AUTOMÁTICA ACIMA DA TABELA
+// 2. SITUAÇÃO DO ALUNO COMPACTA: CPF, MATRÍCULA E RESPONSÁVEL ABAIXO DO NOME (-2 COLUNAS)
+// 3. ORDEM ALFABÉTICA (A-Z) GARANTIDA EM TODOS OS ALUNOS, LIVROS, SELECTS E PESQUISAS
+// 4. CACHE 100% INSTANTÂNEO (1ms): ATUALIZA 1 VEZ AO ABRIR E SÓ RECARREGA SE CLICAR EM ATUALIZAR
+// 5. TOPO: "brasaoestado.png" | MARCA D'ÁGUA E PDF: "LOGO-removebg-preview.png"
+// 6. GERENCIAR ALUNOS: SEM COLUNA STATUS FOTO + MODAL COMPLETO AO CLICAR NA LINHA
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -30,7 +30,7 @@
   const KEY_TODAS_OCORRENCIAS_OFFLINE = 'cache_rac_todas_ocorrencias_v1';
   const KEY_PONTUACOES_RAC_OFFLINE = 'cache_rac_pontuacoes_v1';
   const KEY_FREQ_ELETIVAS_LANCAMENTOS = 'cache_freq_eletivas_lancamentos_v1';
-  const KEY_AMBIENTES_OFFLINE = 'cache_ambientes_escola_v1';
+  const KEY_LIVROS_BIBLIOTECA_OFFLINE = 'cache_livros_biblioteca_global_v1';
 
   const ACOES_GRAVACAO_OFFLINE = {
     'salvarOcorrencia': 'Ocorrência Disciplinar (RAC)',
@@ -111,7 +111,7 @@
         box-sizing: border-box !important;
       }
 
-      /* Tabelas 100% contidas na largura da tela sem rolagem lateral e sem texto vertical! */
+      /* Tabelas ajustadas na tela sem quebrar letras na vertical e sem barra de rolagem horizontal */
       table.table, .tabela-enquadrada {
         width: 100% !important;
         max-width: 100% !important;
@@ -125,12 +125,10 @@
         vertical-align: middle !important;
       }
 
-      /* Oculta colunas desnecessárias marcadas pelo motor (ex: Status da Foto) */
       .col-oculta-eemti {
         display: none !important;
       }
 
-      /* Linha de aluno clicável para abrir a Ficha Completa */
       tr.linha-aluno-clicavel {
         cursor: pointer;
         transition: background-color 0.15s ease;
@@ -139,12 +137,32 @@
         background-color: #eff6ff !important;
       }
 
-      /* Botões de ação super enxutos e alinhados */
       .d-flex.gap-2, .d-flex.gap-3, .btn-group {
         gap: 4px !important;
       }
       td .btn + .btn, td .btn + button {
         margin-left: 2px !important;
+      }
+
+      /* Barra de Legenda Explicativa acima das tabelas (R/NR/A e P/F/FJ/A) */
+      .barra-legenda-compacta-eemti {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 7px 12px;
+        margin-bottom: 10px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #334155;
+      }
+      .barra-legenda-compacta-eemti .item-leg {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
       }
 
       .badge-sync-header-eemti {
@@ -178,10 +196,10 @@
       }
 
       .btn-chamada-compacto {
-        min-width: 32px !important;
-        padding: 4px 6px !important;
+        min-width: 34px !important;
+        padding: 4px 8px !important;
         font-weight: 800 !important;
-        font-size: 0.72rem !important;
+        font-size: 0.74rem !important;
         border-radius: 6px !important;
         line-height: 1.1 !important;
       }
@@ -248,12 +266,12 @@
           line-height: 1.1 !important;
         }
         table.table td {
-          font-size: 0.68rem !important;
+          font-size: 0.69rem !important;
           padding: 5px 3px !important;
-          line-height: 1.15 !important;
+          line-height: 1.18 !important;
         }
         table.table td .btn {
-          font-size: 0.64rem !important;
+          font-size: 0.65rem !important;
           padding: 3px 6px !important;
           margin: 1px !important;
         }
@@ -265,9 +283,13 @@
           max-width: 38px !important;
           max-height: 50px !important;
         }
-        /* Oculta colunas secundárias no celular para caber 100% sem rolagem horizontal */
         .col-oculta-mobile-eemti {
           display: none !important;
+        }
+        .barra-legenda-compacta-eemti {
+          font-size: 0.68rem;
+          padding: 6px 8px;
+          gap: 6px;
         }
       }
     `;
@@ -285,7 +307,6 @@
     const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
     const b64LogoMarcaDagua = localStorage.getItem('cache_logo_escola_marcadagua_b64');
 
-    // 1. Imagem do Topo (Brasão do Estado: brasaoestado.png)
     document.querySelectorAll('.brand-escola img, header img#logoEscola').forEach(img => {
       img.onerror = function() {
         if (this.src.endsWith('brasaoestado.png') && !this.src.endsWith('brasaoestado.png.png')) {
@@ -302,7 +323,6 @@
       }
     });
 
-    // 2. Imagem da Marca d'Água de Fundo (Logo da Escola: LOGO-removebg-preview.png)
     document.querySelectorAll('img.watermark-brasao-fundo').forEach(img => {
       img.onerror = function() {
         if (b64LogoMarcaDagua && this.src !== b64LogoMarcaDagua) {
@@ -319,8 +339,11 @@
   }
 
   // =========================================================================
-  // 2. OTIMIZADOR DE TABELAS, GERENCIAMENTO DE ALUNOS (MODAL AO CLICAR NA LINHA)
-  //    E BOTÕES COMPACTOS (P, F, FJ, A / SÉRIES ABREVIADAS 1ª A, 2ª A)
+  // 2. OTIMIZADOR DE TABELAS:
+  // - Atividades: R, NR, A + Legenda Acima da Tabela
+  // - Frequência Secretaria: P, F, FJ, A + Legenda Acima da Tabela
+  // - Situação do Aluno: Retira colunas Matrícula/CPF e Responsável, colocando-os abaixo do Nome do Aluno!
+  // - Ordem Alfabética (A-Z) automática em selects/datalists de alunos e livros
   // =========================================================================
   window.abreviarSerieParaExibicao = function(textoSerie) {
     if (!textoSerie) return "";
@@ -337,7 +360,6 @@
     const baseAl = alunosCache.find(a => a.nome === nomeLimpo) || {};
     let infoDet = mapaFotosAlunosCacheMemoria['ALUNO_' + nomeLimpo] || {};
 
-    // Se ainda não tiver os dados completos de filiação/endereço em memória e estiver online, busca rápido
     if ((!infoDet.mae && !infoDet.endereco) && navigator.onLine) {
       try {
         const resInd = await Promise.race([
@@ -412,52 +434,138 @@
     });
   };
 
+  function inserirLegendaAcimaDaTabela(tabela, tipoLegenda) {
+    if (!tabela || !tabela.parentElement) return;
+    const idLegenda = 'legenda_compacta_' + tipoLegenda;
+    if (tabela.parentElement.querySelector('#' + idLegenda)) return;
+
+    const divLeg = document.createElement('div');
+    divLeg.id = idLegenda;
+    divLeg.className = 'barra-legenda-compacta-eemti';
+
+    if (tipoLegenda === 'ATIVIDADES') {
+      divLeg.innerHTML = `
+        <span class="text-primary fw-bolder"><i class="bi bi-info-circle-fill me-1"></i>Legenda:</span>
+        <span class="item-leg"><span class="badge bg-success">R</span> Realizou</span>
+        <span class="item-leg"><span class="badge bg-danger">NR</span> Não Realizou</span>
+        <span class="item-leg"><span class="badge bg-warning text-dark">A</span> Ausente</span>
+      `;
+    } else if (tipoLegenda === 'CHAMADA_SEC') {
+      divLeg.innerHTML = `
+        <span class="text-primary fw-bolder"><i class="bi bi-info-circle-fill me-1"></i>Legenda:</span>
+        <span class="item-leg"><span class="badge bg-success">P</span> Presente</span>
+        <span class="item-leg"><span class="badge bg-danger">F</span> Falta</span>
+        <span class="item-leg"><span class="badge bg-warning text-dark">FJ</span> Falta Justificada</span>
+        <span class="item-leg"><span class="badge bg-info text-dark">A</span> Atestado</span>
+      `;
+    }
+
+    tabela.parentElement.insertBefore(divLeg, tabela);
+  }
+
   function aplicarCompactacaoVisualNasTabelasEBotoes() {
     aplicarImagensOficiaisTopoEMarcaDagua();
 
-    // A) Compacta botões de Frequência da Secretaria (P, F, FJ, A) e de Atividades (R, NR, A no celular)
+    let temBotoesAtividade = false;
+    let temBotoesChamadaSec = false;
+    let tabelaAtividadeAlvo = null;
+    let tabelaChamadaSecAlvo = null;
+
+    // A) Compacta botões de Frequência da Secretaria (P, F, FJ, A) e de Atividades (R, NR, A)
     document.querySelectorAll('table button, table .btn, table label.btn').forEach(btn => {
       const txt = (btn.textContent || '').trim();
+      const tbPai = btn.closest('table');
+
+      // Botões de Chamada da Secretaria
       if (txt === 'Presente (P)' || txt === 'Presente') {
         btn.textContent = 'P';
         btn.title = 'Presente (P)';
         btn.classList.add('btn-chamada-compacto');
+        temBotoesChamadaSec = true;
+        tabelaChamadaSecAlvo = tbPai;
       } else if (txt === 'Falta (F)' || txt === 'Falta') {
         btn.textContent = 'F';
         btn.title = 'Falta (F)';
         btn.classList.add('btn-chamada-compacto');
+        temBotoesChamadaSec = true;
+        tabelaChamadaSecAlvo = tbPai;
       } else if (txt === 'Justificada (FJ)' || txt === 'Falta Justificada (FJ)' || txt === 'Justificada') {
         btn.textContent = 'FJ';
         btn.title = 'Falta Justificada (FJ)';
         btn.classList.add('btn-chamada-compacto');
+        temBotoesChamadaSec = true;
+        tabelaChamadaSecAlvo = tbPai;
       } else if (txt === 'Atestado (A)' || txt === 'Atestado') {
         btn.textContent = 'A';
         btn.title = 'Atestado (A)';
         btn.classList.add('btn-chamada-compacto');
+        temBotoesChamadaSec = true;
+        tabelaChamadaSecAlvo = tbPai;
       }
 
-      // Em Gerenciar Alunos: substitui o botão largo "Editar / Foto" apenas pelo ícone de edição compacto!
+      // Botões de Lançamento de Atividades (R, NR, A)
+      if (txt === 'Realizou') {
+        btn.textContent = 'R';
+        btn.title = 'Realizou (R)';
+        btn.classList.add('btn-chamada-compacto');
+        temBotoesAtividade = true;
+        tabelaAtividadeAlvo = tbPai;
+      } else if (txt === 'Não Realizou' || txt === 'Nao Realizou') {
+        btn.textContent = 'NR';
+        btn.title = 'Não Realizou (NR)';
+        btn.classList.add('btn-chamada-compacto');
+        temBotoesAtividade = true;
+        tabelaAtividadeAlvo = tbPai;
+      } else if (txt === 'Ausente') {
+        btn.textContent = 'A';
+        btn.title = 'Ausente (A)';
+        btn.classList.add('btn-chamada-compacto');
+        temBotoesAtividade = true;
+        tabelaAtividadeAlvo = tbPai;
+      }
+
       if (txt.includes('Editar / Foto') || txt === 'Editar') {
         btn.innerHTML = `<i class="bi bi-pencil-square"></i>`;
-        btn.title = 'Editar Aluno / Foto 3x4';
+        btn.title = 'Editar';
         btn.classList.add('px-2', 'py-1');
       }
     });
 
-    // B) Oculta a coluna "STATUS DA FOTO" em Gerenciar Alunos e colunas extras em telas pequenas
+    if (temBotoesAtividade && tabelaAtividadeAlvo) {
+      inserirLegendaAcimaDaTabela(tabelaAtividadeAlvo, 'ATIVIDADES');
+    }
+    if (temBotoesChamadaSec && tabelaChamadaSecAlvo) {
+      inserirLegendaAcimaDaTabela(tabelaChamadaSecAlvo, 'CHAMADA_SEC');
+    }
+
+    // B) Otimização estrutural das Tabelas (Gerenciar Alunos + Situação do Aluno + Colunas Mobile)
     document.querySelectorAll('table.table').forEach(tabela => {
       const ths = Array.from(tabela.querySelectorAll('thead th'));
       let idxColStatusFoto = -1;
+      let idxSituacaoNome = -1;
+      let idxSituacaoMatCpf = -1;
+      let idxSituacaoResp = -1;
       const indicesOcultarNoMobile = [];
 
       ths.forEach((th, idx) => {
         const tituloCol = (th.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase();
-        // REGRA SOLICITADA: Remove a coluna "STATUS DA FOTO" em qualquer tela!
+
+        // 1. Gerenciar Alunos: oculta "Status da Foto"
         if (tituloCol.includes('STATUS DA FOTO') || tituloCol === 'STATUS FOTO') {
           idxColStatusFoto = idx;
           th.classList.add('col-oculta-eemti');
         }
-        // Colunas secundárias que podem ser ocultadas no celular para caber sem rolagem horizontal
+
+        // 2. Situação do Aluno: identifica colunas Aluno, Matrícula/CPF e Responsável para mesclar!
+        if (tituloCol.includes('ALUNO')) idxSituacaoNome = idx;
+        if (tituloCol.includes('MATRÍCULA') || tituloCol.includes('MATRICULA') || tituloCol.includes('CPF')) {
+          idxSituacaoMatCpf = idx;
+        }
+        if (tituloCol.includes('RESPONSÁVEL') || tituloCol.includes('RESPONSAVEL')) {
+          idxSituacaoResp = idx;
+        }
+
+        // 3. Colunas secundárias para ocultar em telas de celular
         if (
           tituloCol.includes('BENEFÍCIOS') ||
           tituloCol.includes('BENEFICIOS') ||
@@ -472,6 +580,14 @@
         }
       });
 
+      // Se for a tabela da página Situação do Aluno (possui Matrícula/CPF e Responsável):
+      // Oculta as 2 colunas (Matrícula/CPF e Responsável) e coloca CPF + Responsável abaixo do Nome do Aluno!
+      const ehTabelaSituacaoAluno = (idxSituacaoMatCpf >= 0 && idxSituacaoNome >= 0 && window.location.pathname.toLowerCase().includes('situacao'));
+      if (ehTabelaSituacaoAluno) {
+        if (ths[idxSituacaoMatCpf]) ths[idxSituacaoMatCpf].classList.add('col-oculta-eemti');
+        if (idxSituacaoResp >= 0 && ths[idxSituacaoResp]) ths[idxSituacaoResp].classList.add('col-oculta-eemti');
+      }
+
       const linhas = tabela.querySelectorAll('tbody tr');
       linhas.forEach(tr => {
         const tds = tr.children;
@@ -484,9 +600,30 @@
           if (tds[iMob]) tds[iMob].classList.add('col-oculta-mobile-eemti');
         });
 
-        // Se for a tabela de Gerenciar Alunos (possui coluna FOTO 3X4 e NOME DO ALUNO):
-        // 1. Deixa na célula do nome apenas o Nome Principal limpo;
-        // 2. Torna a linha inteira clicável para abrir o Modal com todas as informações do aluno!
+        // Mescla Matrícula/CPF e Nome do Responsável abaixo do Nome do Aluno na página Situação do Aluno
+        if (ehTabelaSituacaoAluno) {
+          if (tds[idxSituacaoMatCpf]) tds[idxSituacaoMatCpf].classList.add('col-oculta-eemti');
+          if (idxSituacaoResp >= 0 && tds[idxSituacaoResp]) tds[idxSituacaoResp].classList.add('col-oculta-eemti');
+
+          const tdAluno = tds[idxSituacaoNome];
+          if (tdAluno && !tr._eemtiSituacaoMesclada) {
+            tr._eemtiSituacaoMesclada = true;
+            const nomeAlTxt = (tdAluno.textContent || '').replace(/\s+/g, ' ').trim();
+            const matCpfTxt = tds[idxSituacaoMatCpf] ? (tds[idxSituacaoMatCpf].textContent || '').replace(/\s+/g, ' ').trim() : '';
+            const respTxt = (idxSituacaoResp >= 0 && tds[idxSituacaoResp]) ? (tds[idxSituacaoResp].textContent || '').replace(/\s+/g, ' ').trim() : '';
+
+            let subInfo = [];
+            if (respTxt && respTxt !== '-') subInfo.push(`<b>Resp.:</b> ${respTxt}`);
+            if (matCpfTxt && matCpfTxt !== '-') subInfo.push(`${matCpfTxt}`);
+
+            tdAluno.innerHTML = `
+              <div class="fw-bold text-dark">${nomeAlTxt}</div>
+              ${subInfo.length > 0 ? `<div class="text-muted" style="font-size:0.68rem;line-height:1.25;margin-top:2px;">${subInfo.join(' • ')}</div>` : ''}
+            `;
+          }
+        }
+
+        // Gerenciar Alunos: Linha clicável que abre a Ficha Completa
         if (idxColStatusFoto >= 0 && tds[1] && !tr._eemtiFichaBound) {
           tr._eemtiFichaBound = true;
           tr.classList.add('linha-aluno-clicavel');
@@ -496,7 +633,6 @@
           const nomeExtraido = (divBoldNome.textContent || '').replace(/\s+/g, ' ').trim();
           const serieExtraida = tds[2] ? (tds[2].textContent || '').trim() : '';
 
-          // Limpa o excesso de linhas (Mãe/Telefone) de dentro da célula para a tabela ficar limpa e elegante
           if (nomeExtraido) {
             tds[1].innerHTML = `
               <div class="fw-bold text-dark">${nomeExtraido}</div>
@@ -524,6 +660,25 @@
         }
       }
     });
+
+    // D) Garante que qualquer <datalist> de pesquisa de alunos na página tenha todos os alunos em Ordem Alfabética (A-Z)
+    preencherDatalistsDePesquisaEmOrdemAlfabetica();
+  }
+
+  function preencherDatalistsDePesquisaEmOrdemAlfabetica() {
+    const datalists = document.querySelectorAll('datalist');
+    if (datalists.length === 0) return;
+
+    const alunosCache = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+    if (alunosCache.length === 0) return;
+
+    datalists.forEach(dl => {
+      const idDl = (dl.id || '').toLowerCase();
+      if ((idDl.includes('aluno') || idDl.includes('estudante') || idDl.includes('nomes')) && dl.children.length < 5) {
+        const nomesUnicos = Array.from(new Set(alunosCache.map(a => a.nome))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        dl.innerHTML = nomesUnicos.map(n => `<option value="${n}">`).join('');
+      }
+    });
   }
 
   let timerCompactacao = null;
@@ -539,9 +694,7 @@
   }
 
   // =========================================================================
-  // 3. SELO DE ATUALIZAÇÃO APÓS O BOTÃO SAIR + COMPORTAMENTO DE VOLTAR E INÍCIO
-  // - Botão "Voltar": volta para a página anterior (ou index com o último hexágono selecionado)
-  // - Botão "Início": limpa a seleção e abre a index.html original sem nada selecionado!
+  // 3. SELO DE ATUALIZAÇÃO APÓS O BOTÃO SAIR + BOTÕES VOLTAR E INÍCIO
   // =========================================================================
   function registrarDataHoraAtualizacaoBanco() {
     const agora = new Date();
@@ -597,9 +750,6 @@
 
     aplicarImagensOficiaisTopoEMarcaDagua();
 
-    // Faz cache em Base64 das 2 imagens separadamente:
-    // 1. brasaoestado.png (exclusivo para o topo das páginas)
-    // 2. LOGO-removebg-preview.png (exclusivo para marca d'água de fundo e PDFs)
     if (navigator.onLine) {
       window.converterImagemParaDataUrlPdf('brasaoestado.png', 300, 300).then(b64 => {
         if (b64) {
@@ -625,9 +775,6 @@
 
     if (estaNoLogin) return;
 
-    // Na Home (index.html):
-    // Memoriza qual hexágono o professor clicou; se ele voltou pelo botão "Voltar", reabre a gaveta daquele hexágono!
-    // Se ele clicou em "Início" ou "Sair", abre a index.html original limpa (sem seleção)!
     if (estaNaHome) {
       const fnOrig = window.selecionarTopicoColmeia;
       if (typeof fnOrig === 'function' && !fnOrig._eemtiWrapped) {
@@ -671,7 +818,6 @@
           }
         }, 100);
       } else {
-        // Se entrou direto ou clicou em Início/Sair, garante que a index fique sem nenhuma seleção!
         if (typeof window.fecharPainelTopico === 'function') {
           window.fecharPainelTopico();
         }
@@ -680,7 +826,6 @@
 
     const userBar = document.querySelector('.user-bar');
     if (userBar) {
-      // Botão "Início" e Logo do Topo: voltam para a index.html original LIMPA (sem nenhuma seleção)
       document.querySelectorAll('a[href*="index.html"]').forEach(linkInicio => {
         if (!linkInicio._eemtiInicioBound) {
           linkInicio._eemtiInicioBound = true;
@@ -691,7 +836,6 @@
         }
       });
 
-      // Botão "Voltar": volta para a página anterior (e se for a index.html, reabre o módulo que estava selecionado!)
       if (!estaNaHome && !document.getElementById('btnVoltarPaginaAnteriorEEMTI')) {
         const btnVoltar = document.createElement('button');
         btnVoltar.type = 'button';
@@ -716,7 +860,6 @@
         }
       }
 
-      // Botão "Sair": limpa qualquer seleção e flag de sessão
       const btnSair = userBar.querySelector('button.btn-outline-danger');
       if (btnSair && !btnSair._eemtiCleanBound) {
         btnSair._eemtiCleanBound = true;
@@ -839,9 +982,48 @@
     return `cache_req_v3_${action}_${JSON.stringify(copia).slice(0, 180)}`;
   }
 
-  function salvarRespostaNoCacheInstantaneo(action, bodyObj, textoJson) {
+  // Ordena em Ordem Alfabética (A-Z) qualquer lista de alunos, livros ou séries antes de salvar no cache!
+  function ordenarRespostaEmOrdemAlfabetica(action, textoJson) {
+    if (!textoJson) return textoJson;
+    try {
+      const obj = JSON.parse(textoJson);
+      const cmp = (a, b) => String(a || '').localeCompare(String(b || ''), 'pt-BR', { numeric: true });
+
+      if (Array.isArray(obj)) {
+        if (obj.length > 0 && (obj[0].nome || obj[0].aluno || obj[0].titulo)) {
+          obj.sort((x, y) => cmp(x.nome || x.aluno || x.titulo, y.nome || y.aluno || y.titulo));
+          return JSON.stringify(obj);
+        }
+      } else if (obj && typeof obj === 'object') {
+        if (Array.isArray(obj.alunos)) {
+          obj.alunos.sort((x, y) => cmp(x.nome || x.aluno || x, y.nome || y.aluno || y));
+        }
+        if (Array.isArray(obj.alunosDetalhados)) {
+          obj.alunosDetalhados.sort((x, y) => cmp(x.nome || x.aluno, y.nome || y.aluno));
+        }
+        if (Array.isArray(obj.lista)) {
+          if (action === 'listarLivrosBiblioteca') {
+            obj.lista.sort((x, y) => cmp(x.titulo, y.titulo));
+          } else if (action === 'listarSituacaoAlunos' || action === 'listarAee' || action === 'listarBuscaAtiva' || action === 'getAlunosParaPainelSuspensao') {
+            obj.lista.sort((x, y) => cmp(x.aluno || x.nome, y.aluno || y.nome));
+          } else if (action === 'listarFuncionarios') {
+            obj.lista.sort((x, y) => cmp(x.nome, y.nome));
+          }
+        }
+        if (Array.isArray(obj.disciplinas)) {
+          obj.disciplinas.sort(cmp);
+        }
+        return JSON.stringify(obj);
+      }
+    } catch (e) {}
+    return textoJson;
+  }
+
+  function salvarRespostaNoCacheInstantaneo(action, bodyObj, textoJsonBruto) {
     if (!ACOES_LEITURA_CACHE_PURO.includes(action)) return;
-    if (!textoJson) return;
+    if (!textoJsonBruto) return;
+
+    const textoJson = ordenarRespostaEmOrdemAlfabetica(action, textoJsonBruto);
 
     try {
       const parsed = JSON.parse(textoJson);
@@ -856,12 +1038,14 @@
             salvarFotoNoIndexedDB('ALUNO_' + String(al.nome).trim().toUpperCase(), Object.assign({}, ant, al, { success: true }));
           }
         });
+      } else if (action === 'listarLivrosBiblioteca' && parsed && Array.isArray(parsed.lista)) {
+        salvarNoLocalStorageSeguro(KEY_LIVROS_BIBLIOTECA_OFFLINE, parsed);
       } else if ((action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive') && parsed && parsed.success && bodyObj.caminho) {
         salvarFotoNoIndexedDB('ARQ_' + String(bodyObj.caminho).trim(), parsed);
       }
     } catch (e) {}
 
-    if (textoJson.length > 420000) return;
+    if (textoJson.length > 450000) return;
     try {
       const ch = gerarChaveCacheRequisicao(action, bodyObj);
       localStorage.setItem(ch, textoJson);
@@ -882,6 +1066,10 @@
       if (serieChave && mapaFotosAlunosCacheMemoria['TURMA_EDICAO_' + serieChave]) {
         return JSON.stringify(mapaFotosAlunosCacheMemoria['TURMA_EDICAO_' + serieChave]);
       }
+    }
+    if (action === 'listarLivrosBiblioteca') {
+      const livrosSalvos = localStorage.getItem(KEY_LIVROS_BIBLIOTECA_OFFLINE);
+      if (livrosSalvos) return livrosSalvos;
     }
     if ((action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive') && bodyObj.caminho) {
       const chArq = 'ARQ_' + String(bodyObj.caminho).trim();
@@ -920,7 +1108,8 @@
   }
 
   // =========================================================================
-  // 5. MOTOR DE SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR ONLINE OU CLICANDO EM ATUALIZAR)
+  // 5. MOTOR DE SINCRONIZAÇÃO GERAL (RODA 1 ÚNICA VEZ AO ABRIR O SISTEMA ONLINE,
+  //    OU QUANDO O PROFESSOR CLICAR EM "ATUALIZADO EM..." PARA ATUALIZAR!)
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarManual = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -966,21 +1155,27 @@
       if (resFreqSec && resFreqSec.success) {
         salvarRespostaNoCacheInstantaneo('listarFrequenciaSecretaria', { action: 'listarFrequenciaSecretaria' }, JSON.stringify(resFreqSec));
         if (Array.isArray(resFreqSec.series) && resFreqSec.series.length > 0) {
-          const seriesNorm = resFreqSec.series.map(s => normalizarSeriePadraoCore(s)).filter(Boolean);
+          const seriesNorm = resFreqSec.series
+            .map(s => normalizarSeriePadraoCore(s))
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
           salvarNoLocalStorageSeguro(window.KEY_SERIES_UNIVERSAL_EEMTI, seriesNorm);
           salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_ser', seriesNorm);
           salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_ser', seriesNorm);
           salvarNoLocalStorageSeguro('cache_mapa_series_v4', seriesNorm);
         }
         if (Array.isArray(resFreqSec.alunosDetalhados) && resFreqSec.alunosDetalhados.length > 0) {
-          const alunosNorm = resFreqSec.alunosDetalhados.map(a => ({
-            ano: a.ano || "2026",
-            nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
-            serie: normalizarSeriePadraoCore(a.serie),
-            bolsaFamilia: String(a.bolsaFamilia || "NÃO").trim().toUpperCase(),
-            peDeMeia: String(a.peDeMeia || "NÃO").trim().toUpperCase(),
-            sexo: String(a.sexo || "-").trim().toUpperCase()
-          })).filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO");
+          const alunosNorm = resFreqSec.alunosDetalhados
+            .map(a => ({
+              ano: a.ano || "2026",
+              nome: String(a.nome || "").replace(/\s+/g, " ").trim().toUpperCase(),
+              serie: normalizarSeriePadraoCore(a.serie),
+              bolsaFamilia: String(a.bolsaFamilia || "NÃO").trim().toUpperCase(),
+              peDeMeia: String(a.peDeMeia || "NÃO").trim().toUpperCase(),
+              sexo: String(a.sexo || "-").trim().toUpperCase()
+            }))
+            .filter(x => x.nome && x.serie && x.serie !== "TRANSFERIDO")
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
           salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alunosNorm);
           salvarNoLocalStorageSeguro('cache_freq_sec_alunos_det_v4', alunosNorm);
@@ -1038,8 +1233,9 @@
       }
 
       if (resDisc && resDisc.success && Array.isArray(resDisc.disciplinas) && resDisc.disciplinas.length > 0) {
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_disc', resDisc.disciplinas);
-        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_disc', resDisc.disciplinas);
+        const discOrd = resDisc.disciplinas.slice().sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v3_disc', discOrd);
+        salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_disc', discOrd);
         if (Array.isArray(resDisc.listaDetalhada)) {
           salvarNoLocalStorageSeguro('cache_aba_exclusiva_disciplinas_v2', resDisc.listaDetalhada);
         }
@@ -1057,19 +1253,21 @@
 
       if (resMatElet && resMatElet.success) {
         salvarRespostaNoCacheInstantaneo('getDadosMatricula', { action: 'getDadosMatricula' }, JSON.stringify(resMatElet));
-        const catalogoNorm = (resMatElet.catalogo || []).map(c => ({
-          id: c.id || "",
-          semestre: String(c.ano || c.semestre || "").trim(),
-          ano: String(c.ano || c.semestre || "").trim(),
-          dia: String(c.dia || "").trim().toUpperCase(),
-          turma: normalizarSeriePadraoCore(c.turma || ""),
-          serieBase: String(c.serieBase || "").trim().toUpperCase(),
-          tempoEletivo: String(c.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase(),
-          eletiva: String(c.nome || c.eletiva || "").trim(),
-          nome: String(c.nome || c.eletiva || "").trim(),
-          professor: String(c.professor || "").trim().toUpperCase(),
-          vagasTotal: c.vagasTotal || 45
-        }));
+        const catalogoNorm = (resMatElet.catalogo || [])
+          .map(c => ({
+            id: c.id || "",
+            semestre: String(c.ano || c.semestre || "").trim(),
+            ano: String(c.ano || c.semestre || "").trim(),
+            dia: String(c.dia || "").trim().toUpperCase(),
+            turma: normalizarSeriePadraoCore(c.turma || ""),
+            serieBase: String(c.serieBase || "").trim().toUpperCase(),
+            tempoEletivo: String(c.tempoEletivo || "TEMPO ELETIVO 1").trim().toUpperCase(),
+            eletiva: String(c.nome || c.eletiva || "").trim(),
+            nome: String(c.nome || c.eletiva || "").trim(),
+            professor: String(c.professor || "").trim().toUpperCase(),
+            vagasTotal: c.vagasTotal || 45
+          }))
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
         const anosSet = new Set();
         const diasSet = new Set();
@@ -1087,7 +1285,7 @@
           anos: Array.from(anosSet).sort().reverse(),
           dias: Array.from(diasSet).sort(),
           tempos: Array.from(temposSet).sort(),
-          professores: Array.from(profsSet).sort(),
+          professores: Array.from(profsSet).sort((a, b) => a.localeCompare(b, 'pt-BR')),
           catalogo: catalogoNorm
         };
 
@@ -1096,18 +1294,21 @@
         salvarNoLocalStorageSeguro('cache_ativ_rapido_v2_elet', catalogoNorm);
 
         if (Array.isArray(resMatElet.historico)) {
-          const matriculasLeves = resMatElet.historico.map(m => ({
-            linha: m.linha || 0,
-            ano: String(m.ano || "").trim(),
-            dia: String(m.dia || "").trim().toUpperCase(),
-            eletiva: String(m.eletiva || "").trim().toUpperCase(),
-            codigo: extrairCodigoEletivaCore(m.eletiva),
-            aluno: String(m.aluno || "").replace(/\s+/g, " ").trim().toUpperCase(),
-            serie: normalizarSeriePadraoCore(m.serie || m.serieBase || ""),
-            serieBase: String(m.serieBase || "").trim().toUpperCase(),
-            tempoEletivo: String(m.tempoEletivo || "").trim().toUpperCase(),
-            nota: m.nota || ""
-          })).filter(m => m.aluno && m.eletiva);
+          const matriculasLeves = resMatElet.historico
+            .map(m => ({
+              linha: m.linha || 0,
+              ano: String(m.ano || "").trim(),
+              dia: String(m.dia || "").trim().toUpperCase(),
+              eletiva: String(m.eletiva || "").trim().toUpperCase(),
+              codigo: extrairCodigoEletivaCore(m.eletiva),
+              aluno: String(m.aluno || "").replace(/\s+/g, " ").trim().toUpperCase(),
+              serie: normalizarSeriePadraoCore(m.serie || m.serieBase || ""),
+              serieBase: String(m.serieBase || "").trim().toUpperCase(),
+              tempoEletivo: String(m.tempoEletivo || "").trim().toUpperCase(),
+              nota: m.nota || ""
+            }))
+            .filter(m => m.aluno && m.eletiva)
+            .sort((a, b) => a.aluno.localeCompare(b.aluno, 'pt-BR'));
 
           salvarNoLocalStorageSeguro(KEY_MATRICULAS_ELETIVAS_OFFLINE, matriculasLeves);
 
@@ -1152,20 +1353,22 @@
         salvarNoLocalStorageSeguro('cache_todos_mapas_salvos_v4', mapaConsolidado);
       }
 
+      // Lote 2 em segundo plano: Livros da Biblioteca (em Ordem Alfabética), Suspensões, Atividades, Situação, AEE e Busca Ativa
       Promise.all([
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarLivrosBiblioteca' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarLivrosBiblioteca', { action: 'listarLivrosBiblioteca' }, t)).catch(() => {}),
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDadosEmprestimosBiblioteca' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarDadosEmprestimosBiblioteca', { action: 'listarDadosEmprestimosBiblioteca' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getAlunosParaPainelSuspensao' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('getAlunosParaPainelSuspensao', { action: 'getAlunosParaPainelSuspensao' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAtendimentosAlunos' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAtendimentosAlunos', { action: 'listarAtendimentosAlunos' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAtividadesUnificadas' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAtividadesUnificadas', { action: 'listarAtividadesUnificadas' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarFrequenciasGerenciamento', mes: '', semestre: '', eletiva: '', professor: '' }) }).then(r => r.json()).then(arr => { if (Array.isArray(arr)) salvarNoLocalStorageSeguro(KEY_FREQ_ELETIVAS_LANCAMENTOS, arr.slice(0, 1500)); }).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarSituacaoAlunos' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarSituacaoAlunos', { action: 'listarSituacaoAlunos' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAee' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAee', { action: 'listarAee' }, t)).catch(() => {}),
-        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarBuscaAtiva' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarBuscaAtiva', { action: 'listarBuscaAtiva' }, t)).catch(() => {}),
-        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarLivrosBiblioteca' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarLivrosBiblioteca', { action: 'listarLivrosBiblioteca' }, t)).catch(() => {}),
-        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarDadosEmprestimosBiblioteca' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarDadosEmprestimosBiblioteca', { action: 'listarDadosEmprestimosBiblioteca' }, t)).catch(() => {})
+        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarBuscaAtiva' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarBuscaAtiva', { action: 'listarBuscaAtiva' }, t)).catch(() => {})
       ]).catch(() => {});
 
       sessionStorage.setItem(SESSAO_JA_SINCRONIZADA_KEY, 'SIM');
       registrarDataHoraAtualizacaoBanco();
+      preencherDatalistsDePesquisaEmOrdemAlfabetica();
     } catch (errPrefetch) {
       atualizarSeloTopoSincronizacao();
     } finally {
@@ -1174,7 +1377,6 @@
   };
 
   function construirRespostaOfflineInteligente(action, bodyObj) {
-    // Responde getAlunosParaEdicao em 1ms usando a lista de alunos + fotos em cache (destrava relatorio-turma-ocorrencias.html e cadastro-alunos.html!)
     if (action === 'getAlunosParaEdicao') {
       const serieAlvo = normalizarSeriePadraoCore((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || "");
       const anoAlvo = String((bodyObj.dados && bodyObj.dados.ano) || bodyObj.ano || "2026").trim();
@@ -1207,9 +1409,9 @@
               localidade: det.localidade || "",
               endereco: det.endereco || ""
             };
-          });
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-        // Se estiver online, atualiza silenciosamente em 2º plano os detalhes da turma para a próxima vez
         if (navigator.onLine && serieAlvo) {
           fetchComTimeoutSeguranca(API_PADRAO_URL, {
             method: 'POST',
@@ -1364,7 +1566,8 @@
           eletiva: m.eletiva,
           aluno: m.aluno,
           nota: m.nota || ""
-        }));
+        }))
+        .sort((a, b) => a.aluno.localeCompare(b.aluno, 'pt-BR'));
       return JSON.stringify(res);
     }
 
@@ -1427,7 +1630,7 @@
         const filtradas = catSalvo.catalogo
           .filter(c => (!anoB || c.ano === anoB) && (!profB || c.professor.includes(profB) || profB.includes(c.professor)))
           .map(c => c.nome);
-        return JSON.stringify(Array.from(new Set(filtradas)).sort());
+        return JSON.stringify(Array.from(new Set(filtradas)).sort((a, b) => a.localeCompare(b, 'pt-BR')));
       }
     }
 
@@ -1466,10 +1669,12 @@
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const ocorrencias = JSON.parse(localStorage.getItem('cache_rac_catalogo_v3') || '[]');
       if (series.length > 0 && alunos.length > 0) {
-        const alunosComFoto = alunos.map(a => {
-          const fMem = mapaFotosAlunosCacheMemoria['ALUNO_' + a.nome];
-          return fMem && fMem.foto ? Object.assign({}, a, { foto: fMem.foto }) : a;
-        });
+        const alunosComFoto = alunos
+          .map(a => {
+            const fMem = mapaFotosAlunosCacheMemoria['ALUNO_' + a.nome];
+            return fMem && fMem.foto ? Object.assign({}, a, { foto: fMem.foto }) : a;
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
         return JSON.stringify({ success: true, series: series, alunos: alunosComFoto, ocorrencias: ocorrencias });
       }
     }
@@ -1483,7 +1688,7 @@
         return JSON.stringify({
           success: true,
           series: series,
-          alunosDetalhados: alunos,
+          alunosDetalhados: alunos.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
           frequencias: frequencias,
           diasLetivosMes: diasLetivos
         });
@@ -1626,7 +1831,7 @@
   }
 
   // =========================================================================
-  // 6. INTERCEPTADOR DE FETCH
+  // 6. INTERCEPTADOR DE FETCH (100% CACHE LOCAL NAS PESQUISAS — ZERO TRAVAMENTO!)
   // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
@@ -1724,6 +1929,7 @@
         }
       }
 
+      // Entrega em 1ms direto do cache (sem disparar rede a cada busca!)
       if (!ehReservaDeAmbiente && (ACOES_LEITURA_CACHE_PURO.includes(action) || action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive')) {
         const cacheImediato = obterRespostaDoCacheInstantaneo(action, bodyObj);
         if (cacheImediato) {
@@ -1750,7 +1956,11 @@
           }
         }).catch(() => {});
 
-        return response;
+        const textoOrdenado = await response.text();
+        return new Response(ordenarRespostaEmOrdemAlfabetica(action, textoOrdenado), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
       } catch (errRede) {
         if (!ehReservaDeAmbiente && ACOES_GRAVACAO_OFFLINE[action]) {
           window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
@@ -1962,7 +2172,6 @@
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    // REGRA SOLICITADA: Nos PDFs usa SEMPRE o LOGO da escola (LOGO-removebg-preview.png), nunca o brasão do estado!
     const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64');
     const logoB64 = b64LogoEscola || await window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 200, 200);
 
