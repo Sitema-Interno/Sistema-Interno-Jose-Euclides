@@ -1,6 +1,7 @@
 // =========================================================================
 // MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA ANTI-DUPLICIDADE
-// 1. TRAVA ATÔMICA DE FILA OFFLINE: ENVIA EXATAMENTE 1 ÚNICA VEZ (ZERO REPETIÇÃO!)
+// 1. INTERCEPTA localStorage.setItem DAS PÁGINAS ANTIGAS (RAC/ATIVIDADES/MAPA) NA HORA:
+//    GARANTE ENVIO COM O APP FECHADO PELO SW.JS E IMPEDE ENVIO DUPLICADO (4X) AO ABRIR!
 // 2. AEE CORRIGIDO: MATRÍCULA SÓ COM NÚMEROS (SEM NOME REPETIDO) + MÃE E PAI ABAIXO
 // 3. GERENCIAR ALUNOS: NOME + FILIAÇÃO COM CONTATO | SÉRIE + BF/PM + LOCALIDADE E ENDEREÇO
 // 4. SUSPENSÕES PDT (4 COLUNAS ALINHADAS) + RESERVAS PDF POR PERÍODO + BRASÃO NOS PDFS
@@ -95,8 +96,22 @@
   const assinaturasRecentementeEnviadas = new Set();
 
   // =========================================================================
-  // 0. ESTILOS GLOBAIS: SEM ROLAGEM LATERAL E COM DISTRIBUIÇÃO PROPORCIONAL
+  // 0. INTERCEPTADOR IMEDIATO DE FILAS LEGADAS NO LOCALSTORAGE
+  // Quando registro-ocorrencias.html salva offline em 'fila_offline_rac_eemti_v1',
+  // captura na mesma hora, manda para o IndexedDB (para o sw.js enviar com app fechado!)
+  // e limpa a chave antiga para que a página não envie 4 vezes ao reconectar!
   // =========================================================================
+  const _setItemNativo = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(chave, valor) {
+    _setItemNativo.call(this, chave, valor);
+    if (FILAS_LEGADAS.includes(chave) && valor && valor !== '[]') {
+      setTimeout(() => {
+        unificarFilasOfflineNoStorage();
+        window.atualizarBadgeStatusConexaoGlobal();
+      }, 10);
+    }
+  };
+
   function injetarResponsividadeGlobalEEMTI() {
     if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
     const style = document.createElement('style');
@@ -698,14 +713,12 @@
     return "Não informado";
   }
 
-  // Extrai SOMENTE os números da matrícula (removendo o nome do aluno que vinha concatenado na planilha AEE!)
   function extrairSomenteDigitosMatricula(textoBruto, nomeAlunoParaRemover) {
     if (!textoBruto) return "Não informada";
     let limpo = String(textoBruto);
     if (nomeAlunoParaRemover) {
       limpo = limpo.replace(new RegExp(nomeAlunoParaRemover.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
     }
-    // Remove datas (DD/MM/YYYY ou YYYY-MM-DD) para não confundir data de nascimento com matrícula
     limpo = limpo.replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, '').replace(/\b\d{4}-\d{2}-\d{2}\b/g, '');
     const mDigitos = limpo.match(/\b(\d{4,15})\b/);
     if (mDigitos) return mDigitos[1];
@@ -884,7 +897,6 @@
     tabela.parentElement.insertBefore(divLeg, tabela);
   }
 
-  // Caso os alunos da turma ainda não tenham filiação/endereço no cache leve, busca 1 vez da planilha em segundo plano e atualiza a tabela na hora!
   const turmasFiliacaoBuscadasNaSessao = new Set();
   function garantirFiliacaoEEnderecoDaTurmaEmSegundoPlano(serieAlvo) {
     const sNorm = normalizarSeriePadraoCore(serieAlvo);
@@ -928,7 +940,6 @@
         salvarNoLocalStorageSeguro(window.KEY_ALUNOS_UNIVERSAL_EEMTI, alunosAtuais);
       }
 
-      // Re-formata as linhas visíveis na tabela imediatamente com os dados de Mãe/Pai/Endereço recém-chegados!
       document.querySelectorAll('table.table tbody tr').forEach(tr => {
         tr._eemtiGerenciarFormatado = false;
         tr._eemtiAeeFormatada = false;
@@ -1149,8 +1160,6 @@
       }
 
       // 3. GERENCIAR ALUNOS (cadastro-alunos.html)
-      // Coluna 1: NOME DO ALUNO / FILIAÇÃO (COM CONTATO)
-      // Coluna 2: SÉRIE / BF / PM / LOCALIDADE & ENDEREÇO
       const ehTabelaGerenciarAlunos = (idxFoto >= 0 && idxColStatusFoto >= 0);
       if (ehTabelaGerenciarAlunos) {
         inserirLegendaAcimaDaTabela(tabela, 'GERENCIAR_ALUNOS_BF_PM');
@@ -1191,7 +1200,7 @@
         });
       }
 
-      // 6. AEE - ATENDIMENTO EDUCACIONAL ESPECIALIZADO (aee.html)
+      // 6. AEE - ATENDIMENTO EDUCACIONAL ESPECIALIZADO
       const ehTabelaAee = (pathLower.includes('aee') && idxAluno >= 0 && idxDeficiencia >= 0);
       if (ehTabelaAee) {
         if (ths[idxAluno]) {
@@ -1259,7 +1268,7 @@
         if (idxAluno >= 0 && tds[idxAluno]) tds[idxAluno].classList.add('col-nome-larga-eemti');
         if (idxAcoesBotoes >= 0 && tds[idxAcoesBotoes]) tds[idxAcoesBotoes].classList.add('col-acoes-visivel-eemti');
 
-        // A) ALUNOS NECESSITADOS DE SUSPENSÃO (atendimento-alunos.html)
+        // A) ALUNOS NECESSITADOS DE SUSPENSÃO
         if (ehTabelaSuspensaoPdt && tds.length >= 6 && !tr._eemtiSuspensaoPdtFormatado) {
           tr._eemtiSuspensaoPdtFormatado = true;
           tds[1].classList.add('col-oculta-eemti');
@@ -1337,16 +1346,12 @@
           }
         }
 
-        // C) GERENCIAR ALUNOS (cadastro-alunos.html — CORRIGIDO conforme image_a98afe.jpg):
-        // - Coluna 0 (Foto): Foto 3x4 + Masculino/Feminino embaixo
-        // - Coluna 1 (Nome / Filiação): Nome do Aluno + Mãe (Contato) + Pai (Contato)
-        // - Coluna 2 (Série / BF / PM / Endereço): Série + BF + PM + Localidade e Endereço abaixo!
+        // C) GERENCIAR ALUNOS
         if (ehTabelaGerenciarAlunos && !tr._eemtiGerenciarFormatado) {
           tr._eemtiGerenciarFormatado = true;
           if (tds[idxColStatusFoto]) tds[idxColStatusFoto].classList.add('col-oculta-eemti');
           if (idxBeneficios >= 0 && tds[idxBeneficios]) tds[idxBeneficios].classList.add('col-oculta-eemti');
 
-          // Extrai o nome puro a partir do registro original da célula 1
           const htmlOrigCol1 = tr._dadosOriginaisLinhaEEMTI[1]?.html || '';
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = htmlOrigCol1;
@@ -1357,7 +1362,6 @@
           const infoCad = obterDadosCadastraisAlunoCache(nomeExtraido);
           const serieCompletaAluno = infoCad.serie || tr._dadosOriginaisLinhaEEMTI[idxSerie]?.valor || '';
 
-          // Se o cache leve ainda não tinha Mãe/Pai/Endereço desta turma, busca em 2º plano e já atualiza a tela!
           if (!infoCad.mae && !infoCad.pai && !infoCad.localidade && serieCompletaAluno) {
             garantirFiliacaoEEnderecoDaTurmaEmSegundoPlano(serieCompletaAluno);
           }
@@ -1390,7 +1394,7 @@
             if (restoFiliacao) {
               linhasFiliacaoHtml = `<div class="text-secondary mt-1" style="font-size:0.67rem;line-height:1.2;">${restoFiliacao}</div>`;
             } else {
-              linhasFiliacaoHtml = `<div class="text-muted mt-1" style="font-size:0.64rem;">Filiação: Não informada na planilha</div>`;
+              linhasFiliacaoHtml = `<div class="text-muted mt-1" style="font-size:0.64rem;">Filiação: Carregando dados da turma...</div>`;
             }
           }
 
@@ -1502,10 +1506,7 @@
           }
         }
 
-        // F) AEE (CORRIGIDO conforme image_a9e3fd.jpg):
-        // - Linha 1: Nome do Aluno + Série
-        // - Linha 2: Data Nasc.: DD/MM/AAAA • Matrícula: SOMENTE OS NÚMEROS (sem repetir o nome do aluno!)
-        // - Linha 3: Mãe e Pai (puxando do cadastro de alunos!)
+        // F) AEE
         if (ehTabelaAee && !tr._eemtiAeeFormatada) {
           tr._eemtiAeeFormatada = true;
           [idxSerie, idxMatCpf, idxNascimento, idxLaudo, idxObs, idxData].forEach(cIdx => {
@@ -1846,7 +1847,7 @@
     const dataBr = agora.toLocaleDateString('pt-BR');
     const horaBr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const strFinal = `${dataBr} às ${horaBr}`;
-    localStorage.setItem(ULTIMA_ATUALIZACAO_STR_KEY, strFinal);
+    _setItemNativo.call(localStorage, ULTIMA_ATUALIZACAO_STR_KEY, strFinal);
     atualizarSeloTopoSincronizacao();
   }
 
@@ -1900,16 +1901,16 @@
       window.converterImagemParaDataUrlPdf('brasaoestado.png', 300, 300).then(b64 => {
         if (b64) {
           try {
-            localStorage.setItem('cache_brasao_estado_topo_b64', b64);
-            localStorage.setItem('cache_brasao_oficial_eemti_b64', b64);
+            _setItemNativo.call(localStorage, 'cache_brasao_estado_topo_b64', b64);
+            _setItemNativo.call(localStorage, 'cache_brasao_oficial_eemti_b64', b64);
           } catch (e) {}
           aplicarImagensOficiaisTopoEMarcaDagua();
         } else {
           window.converterImagemParaDataUrlPdf('brasaoestado.png.png', 300, 300).then(b64Alt => {
             if (b64Alt) {
               try {
-                localStorage.setItem('cache_brasao_estado_topo_b64', b64Alt);
-                localStorage.setItem('cache_brasao_oficial_eemti_b64', b64Alt);
+                _setItemNativo.call(localStorage, 'cache_brasao_estado_topo_b64', b64Alt);
+                _setItemNativo.call(localStorage, 'cache_brasao_oficial_eemti_b64', b64Alt);
               } catch (e) {}
               aplicarImagensOficiaisTopoEMarcaDagua();
             }
@@ -1919,7 +1920,7 @@
 
       window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 300, 300).then(b64Logo => {
         if (b64Logo) {
-          try { localStorage.setItem('cache_logo_escola_marcadagua_b64', b64Logo); } catch (e) {}
+          try { _setItemNativo.call(localStorage, 'cache_logo_escola_marcadagua_b64', b64Logo); } catch (e) {}
           aplicarImagensOficiaisTopoEMarcaDagua();
         }
       });
@@ -2072,10 +2073,10 @@
 
   function salvarNoLocalStorageSeguro(chave, valorObj) {
     try {
-      localStorage.setItem(chave, JSON.stringify(valorObj));
+      _setItemNativo.call(localStorage, chave, JSON.stringify(valorObj));
     } catch (e) {
       liberarEspacoStorageAntigo();
-      try { localStorage.setItem(chave, JSON.stringify(valorObj)); } catch (e2) {}
+      try { _setItemNativo.call(localStorage, chave, JSON.stringify(valorObj)); } catch (e2) {}
     }
   }
 
@@ -2199,7 +2200,7 @@
     if (textoJson.length > 450000) return;
     try {
       const ch = gerarChaveCacheRequisicao(action, bodyObj);
-      localStorage.setItem(ch, textoJson);
+      _setItemNativo.call(localStorage, ch, textoJson);
     } catch (e) {
       liberarEspacoStorageAntigo();
     }
@@ -2888,6 +2889,9 @@
     return null;
   }
 
+  // =========================================================================
+  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
+  // =========================================================================
   async function espelharFilaParaIndexedDB(filaArray) {
     const db = await abrirBancoSyncIDB();
     if (!db) return;
@@ -2902,12 +2906,16 @@
       });
     } catch (e) {}
 
-    // Só registra Sync do Service Worker se a página estiver oculta/minimizada para NUNCA concorrer com a janela aberta!
-    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0 && document.visibilityState === 'hidden') {
+    // Registra SEMPRE a tag 'sync-fila-eemti' quando houver itens na fila!
+    // (No sw.js já existe a proteção que só deixa o SW enviar quando a janela estiver minimizada ou fechada!)
+    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0) {
       try {
         const reg = await navigator.serviceWorker.ready;
         if ('SyncManager' in window) {
           await reg.sync.register('sync-fila-eemti');
+        }
+        if ('periodicSync' in reg) {
+          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
         }
       } catch (e) {}
     }
@@ -2936,7 +2944,8 @@
               txClear.objectStore('relatorio_concluido').clear();
 
               const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
-              localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
+              _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
+              FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
             }
             resolve();
           };
@@ -2957,7 +2966,6 @@
       sincronizacaoEmAndamento = false;
       window.atualizarBadgeStatusConexaoGlobal();
       registrarDataHoraAtualizacaoBanco();
-      // Remove resumos duplicados caso existam
       const resumosUnicos = Array.from(new Set(itensDoBackground));
       exibirAvisoFinalDeDadosSincronizados(resumosUnicos);
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
@@ -2989,13 +2997,12 @@
   }
 
   // =========================================================================
-  // 9. FILA OFFLINE COM ASSINATURA ÚNICA (ZERO DUPLICIDADE NO ENVIO!)
+  // 10. FILA OFFLINE COM ASSINATURA ÚNICA (ZERO DUPLICIDADE NO ENVIO!)
   // =========================================================================
   function gerarAssinaturaUnicaPayload(payload) {
     try {
       const copia = JSON.parse(JSON.stringify(payload || {}));
       if (copia.dados && copia.dados.data) {
-        // Ignora segundos na assinatura para bloquear cliques ou reenvios duplicados do mesmo lançamento
         copia.dados.data = String(copia.dados.data).split(' ')[0];
       }
       return JSON.stringify(copia);
@@ -3008,7 +3015,6 @@
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
     let alterou = false;
 
-    // 1. Limpa imediatamente qualquer fila legada que páginas antigas tenham criado para que a página não tente enviar por conta própria!
     FILAS_LEGADAS.forEach(chaveAntiga => {
       const itensAntigos = JSON.parse(localStorage.getItem(chaveAntiga) || '[]');
       if (Array.isArray(itensAntigos) && itensAntigos.length > 0) {
@@ -3040,7 +3046,6 @@
       }
     });
 
-    // 2. Remove eventuais duplicatas dentro da própria filaGlobal
     const vistas = new Set();
     const filaSemDuplicatas = [];
     filaGlobal.forEach(item => {
@@ -3055,7 +3060,7 @@
     });
 
     if (alterou) {
-      localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(filaSemDuplicatas));
+      _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaSemDuplicatas));
       espelharFilaParaIndexedDB(filaSemDuplicatas);
     }
     return filaSemDuplicatas;
@@ -3097,7 +3102,6 @@
       const action = bodyObj.action || '';
       const ehReservaDeAmbiente = ACOES_EXCLUSIVAS_ONLINE_RESERVAS.includes(action);
 
-      // MODO OFFLINE
       if (!navigator.onLine) {
         if (ehReservaDeAmbiente) {
           return new Response(JSON.stringify({
@@ -3121,7 +3125,6 @@
         }
       }
 
-      // Se uma página (como registro-ocorrencias.html) tentar reenviar por conta própria um item que já está na fila do portal-core ou que acabou de ser enviado, bloqueia na hora!
       if (ACOES_GRAVACAO_OFFLINE[action]) {
         const assReq = gerarAssinaturaUnicaPayload(bodyObj);
         if (assinaturasRecentementeEnviadas.has(assReq)) {
@@ -3196,13 +3199,9 @@
   };
 
   window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
-    // Limpa filas legadas primeiro para não duplicar
-    FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
-
     const fila = unificarFilasOfflineNoStorage();
     const assinatura = gerarAssinaturaUnicaPayload(payload);
 
-    // Impede enfileirar o mesmo registro mais de 1 vez!
     if (fila.some(f => (f.assinatura || gerarAssinaturaUnicaPayload(f.payload)) === assinatura) || assinaturasRecentementeEnviadas.has(assinatura)) {
       window.atualizarBadgeStatusConexaoGlobal();
       return;
@@ -3216,7 +3215,7 @@
       payload: payload,
       resumoHtml: resumoCustomizado ? `<li>${resumoCustomizado}</li>` : resumirItemSincronizado(payload)
     });
-    localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+    _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
     espelharFilaParaIndexedDB(fila);
     window.atualizarBadgeStatusConexaoGlobal();
   };
@@ -3243,7 +3242,6 @@
     });
   }
 
-  // CONSUMO ATÔMICO DA FILA: Retira o item da fila ANTES de enviar para que nem o sw.js nem outra chamada possam enviá-lo repetido!
   window.sincronizarFilaOfflineGlobal = async function() {
     if (sincronizacaoEmAndamento || !navigator.onLine) return;
     sincronizacaoEmAndamento = true;
@@ -3260,13 +3258,10 @@
         return;
       }
 
-      // Limpa o IndexedDB imediatamente enquanto a aba aberta está processando, impedindo que o Service Worker dispare em paralelo!
-      await espelharFilaParaIndexedDB([]);
-
       while (fila.length > 0 && navigator.onLine) {
-        // Retira o primeiro item atomicamente da fila e já grava a fila reduzida no localStorage!
         const item = fila.shift();
-        localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+        _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
+        await espelharFilaParaIndexedDB(fila);
 
         const assItem = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
         if (assinaturasRecentementeEnviadas.has(assItem)) {
@@ -3287,22 +3282,20 @@
           if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
             sincronizadosHtml.push(item.resumoHtml);
           } else {
-            // Se falhou no servidor, libera a assinatura e devolve para a fila
             assinaturasRecentementeEnviadas.delete(assItem);
             fila.unshift(item);
-            localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+            _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
+            await espelharFilaParaIndexedDB(fila);
             break;
           }
         } catch (errEnvio) {
-          // Se a internet caiu no meio do envio, devolve o item para a fila para tentar depois
           assinaturasRecentementeEnviadas.delete(assItem);
           fila.unshift(item);
-          localStorage.setItem(FILA_GLOBAL_KEY, JSON.stringify(fila));
+          _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
+          await espelharFilaParaIndexedDB(fila);
           break;
         }
       }
-
-      await espelharFilaParaIndexedDB(fila);
     } finally {
       sincronizacaoEmAndamento = false;
       window.atualizarBadgeStatusConexaoGlobal();
@@ -3318,7 +3311,7 @@
         exibirAvisoFinalDeDadosSincronizados(unicosHtml);
       } else {
         const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
-        localStorage.setItem(LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(unicosHtml)));
+        _setItemNativo.call(localStorage, LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(unicosHtml)));
       }
     }
   };
@@ -3358,7 +3351,7 @@
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      const filaRestante = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
+      const filaRestante = unificarFilasOfflineNoStorage();
       if (filaRestante.length > 0 && !sincronizacaoEmAndamento) {
         espelharFilaParaIndexedDB(filaRestante).then(() => {
           if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -3390,7 +3383,7 @@
   });
 
   // =========================================================================
-  // 10. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "brasaoestado.png"!)
+  // 11. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "brasaoestado.png"!)
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
