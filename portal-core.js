@@ -1,11 +1,10 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - MODO CACHE TOTAL INSTANTÂNEO (1ms)
-// 1. ATUALIZA 1 ÚNICA VEZ AO ABRIR O SISTEMA ONLINE (SEM RECARREGAR A CADA FILTRO/PESQUISA)
-// 2. PESQUISAS DE HISTÓRICO, TURMAS E FILTROS RESPONDEM EM MILISSEGUNDOS DIRETO DO CACHE
-// 3. ATUALIZAÇÃO MANUAL SOB DEMANDA AO CLICAR NO SELO "ATUALIZADO EM..." (APÓS O BOTÃO SAIR)
-// 4. BOTÃO "VOLTAR" RETORNA PARA A INDEX.HTML LIMPA (SEM NENHUMA SELEÇÃO ABERTA)
-// 5. CORRIGE AUTOMATICAMENTE A IMAGEM "brasaoestado.png.png" E "LOGO-removebg-preview.png"
-// 6. ENVIO OFFLINE EM 2º PLANO (INCLUSIVE APP MINIMIZADO/FECHADO) + RESPONSIVIDADE TOTAL
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - LAYOUT PERFEITO + FOTOS OFFLINE
+// 1. CORRIGE TEXTO VERTICAL (NUNCA QUEBRA 1 LETRA POR LINHA NAS TABELAS)
+// 2. ABREVIA BOTÕES DE CHAMADA (P, F, FJ, A) E SÉRIES NOS HISTÓRICOS (1ª A, 2ª A)
+// 3. CORRIGE O BRASÃO DO ESTADO (brasaoestado.png.png) EM TODAS AS PÁGINAS
+// 4. SALVA FOTOS 3×4 DOS ALUNOS E CAPAS DE LIVROS EM CACHE PARA USO OFFLINE
+// 5. ABERTURA EM 1 MILISSEGUNDO DO CACHE + SINCRONIZAÇÃO COM APP FECHADO
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -13,6 +12,7 @@
   const SESSAO_JA_SINCRONIZADA_KEY = 'sessao_inicial_sincronizada_eemti_v1';
   const ULTIMA_ATUALIZACAO_STR_KEY = 'ultima_atualizacao_banco_eemti_str';
   const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
+  const IDB_VERSION = 2; // Versão 2 inclui store de fotos offline
   const API_PADRAO_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
 
   const FILAS_LEGADAS = [
@@ -21,7 +21,6 @@
     'fila_offline_mapeamento_v1'
   ];
 
-  // Chaves de armazenamento local para resposta em 1 milissegundo
   window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
   window.KEY_SERIES_UNIVERSAL_EEMTI = 'cache_rac_series_v3';
   const KEY_MATRICULAS_ELETIVAS_OFFLINE = 'cache_matriculas_eletivas_global_v1';
@@ -31,7 +30,6 @@
   const KEY_FREQ_ELETIVAS_LANCAMENTOS = 'cache_freq_eletivas_lancamentos_v1';
   const KEY_AMBIENTES_OFFLINE = 'cache_ambientes_escola_v1';
 
-  // Todas as ações de gravação que funcionam Offline (exceto Reservas de Ambientes)
   const ACOES_GRAVACAO_OFFLINE = {
     'salvarOcorrencia': 'Ocorrência Disciplinar (RAC)',
     'excluirOcorrencia': 'Exclusão de Ocorrência (RAC)',
@@ -52,14 +50,12 @@
     'registrarDevolucaoLivroBiblioteca': 'Devolução de Livro (Biblioteca)'
   };
 
-  // Ações exclusivas em tempo real (Reservas de Ambientes)
   const ACOES_EXCLUSIVAS_ONLINE_RESERVAS = [
     'listarReservas',
     'salvarReserva',
     'excluirReserva'
   ];
 
-  // Ações de gravação/cadastro que atualizam o cache automaticamente após salvar
   const ACOES_MUTACAO_CADASTROS = [
     'salvarOcorrencia', 'excluirOcorrencia',
     'salvarAtividadeDisciplinas', 'salvarAtividadeEletivas',
@@ -75,7 +71,6 @@
     'excluirLivroBiblioteca', 'salvarEmprestimoLivroBiblioteca', 'registrarDevolucaoLivroBiblioteca'
   ];
 
-  // Ações de leitura que respondem 100% do Cache em 1ms (SEM buscar na rede a cada clique!)
   const ACOES_LEITURA_CACHE_PURO = [
     'getFiltrosOcorrencias', 'buscarOcorrencias', 'getDadosHistorico',
     'listarFrequenciaSecretaria', 'getFiltrosFrequencia', 'getFiltrosIniciais',
@@ -94,9 +89,10 @@
 
   let sincronizacaoEmAndamento = false;
   let prefetchEmAndamento = false;
+  let mapaFotosAlunosCacheMemoria = {};
 
   // =========================================================================
-  // 0. RESPONSIVIDADE GLOBAL PARA CELULAR, TABLET E COMPUTADOR
+  // 0. RESPONSIVIDADE CORRIGIDA (SEM TEXTO VERTICAL LETRA POR LETRA!)
   // =========================================================================
   function injetarResponsividadeGlobalEEMTI() {
     if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
@@ -111,22 +107,56 @@
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
-      .table-responsive {
-        width: 100% !important;
+
+      /* Enquadramento de tabelas com rolagem horizontal suave quando necessário,
+         PROIBINDO quebrar palavras letra por letra na vertical! */
+      .table-responsive, .card > .w-100, .card > div > table.table {
         max-width: 100% !important;
+      }
+      .card:has(table.table) {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
       }
+      table.table, .tabela-enquadrada {
+        width: 100% !important;
+        table-layout: auto !important;
+        border-collapse: collapse !important;
+      }
+      table.table th, table.table td, .tabela-enquadrada th, .tabela-enquadrada td {
+        word-break: normal !important;
+        overflow-wrap: break-word !important;
+        hyphens: none !important;
+        vertical-align: middle !important;
+      }
+
+      /* Impede que colunas de nomes de alunos ou detalhes fiquem espremidas em 1 letra por linha */
+      table.table th:nth-child(2), table.table td:nth-child(2),
+      table.table th:nth-child(3), table.table td:nth-child(3) {
+        min-width: 115px;
+      }
+      table.table th:first-child, table.table td:first-child {
+        min-width: 36px;
+      }
+
+      /* Compacta espaço entre botões de ação em todo o sistema */
+      .d-flex.gap-2, .d-flex.gap-3, .btn-group {
+        gap: 5px !important;
+      }
+      td .btn + .btn, td .btn + button, th .btn + .btn {
+        margin-left: 3px !important;
+      }
+
+      /* Selo de atualização discreto no topo (após botão Sair) */
       .badge-sync-header-eemti {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        font-size: 0.68rem;
+        gap: 4px;
+        font-size: 0.67rem;
         font-weight: 700;
         color: #0f766e;
         background: #f0fdfa;
         border: 1px solid #99f6e4;
-        padding: 5px 11px;
+        padding: 4px 9px;
         border-radius: 50px;
         cursor: pointer;
         user-select: none;
@@ -135,7 +165,6 @@
       }
       .badge-sync-header-eemti:hover {
         background: #ccfbf1;
-        transform: translateY(-1px);
       }
       .badge-sync-header-eemti.sincronizando {
         color: #1d4ed8;
@@ -147,32 +176,24 @@
         background: #fef2f2;
         border-color: #fecaca;
       }
-      @media (max-width: 1024px) {
-        .top-header {
-          padding: 14px 16px 8px 16px !important;
-          justify-content: center !important;
-        }
-        .main-container {
-          padding: 12px 10px 30px 10px !important;
-        }
-        .card {
-          padding: 14px !important;
-        }
-        table th, table td {
-          padding: 6px 5px !important;
-          font-size: 0.76rem !important;
-          word-break: break-word !important;
-          overflow-wrap: anywhere !important;
-          white-space: normal !important;
-        }
+
+      /* Botões compactos P, F, FJ, A na chamada e atividades */
+      .btn-chamada-compacto {
+        min-width: 34px !important;
+        padding: 5px 7px !important;
+        font-weight: 800 !important;
+        font-size: 0.74rem !important;
+        border-radius: 7px !important;
+        line-height: 1.1 !important;
       }
+
       @media (max-width: 768px) {
         .top-header {
           flex-direction: column !important;
           align-items: center !important;
           text-align: center !important;
-          padding: 12px 10px 6px 10px !important;
-          gap: 10px !important;
+          padding: 10px 8px 6px 8px !important;
+          gap: 8px !important;
         }
         .brand-escola {
           flex-direction: row !important;
@@ -181,41 +202,33 @@
           gap: 10px !important;
         }
         .brand-escola img {
-          height: 62px !important;
+          height: 60px !important;
+          width: auto !important;
         }
         .brand-titulo-principal {
-          font-size: 1.42rem !important;
+          font-size: 1.38rem !important;
         }
         .brand-subtitulo {
-          font-size: 0.58rem !important;
+          font-size: 0.56rem !important;
         }
         .brand-slogan {
-          font-size: 1.12rem !important;
+          font-size: 1.1rem !important;
         }
         .user-bar {
           flex-wrap: wrap !important;
           justify-content: center !important;
           width: 100% !important;
-          padding: 7px 10px !important;
-          border-radius: 16px !important;
-          gap: 6px !important;
-        }
-        .badge-sync-header-eemti {
-          font-size: 0.62rem !important;
-          padding: 4px 8px !important;
+          padding: 6px 8px !important;
+          border-radius: 14px !important;
+          gap: 5px !important;
         }
         .main-container {
-          padding: 8px 6px 28px 6px !important;
+          padding: 8px 6px 24px 6px !important;
         }
         .card {
-          padding: 12px 10px !important;
+          padding: 11px 9px !important;
           border-radius: 12px !important;
-          margin-bottom: 14px !important;
-        }
-        .card-header-custom {
-          flex-direction: column !important;
-          align-items: stretch !important;
-          gap: 8px !important;
+          margin-bottom: 12px !important;
         }
         .nav-tabs {
           display: flex !important;
@@ -226,58 +239,28 @@
           flex: 1 1 auto !important;
         }
         .nav-tabs .nav-link {
-          font-size: 0.76rem !important;
-          padding: 8px 10px !important;
+          font-size: 0.74rem !important;
+          padding: 7px 8px !important;
           text-align: center !important;
-          width: 100% !important;
-        }
-        table.table {
-          width: 100% !important;
-          table-layout: fixed !important;
-          margin-bottom: 0 !important;
         }
         table.table th {
-          font-size: 0.62rem !important;
-          padding: 6px 3px !important;
-          line-height: 1.1 !important;
-          word-break: break-word !important;
-          overflow-wrap: anywhere !important;
-          white-space: normal !important;
-          vertical-align: middle !important;
+          font-size: 0.66rem !important;
+          padding: 6px 4px !important;
+          line-height: 1.15 !important;
         }
         table.table td {
-          font-size: 0.68rem !important;
-          padding: 6px 3px !important;
-          line-height: 1.15 !important;
-          word-break: break-word !important;
-          overflow-wrap: anywhere !important;
-          white-space: normal !important;
-          vertical-align: middle !important;
-        }
-        table.table td.text-nowrap,
-        table.table td:last-child {
-          white-space: normal !important;
+          font-size: 0.72rem !important;
+          padding: 6px 4px !important;
+          line-height: 1.2 !important;
         }
         table.table td .btn {
-          font-size: 0.65rem !important;
-          padding: 4px 6px !important;
-          margin: 2px 0 !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-        }
-        table.table td input[type="date"],
-        table.table td input[type="number"],
-        table.table td select {
-          max-width: 100% !important;
-          min-width: 0 !important;
-          font-size: 0.66rem !important;
-          padding: 3px 4px !important;
+          font-size: 0.68rem !important;
+          padding: 4px 7px !important;
+          margin: 1px !important;
         }
         table.table td .badge {
-          font-size: 0.6rem !important;
+          font-size: 0.63rem !important;
           padding: 3px 5px !important;
-          white-space: normal !important;
         }
       }
     `;
@@ -285,6 +268,96 @@
   }
 
   injetarResponsividadeGlobalEEMTI();
+
+  // =========================================================================
+  // 1. COMPACTADOR VISUAL AUTOMÁTICO:
+  // - Transforma "Presente (P)", "Falta (F)", "Justificada (FJ)", "Atestado (A)" em "P", "F", "FJ", "A"
+  // - Abrevia "1ª SÉRIE A" -> "1ª A", "2ª SÉRIE B" -> "2ª B" APENAS nas tabelas e históricos
+  //   (mantendo "2ª SÉRIE A" intacto nos <select> de seleção!)
+  // =========================================================================
+  window.abreviarSerieParaExibicao = function(textoSerie) {
+    if (!textoSerie) return "";
+    return String(textoSerie)
+      .replace(/\b([123][ªº°])\s*(?:SÉRIE|SERIE|ANO)\s*([A-Z])\b/gi, '$1 $2')
+      .replace(/\b([123][ªº°])\s*(?:SÉRIE|SERIE)\b/gi, '$1 SÉRIE');
+  };
+
+  function aplicarCompactacaoVisualNasTabelasEBotoes() {
+    // A) Compacta botões de Frequência da Secretaria para P, F, FJ, A
+    document.querySelectorAll('table button, table .btn, table label.btn').forEach(btn => {
+      if (btn.children.length > 0 && !btn.querySelector('i')) return;
+      const txt = (btn.textContent || '').trim();
+      if (txt === 'Presente (P)' || txt === 'Presente') {
+        btn.textContent = 'P';
+        btn.title = 'Presente (P)';
+        btn.classList.add('btn-chamada-compacto');
+      } else if (txt === 'Falta (F)' || txt === 'Falta') {
+        btn.textContent = 'F';
+        btn.title = 'Falta (F)';
+        btn.classList.add('btn-chamada-compacto');
+      } else if (txt === 'Justificada (FJ)' || txt === 'Falta Justificada (FJ)' || txt === 'Justificada') {
+        btn.textContent = 'FJ';
+        btn.title = 'Falta Justificada (FJ)';
+        btn.classList.add('btn-chamada-compacto');
+      } else if (txt === 'Atestado (A)' || txt === 'Atestado') {
+        btn.textContent = 'A';
+        btn.title = 'Atestado (A)';
+        btn.classList.add('btn-chamada-compacto');
+      }
+    });
+
+    // B) Abrevia "2ª SÉRIE A" para "2ª A" dentro de células de tabelas (td, badge), sem mexer nos <select>!
+    document.querySelectorAll('table td .badge, table td span, table td div, table td').forEach(el => {
+      if (el.children.length === 0) {
+        const original = el.textContent || '';
+        if (/\b[123][ªº°]\s*(?:SÉRIE|SERIE|ANO)\s+[A-Z]\b/i.test(original)) {
+          const abreviado = window.abreviarSerieParaExibicao(original);
+          if (abreviado !== original) {
+            el.textContent = abreviado;
+          }
+        }
+      }
+    });
+
+    // C) Garante que o Brasão do Estado ("brasaoestado.png.png") apareça mesmo se alguma imagem caiu no fallback do boneco flaticon
+    CorrigirBrasaoEstadoELogoNaTela();
+  }
+
+  function CorrigirBrasaoEstadoELogoNaTela() {
+    const b64Brasao = localStorage.getItem('cache_brasao_oficial_eemti_b64');
+    document.querySelectorAll('.brand-escola img, img#logoEscola, img.watermark-brasao-fundo, img[src*="LOGO-removebg"], img[src*="brasaoestado"], img[src*="2941658.png"]').forEach(img => {
+      const srcAtual = String(img.getAttribute('src') || '');
+      // Remove o onerror antigo que colocava o boneco de óculos (2941658.png)
+      img.onerror = function() {
+        if (b64Brasao && this.src !== b64Brasao) {
+          this.src = b64Brasao;
+        } else if (!this.src.endsWith('brasaoestado.png.png')) {
+          this.src = 'brasaoestado.png.png';
+        }
+      };
+
+      if (srcAtual.includes('2941658.png') || srcAtual.includes('LOGO-removebg-preview.png') || (srcAtual.includes('brasaoestado') && !srcAtual.endsWith('brasaoestado.png.png'))) {
+        if (!navigator.onLine && b64Brasao) {
+          img.src = b64Brasao;
+        } else {
+          img.src = 'brasaoestado.png.png';
+        }
+      }
+    });
+  }
+
+  // Observa mudanças nas tabelas para aplicar P/F/FJ/A e "2ª A" em milissegundos assim que qualquer lista carregar!
+  let timerCompactacao = null;
+  const observerTabelas = new MutationObserver(() => {
+    if (timerCompactacao) clearTimeout(timerCompactacao);
+    timerCompactacao = setTimeout(aplicarCompactacaoVisualNasTabelasEBotoes, 40);
+  });
+
+  function iniciarObservadorVisualDOM() {
+    if (!document.body) return;
+    aplicarCompactacaoVisualNasTabelasEBotoes();
+    observerTabelas.observe(document.body, { childList: true, subtree: true });
+  }
 
   function registrarDataHoraAtualizacaoBanco() {
     const agora = new Date();
@@ -295,7 +368,6 @@
     atualizarSeloTopoSincronizacao();
   }
 
-  // Posiciona o selo discreto DEPOIS do botão Sair / Início e permite atualizar o cache sob demanda!
   function atualizarSeloTopoSincronizacao(estadoEspecial) {
     const userBar = document.querySelector('.user-bar');
     if (!userBar) return;
@@ -305,7 +377,7 @@
       selo = document.createElement('span');
       selo.id = 'seloTopoSyncBancoEEMTI';
       selo.className = 'badge-sync-header-eemti';
-      selo.title = 'Clique aqui quando quiser buscar informações novas da planilha e atualizar o cache';
+      selo.title = 'Clique aqui quando quiser buscar dados novos da planilha e atualizar o cache';
       selo.onclick = () => {
         if (navigator.onLine) {
           atualizarSeloTopoSincronizacao('SINCRONIZANDO');
@@ -315,7 +387,6 @@
           atualizarSeloTopoSincronizacao('OFFLINE');
         }
       };
-      // Insere no FINAL da .user-bar (DEPOIS do botão Sair / Início, conforme solicitado!)
       userBar.appendChild(selo);
     } else if (userBar.lastElementChild !== selo) {
       userBar.appendChild(selo);
@@ -335,30 +406,28 @@
     }
   }
 
-  // Corrige automaticamente imagens de Brasão do Estado ("brasaoestado.png.png") e Logo da Escola,
-  // e configura o botão Voltar / Sair para voltar à index.html sem nenhuma seleção!
   function configurarImagensENavegacaoTopo() {
     const path = window.location.pathname.toLowerCase();
     const estaNaHome = path.endsWith('index.html') || path.endsWith('/') || path === '';
     const estaNoLogin = path.endsWith('login.html');
 
-    // 1. Corrige qualquer imagem do Brasão do Estado (que na pasta é "brasaoestado.png.png") e da Logo
-    document.querySelectorAll('img').forEach(img => {
-      const srcAtual = String(img.getAttribute('src') || '');
-      if (srcAtual.toLowerCase().includes('brasaoestado') && !srcAtual.toLowerCase().endsWith('brasaoestado.png.png')) {
-        img.src = 'brasaoestado.png.png';
-      }
-      img.addEventListener('error', function() {
-        const s = String(this.getAttribute('src') || '').toLowerCase();
-        if (s.includes('brasao') && !s.endsWith('brasaoestado.png.png')) {
-          this.src = 'brasaoestado.png.png';
+    CorrigirBrasaoEstadoELogoNaTela();
+
+    // Faz cache em Base64 do brasaoestado.png.png para funcionar 100% offline e nos PDFs
+    if (navigator.onLine) {
+      window.converterImagemParaDataUrlPdf('brasaoestado.png.png', 300, 300).then(b64 => {
+        if (b64) {
+          try {
+            localStorage.setItem('cache_brasao_oficial_eemti_b64', b64);
+            localStorage.setItem('cache_logo_oficial_eemti_b64', b64);
+          } catch (e) {}
+          CorrigirBrasaoEstadoELogoNaTela();
         }
-      }, { once: true });
-    });
+      });
+    }
 
     if (estaNoLogin) return;
 
-    // 2. Se estiver na Home (index.html), garante que sempre abra limpa (sem nenhum hexágono pré-selecionado)
     if (estaNaHome) {
       sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
       if (typeof window.fecharPainelTopico === 'function') {
@@ -366,7 +435,6 @@
       }
     }
 
-    // 3. Nas subpáginas: adiciona o botão "Voltar" antes do botão Início/Sair, que leva para a index.html sem seleção!
     const userBar = document.querySelector('.user-bar');
     if (userBar && !estaNaHome && !document.getElementById('btnVoltarPaginaAnteriorEEMTI')) {
       const btnVoltar = document.createElement('button');
@@ -374,7 +442,7 @@
       btnVoltar.id = 'btnVoltarPaginaAnteriorEEMTI';
       btnVoltar.className = 'btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold';
       btnVoltar.innerHTML = `<i class="bi bi-arrow-left-circle-fill me-1"></i>Voltar`;
-      btnVoltar.title = 'Voltar para a tela inicial sem nenhuma seleção';
+      btnVoltar.title = 'Voltar para a página inicial limpa';
       btnVoltar.onclick = function() {
         sessionStorage.removeItem('ultimo_topico_colmeia_selecionado_eemti');
         window.location.href = 'index.html';
@@ -388,7 +456,6 @@
       }
     }
 
-    // 4. Ao clicar em Sair, limpa a flag de sessão para que no próximo login ele atualize uma vez online
     if (userBar) {
       const btnSair = userBar.querySelector('button.btn-outline-danger');
       if (btnSair && !btnSair._eemtiCleanBound) {
@@ -414,7 +481,7 @@
 
   function normalizarSeriePadraoCore(s) {
     let str = String(s || "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-    const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)\s*([A-Z0-9].*)$/i);
+    const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)?\s*([A-Z0-9].*)$/i);
     return m ? `${m[1]}ª SÉRIE ${m[2].trim()}` : str;
   }
 
@@ -441,7 +508,7 @@
 
   function liberarEspacoStorageAntigo() {
     Object.keys(localStorage).forEach(k => {
-      if (k.startsWith('cache_api_eemti_') || k.startsWith('cache_acervo_bib_')) {
+      if (k.startsWith('cache_api_eemti_') || k.startsWith('cache_acervo_bib_') || k.startsWith('cache_req_v2_')) {
         localStorage.removeItem(k);
       }
     });
@@ -456,6 +523,55 @@
     }
   }
 
+  // =========================================================================
+  // 2. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 E CAPAS OFFLINE!
+  // =========================================================================
+  function abrirBancoSyncIDB() {
+    return new Promise(resolve => {
+      if (!window.indexedDB) return resolve(null);
+      const req = indexedDB.open(IDB_SYNC_NAME, IDB_VERSION);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
+        if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
+        if (!db.objectStoreNames.contains('fotos_offline')) db.createObjectStore('fotos_offline', { keyPath: 'chave' });
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function salvarFotoNoIndexedDB(chaveAlunoOuLivro, dadosFotoObj) {
+    if (!chaveAlunoOuLivro || !dadosFotoObj) return;
+    mapaFotosAlunosCacheMemoria[chaveAlunoOuLivro] = dadosFotoObj;
+    const db = await abrirBancoSyncIDB();
+    if (!db || !db.objectStoreNames.contains('fotos_offline')) return;
+    try {
+      const tx = db.transaction('fotos_offline', 'readwrite');
+      tx.objectStore('fotos_offline').put({ chave: chaveAlunoOuLivro, dados: dadosFotoObj });
+    } catch (e) {}
+  }
+
+  async function carregarTodasFotosDoIndexedDBParaMemoria() {
+    const db = await abrirBancoSyncIDB();
+    if (!db || !db.objectStoreNames.contains('fotos_offline')) return;
+    return new Promise(resolve => {
+      try {
+        const tx = db.transaction('fotos_offline', 'readonly');
+        const req = tx.objectStore('fotos_offline').getAll();
+        req.onsuccess = () => {
+          (req.result || []).forEach(item => {
+            if (item && item.chave) mapaFotosAlunosCacheMemoria[item.chave] = item.dados;
+          });
+          resolve();
+        };
+        req.onerror = () => resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
   function gerarChaveCacheRequisicao(action, bodyObj) {
     const copia = Object.assign({}, bodyObj || {});
     delete copia.usuarioLogado;
@@ -464,7 +580,35 @@
 
   function salvarRespostaNoCacheInstantaneo(action, bodyObj, textoJson) {
     if (!ACOES_LEITURA_CACHE_PURO.includes(action)) return;
-    if (!textoJson || textoJson.length > 400000) return;
+    if (!textoJson) return;
+
+    // Se a resposta contiver fotos 3x4 de alunos (getAlunosParaEdicao, obterFotoAlunoIndividual, getFiltrosOcorrencias)
+    // ou capas de livros, salva cada foto no IndexedDB para aparecer 100% offline sem estourar o localStorage!
+    try {
+      const parsed = JSON.parse(textoJson);
+      if (action === 'obterFotoAlunoIndividual' && parsed && parsed.success && bodyObj.aluno) {
+        salvarFotoNoIndexedDB('ALUNO_' + String(bodyObj.aluno).trim().toUpperCase(), parsed);
+      } else if (action === 'getAlunosParaEdicao' && Array.isArray(parsed)) {
+        const serieChave = normalizarSeriePadraoCore((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || '');
+        if (serieChave) salvarFotoNoIndexedDB('TURMA_EDICAO_' + serieChave, parsed);
+        parsed.forEach(al => {
+          if (al && al.nome && al.foto) {
+            salvarFotoNoIndexedDB('ALUNO_' + String(al.nome).trim().toUpperCase(), {
+              success: true,
+              nome: al.nome,
+              serie: al.serie,
+              foto: al.foto,
+              mae: al.mae || '',
+              pai: al.pai || ''
+            });
+          }
+        });
+      } else if ((action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive') && parsed && parsed.success && bodyObj.caminho) {
+        salvarFotoNoIndexedDB('ARQ_' + String(bodyObj.caminho).trim(), parsed);
+      }
+    } catch (e) {}
+
+    if (textoJson.length > 420000) return;
     try {
       const ch = gerarChaveCacheRequisicao(action, bodyObj);
       localStorage.setItem(ch, textoJson);
@@ -473,15 +617,32 @@
     }
   }
 
-  // Constrói e responde TODAS as consultas e pesquisas (incluindo Histórico do Aluno!) em 1 milissegundo direto do Cache!
   function obterRespostaDoCacheInstantaneo(action, bodyObj) {
+    // 1. Verifica se é consulta de Foto 3x4 ou Turma com Fotos já salva no IndexedDB em memória
+    if (action === 'obterFotoAlunoIndividual' && bodyObj.aluno) {
+      const chAl = 'ALUNO_' + String(bodyObj.aluno).trim().toUpperCase();
+      if (mapaFotosAlunosCacheMemoria[chAl]) {
+        return JSON.stringify(mapaFotosAlunosCacheMemoria[chAl]);
+      }
+    }
+    if (action === 'getAlunosParaEdicao') {
+      const serieChave = normalizarSeriePadraoCore((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || '');
+      if (serieChave && mapaFotosAlunosCacheMemoria['TURMA_EDICAO_' + serieChave]) {
+        return JSON.stringify(mapaFotosAlunosCacheMemoria['TURMA_EDICAO_' + serieChave]);
+      }
+    }
+    if ((action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive') && bodyObj.caminho) {
+      const chArq = 'ARQ_' + String(bodyObj.caminho).trim();
+      if (mapaFotosAlunosCacheMemoria[chArq]) {
+        return JSON.stringify(mapaFotosAlunosCacheMemoria[chArq]);
+      }
+    }
+
     if (!ACOES_LEITURA_CACHE_PURO.includes(action)) return null;
 
-    // 1. Verifica construtores dinâmicos locais (que filtram qualquer aluno/turma sem precisar ir na rede!)
     const respostaCalculadaLocalmente = construirRespostaOfflineInteligente(action, bodyObj);
     if (respostaCalculadaLocalmente) return respostaCalculadaLocalmente;
 
-    // 2. Verifica se já existe a resposta exata gravada no cache
     try {
       const ch = gerarChaveCacheRequisicao(action, bodyObj);
       const direto = localStorage.getItem(ch);
@@ -507,7 +668,7 @@
   }
 
   // =========================================================================
-  // 1. MOTOR DE SINCRONIZAÇÃO GERAL (RODA 1 VEZ AO ABRIR O SISTEMA OU QUANDO CLICAR EM ATUALIZAR)
+  // 3. SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR O SISTEMA OU CLICANDO EM ATUALIZAR)
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarManual = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -519,7 +680,6 @@
     const jaSincronizouNestaSessao = sessionStorage.getItem(SESSAO_JA_SINCRONIZADA_KEY) === 'SIM';
     const jaTemAlunosNoCache = Boolean(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI));
 
-    // REGRA SOLICITADA: Só atualiza 1 vez quando abre o sistema online, ou quando o professor clicar em "Atualizar" (forcarManual = true)!
     if (!forcarManual && jaSincronizouNestaSessao && jaTemAlunosNoCache) {
       atualizarSeloTopoSincronizacao();
       return;
@@ -529,7 +689,6 @@
     atualizarSeloTopoSincronizacao('SINCRONIZANDO');
 
     try {
-      // Lote 1: Todos os dados essenciais para filtros e pesquisas em milissegundos
       const [
         resFreqSec,
         resFiltrosRac,
@@ -584,6 +743,7 @@
         }
       }
 
+      // Salva também todas as fotos 3x4 que já vieram em Base64 dentro de getFiltrosOcorrencias!
       if (resFiltrosRac && resFiltrosRac.success) {
         if (Array.isArray(resFiltrosRac.ocorrencias) && resFiltrosRac.ocorrencias.length > 0) {
           const catRac = resFiltrosRac.ocorrencias.map(o => ({
@@ -591,6 +751,18 @@
             gravidade: String(o.gravidade || "GRAU I (INFRAÇÕES LEVES)").trim().toUpperCase()
           })).filter(o => o.descricao);
           salvarNoLocalStorageSeguro('cache_rac_catalogo_v3', catRac);
+        }
+        if (Array.isArray(resFiltrosRac.alunos)) {
+          resFiltrosRac.alunos.forEach(al => {
+            if (al && al.nome && al.foto && String(al.foto).startsWith('data:image')) {
+              salvarFotoNoIndexedDB('ALUNO_' + String(al.nome).trim().toUpperCase(), {
+                success: true,
+                nome: al.nome,
+                serie: normalizarSeriePadraoCore(al.serie),
+                foto: al.foto
+              });
+            }
+          });
         }
       }
 
@@ -728,7 +900,6 @@
         salvarNoLocalStorageSeguro('cache_todos_mapas_salvos_v4', mapaConsolidado);
       }
 
-      // Lote 2 silencioso: Suspensões, Atendimentos, Atividades, Frequências Eletivas, Situação, AEE, Busca Ativa e Biblioteca
       Promise.all([
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getAlunosParaPainelSuspensao' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('getAlunosParaPainelSuspensao', { action: 'getAlunosParaPainelSuspensao' }, t)).catch(() => {}),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarAtendimentosAlunos' }) }).then(r => r.text()).then(t => salvarRespostaNoCacheInstantaneo('listarAtendimentosAlunos', { action: 'listarAtendimentosAlunos' }, t)).catch(() => {}),
@@ -750,12 +921,7 @@
     }
   };
 
-  // =========================================================================
-  // 2. CONSTRUTOR LOCAL INSTANTÂNEO (1ms) PARA PESQUISAS DE HISTÓRICO E FILTROS
-  // Evita que ao pesquisar o nome de um aluno no Histórico o sistema fique carregando!
-  // =========================================================================
   function construirRespostaOfflineInteligente(action, bodyObj) {
-    // A) Pesquisa de Histórico Individual de Ocorrências (getDadosHistorico) -> 1ms direto do cache!
     if (action === 'getDadosHistorico') {
       const nomeBusca = String(bodyObj.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
@@ -766,6 +932,9 @@
       if (alunos.length === 0 && todasOco.length === 0) return null;
 
       const alEncontrado = alunos.find(a => a.nome === nomeBusca) || { nome: nomeBusca, serie: "-" };
+      const fotoSalvaObj = mapaFotosAlunosCacheMemoria['ALUNO_' + nomeBusca];
+      const fotoFinal = (fotoSalvaObj && fotoSalvaObj.foto) ? fotoSalvaObj.foto : (alEncontrado.foto || "");
+
       const listaBimestres = bims.map(b => {
         const tsI = converterDataParaTimestampLocal(b.inicioIso);
         const tsF = converterDataParaTimestampLocal(b.fimIso);
@@ -793,7 +962,7 @@
           }
           return {
             id: o.id || "",
-            serie: normalizarSeriePadraoCore(o.serie || alEncontrado.serie),
+            serie: window.abreviarSerieParaExibicao(normalizarSeriePadraoCore(o.serie || alEncontrado.serie)),
             data: o.data || "",
             timestamp: ts,
             bimestre: bimNome,
@@ -807,14 +976,13 @@
 
       return JSON.stringify({
         success: true,
-        aluno: { nome: alEncontrado.nome, serie: alEncontrado.serie, foto: alEncontrado.foto || "" },
+        aluno: { nome: alEncontrado.nome, serie: window.abreviarSerieParaExibicao(alEncontrado.serie), foto: fotoFinal },
         ocorrencias: ocorrenciasAluno,
         bimestres: listaBimestres,
         pontuacoes: mapPontos
       });
     }
 
-    // B) Pesquisa de Histórico de Eletivas do Aluno (getHistoricoEletivasAluno) -> 1ms direto do cache!
     if (action === 'getHistoricoEletivasAluno') {
       const termoBusca = String(bodyObj.aluno || "").replace(/\s+/g, " ").trim().toUpperCase();
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
@@ -825,6 +993,8 @@
       if (matSalvas.length === 0) return null;
 
       const alInfo = alunos.find(a => a.nome === termoBusca) || { nome: termoBusca, serie: "-", foto: "" };
+      const fotoSalvaObj = mapaFotosAlunosCacheMemoria['ALUNO_' + termoBusca];
+      const fotoFinal = (fotoSalvaObj && fotoSalvaObj.foto) ? fotoSalvaObj.foto : (alInfo.foto || "");
       const catalogo = (catSalvo && Array.isArray(catSalvo.catalogo)) ? catSalvo.catalogo : [];
 
       const historico = matSalvas
@@ -858,7 +1028,7 @@
             semestre: m.ano || "-",
             dia: m.dia || catMatch.dia || "-",
             tempoEletivo: m.tempoEletivo || catMatch.tempoEletivo || "-",
-            serie: m.serie || alInfo.serie || "-",
+            serie: window.abreviarSerieParaExibicao(m.serie || alInfo.serie || "-"),
             eletiva: m.eletiva,
             professor: catMatch.professor || "NÃO INFORMADO",
             ch: chValor,
@@ -873,12 +1043,11 @@
 
       return JSON.stringify({
         success: true,
-        aluno: { nome: alInfo.nome, serie: alInfo.serie, foto: alInfo.foto || "", matricula: "" },
+        aluno: { nome: alInfo.nome, serie: window.abreviarSerieParaExibicao(alInfo.serie), foto: fotoFinal, matricula: "" },
         historico: historico
       });
     }
 
-    // C) Pesquisa Global de Aluno em Eletivas (pesquisarAlunoGlobal)
     if (action === 'pesquisarAlunoGlobal') {
       const termo = String(bodyObj.nome || "").trim().toUpperCase();
       const matSalvas = JSON.parse(localStorage.getItem(KEY_MATRICULAS_ELETIVAS_OFFLINE) || '[]');
@@ -890,7 +1059,7 @@
           ano: m.ano,
           dia: m.dia || "",
           tempoEletivo: m.tempoEletivo || "",
-          serie: m.serie,
+          serie: window.abreviarSerieParaExibicao(m.serie),
           eletiva: m.eletiva,
           aluno: m.aluno,
           nota: m.nota || ""
@@ -898,7 +1067,6 @@
       return JSON.stringify(res);
     }
 
-    // D) Relatório de Matrículas por Turma (getRelatorioMatriculas)
     if (action === 'getRelatorioMatriculas') {
       const anoB = String(bodyObj.ano || "").trim();
       const serieB = normalizarSeriePadraoCore(bodyObj.serie || "");
@@ -915,7 +1083,7 @@
           const tempoF = m.tempoEletivo || catMatch.tempoEletivo || "";
           return {
             aluno: m.aluno,
-            serie: m.serie,
+            serie: window.abreviarSerieParaExibicao(m.serie),
             diaSemana: diaF,
             tempoEletivo: tempoF,
             dia: diaF ? `${diaF}${tempoF ? ' - ' + tempoF : ''}` : (tempoF || '-'),
@@ -978,8 +1146,8 @@
             linha: m.linha || 0,
             nome: m.aluno,
             aluno: m.aluno,
-            turma: m.serie,
-            serieTurma: m.serie,
+            turma: window.abreviarSerieParaExibicao(m.serie),
+            serieTurma: window.abreviarSerieParaExibicao(m.serie),
             serieBase: m.serieBase,
             tempoEletivo: m.tempoEletivo,
             semestre: m.ano,
@@ -997,7 +1165,12 @@
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const ocorrencias = JSON.parse(localStorage.getItem('cache_rac_catalogo_v3') || '[]');
       if (series.length > 0 && alunos.length > 0) {
-        return JSON.stringify({ success: true, series: series, alunos: alunos, ocorrencias: ocorrencias });
+        // Anexa as fotos do IndexedDB aos alunos para que المapeamento de Sala e Biblioteca tenham fotos 3x4 offline!
+        const alunosComFoto = alunos.map(a => {
+          const fMem = mapaFotosAlunosCacheMemoria['ALUNO_' + a.nome];
+          return fMem && fMem.foto ? Object.assign({}, a, { foto: fMem.foto }) : a;
+        });
+        return JSON.stringify({ success: true, series: series, alunos: alunosComFoto, ocorrencias: ocorrencias });
       }
     }
 
@@ -1050,23 +1223,6 @@
     }
 
     return null;
-  }
-
-  // =========================================================================
-  // 3. PONTE INDEXEDDB E BACKGROUND SYNC (COM O APP FECHADO OU MINIMIZADO)
-  // =========================================================================
-  function abrirBancoSyncIDB() {
-    return new Promise(resolve => {
-      if (!window.indexedDB) return resolve(null);
-      const req = indexedDB.open(IDB_SYNC_NAME, 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
-        if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
-      };
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror = () => resolve(null);
-    });
   }
 
   async function espelharFilaParaIndexedDB(filaArray) {
@@ -1170,7 +1326,7 @@
   }
 
   // =========================================================================
-  // 4. INTERCEPTADOR DE FETCH (100% CACHE LOCAL NAS PESQUISAS — SEM RE-SYNC CONSTANTE!)
+  // 4. INTERCEPTADOR DE FETCH (RESPOSTAS EM 1ms + SÉRIES ABREVIADAS NOS HISTÓRICOS)
   // =========================================================================
   function unificarFilasOfflineNoStorage() {
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
@@ -1212,20 +1368,21 @@
   function resumirItemSincronizado(payload) {
     const act = payload.action;
     const d = payload.dados || payload.dadosFrequencia || payload;
+    const serieCurta = window.abreviarSerieParaExibicao(d.serie || d.semestre || '-');
     if (act === 'salvarOcorrencia') {
-      return `<li><b>Ocorrência RAC:</b> ${d.aluno || '-'} (${d.serie || '-'}) — <i>${d.ocorrencia || '-'}</i></li>`;
+      return `<li><b>Ocorrência RAC:</b> ${d.aluno || '-'} (${serieCurta}) — <i>${d.ocorrencia || '-'}</i></li>`;
     }
     if (act === 'salvarAtividadeDisciplinas' || act === 'salvarAtividadeEletivas') {
-      return `<li><b>Atividade (${d.disciplina || d.eletiva || '-'}):</b> Turma ${d.serie || d.semestre || '-'} (${d.data || '-'})</li>`;
+      return `<li><b>Atividade (${d.disciplina || d.eletiva || '-'}):</b> Turma ${serieCurta} (${d.data || '-'})</li>`;
     }
     if (act === 'salvarFrequenciaSecretaria') {
-      return `<li><b>Frequência Secretaria:</b> Turma ${d.serie || '-'} • Turno ${d.turno || '-'} (${d.data || '-'})</li>`;
+      return `<li><b>Frequência Secretaria:</b> Turma ${serieCurta} • Turno ${d.turno || '-'} (${d.data || '-'})</li>`;
     }
     if (act === 'salvarFrequencia') {
       return `<li><b>Frequência Eletiva:</b> ${d.eletiva || '-'} (${d.data || '-'} • ${d.semestre || '-'})</li>`;
     }
     if (act === 'salvarMapeamentoSala') {
-      return `<li><b>Mapeamento de Sala:</b> Turma ${d.serie || '-'} (PDT: ${d.pdt || '-'})</li>`;
+      return `<li><b>Mapeamento de Sala:</b> Turma ${serieCurta} (PDT: ${d.pdt || '-'})</li>`;
     }
     return `<li><b>${ACOES_GRAVACAO_OFFLINE[act] || act}:</b> Sincronizado com sucesso</li>`;
   }
@@ -1268,15 +1425,15 @@
         }
       }
 
-      // 2. RESPOSTA EM 1 MILISSEGUNDO DIRETO DO CACHE (SEM DISPARAR REDE A CADA PESQUISA/FILTRO!)
-      if (!ehReservaDeAmbiente && ACOES_LEITURA_CACHE_PURO.includes(action)) {
+      // 2. RESPOSTA EM 1 MILISSEGUNDO DIRETO DO CACHE (INCLUINDO FOTOS E HISTÓRICOS!)
+      if (!ehReservaDeAmbiente && (ACOES_LEITURA_CACHE_PURO.includes(action) || action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive')) {
         const cacheImediato = obterRespostaDoCacheInstantaneo(action, bodyObj);
         if (cacheImediato) {
           return new Response(cacheImediato, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
       }
 
-      // 3. EXECUÇÃO ONLINE (Apenas na 1ª vez que ainda não tem cache, ou em cadastros/gravações/reservas)
+      // 3. EXECUÇÃO ONLINE (Quando é gravação ou 1ª leitura ainda não presente no cache)
       try {
         const response = await fetchComTimeoutSeguranca(url, options, 18000);
         const clone = response.clone();
@@ -1336,7 +1493,7 @@
   };
 
   // =========================================================================
-  // 5. ENVIO EM SEGUNDO PLANO (SILENCIOSO, MOSTRA APENAS O AVISO QUANDO CONCLUÍDO!)
+  // 5. ENVIO EM SEGUNDO PLANO SILENCIOSO
   // =========================================================================
   function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
@@ -1416,7 +1573,6 @@
     }
   };
 
-  // Mostra o badge flutuante APENAS quando está sem internet (Modo Offline), sem ficar piscando "Sincronizando..." na tela!
   window.atualizarBadgeStatusConexaoGlobal = function() {
     let badge = document.getElementById('badgeStatusOfflineGlobal');
     const fila = unificarFilasOfflineNoStorage();
@@ -1450,7 +1606,6 @@
     window.atualizarBadgeStatusConexaoGlobal();
   });
 
-  // Quando o professor minimiza o aplicativo no celular/PC, pede ao Service Worker para enviar qualquer item pendente!
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -1464,7 +1619,9 @@
   window.addEventListener('DOMContentLoaded', async () => {
     injetarResponsividadeGlobalEEMTI();
     configurarImagensENavegacaoTopo();
+    iniciarObservadorVisualDOM();
 
+    await carregarTodasFotosDoIndexedDBParaMemoria();
     const jaEnviouFechado = await verificarSincronizacoesFeitasComAppFechado();
     unificarFilasOfflineNoStorage();
     window.atualizarBadgeStatusConexaoGlobal();
@@ -1473,7 +1630,6 @@
       if (!jaEnviouFechado) {
         setTimeout(window.sincronizarFilaOfflineGlobal, 250);
       }
-      // Faz a sincronização inicial 1 única vez ao abrir o sistema online!
       setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 500);
     }
   });
@@ -1512,8 +1668,9 @@
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
+    const b64BrasaoSalvo = localStorage.getItem('cache_brasao_oficial_eemti_b64');
     const imgLogoDom = document.getElementById('logoEscola') || document.querySelector('.brand-escola img');
-    const srcLogo = (imgLogoDom && imgLogoDom.src) ? imgLogoDom.src : 'LOGO-removebg-preview.png';
+    const srcLogo = b64BrasaoSalvo || ((imgLogoDom && imgLogoDom.src && !imgLogoDom.src.includes('2941658.png')) ? imgLogoDom.src : 'brasaoestado.png.png');
     const logoB64 = await window.converterImagemParaDataUrlPdf(srcLogo, 200, 200);
 
     if (logoB64) {
