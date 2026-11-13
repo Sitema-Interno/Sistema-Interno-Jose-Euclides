@@ -1,10 +1,11 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA ANTI-DUPLICIDADE
-// 1. INTERCEPTA localStorage.setItem DAS PÁGINAS ANTIGAS (RAC/ATIVIDADES/MAPA) NA HORA:
-//    GARANTE ENVIO COM O APP FECHADO PELO SW.JS E IMPEDE ENVIO DUPLICADO (4X) AO ABRIR!
-// 2. AEE CORRIGIDO: MATRÍCULA SÓ COM NÚMEROS (SEM NOME REPETIDO) + MÃE E PAI ABAIXO
-// 3. GERENCIAR ALUNOS: NOME + FILIAÇÃO COM CONTATO | SÉRIE + BF/PM + LOCALIDADE E ENDEREÇO
-// 4. SUSPENSÕES PDT (4 COLUNAS ALINHADAS) + RESERVAS PDF POR PERÍODO + BRASÃO NOS PDFS
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
+// 1. MAPEAMENTO DE SALA: TODAS AS FILAS CABEM NA TELA + FILA 1 NA ESQUERDA (PORTA)
+//    SEM DESTAQUE LARANJA NA FILA 1 (MANTENDO APENAS O AVISO SUPERIOR DA PORTA)
+// 2. FREQUÊNCIA SECRETARIA: COLUNA "Nº" JUSTA NO NÚMERO + COLUNA "ALUNO(A)" LARGA
+// 3. FICHA DO ALUNO: SEM CAIXA REPETIDA DE NOME/FILIAÇÃO (MOSTRA SÓ OS QUADROS DE BAIXO)
+// 4. RESERVAS PDF: CARREGA JSPDF AUTOMATICAMENTE E BAIXA O PDF DO PERÍODO NA HORA
+// 5. TODOS OS PDFS USAM A IMAGEM "LOGO-removebg-preview.png" | TOPO HTML USA "brasaoestado.png"
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -95,12 +96,7 @@
   let cacheUltimasReservasCarregadas = [];
   const assinaturasRecentementeEnviadas = new Set();
 
-  // =========================================================================
-  // 0. INTERCEPTADOR IMEDIATO DE FILAS LEGADAS NO LOCALSTORAGE
-  // Quando registro-ocorrencias.html salva offline em 'fila_offline_rac_eemti_v1',
-  // captura na mesma hora, manda para o IndexedDB (para o sw.js enviar com app fechado!)
-  // e limpa a chave antiga para que a página não envie 4 vezes ao reconectar!
-  // =========================================================================
+  // Intercepta gravações nas filas antigas para enviar imediatamente pelo motor central
   const _setItemNativo = Storage.prototype.setItem;
   Storage.prototype.setItem = function(chave, valor) {
     _setItemNativo.call(this, chave, valor);
@@ -112,6 +108,9 @@
     }
   };
 
+  // =========================================================================
+  // 0. ESTILOS GLOBAIS: MAPEAMENTO AJUSTADO NA TELA + COLUNA Nº ESTREITA
+  // =========================================================================
   function injetarResponsividadeGlobalEEMTI() {
     if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
     const style = document.createElement('style');
@@ -138,6 +137,18 @@
         overflow-wrap: break-word !important;
         white-space: normal !important;
         vertical-align: middle !important;
+      }
+
+      /* Coluna Nº (1, 2, 3...) ajustada exatamente ao tamanho do número! */
+      th.col-numero-estreita-eemti,
+      td.col-numero-estreita-eemti {
+        width: 1% !important;
+        min-width: 28px !important;
+        max-width: 38px !important;
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+        text-align: center !important;
+        white-space: nowrap !important;
       }
 
       table.table td .badge {
@@ -196,8 +207,8 @@
 
       th.col-nome-larga-eemti,
       td.col-nome-larga-eemti {
-        width: 42% !important;
-        min-width: 140px !important;
+        width: 72% !important;
+        min-width: 150px !important;
         text-align: left !important;
       }
 
@@ -214,6 +225,74 @@
         min-width: 72px !important;
         white-space: nowrap !important;
         text-align: center !important;
+      }
+
+      /* =================================================================== */
+      /* MAPEAMENTO DE SALA: TODAS AS FILAS CABENDO NA TELA E SEM DESTAQUE   */
+      /* LARANJA NA FILA 1 (MANTENDO APENAS O AVISO ACIMA DO LADO DA PORTA!) */
+      /* =================================================================== */
+      .room-grid-scroll {
+        overflow-x: hidden !important;
+        width: 100% !important;
+        padding-bottom: 4px !important;
+      }
+      .room-columns-wrapper,
+      #containerColunasSala,
+      #containerColunasVisualizacao {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      .fila-coluna,
+      .fila-coluna.fila-porta-destaque {
+        min-width: 0 !important;
+        width: 100% !important;
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 10px !important;
+        padding: 5px !important;
+        box-shadow: none !important;
+      }
+      .fila-header,
+      .fila-coluna.fila-porta-destaque .fila-header {
+        background: #15438c !important;
+        color: #ffffff !important;
+        font-size: 0.68rem !important;
+        padding: 5px 4px !important;
+        border-radius: 6px !important;
+        text-align: center !important;
+        font-weight: 800 !important;
+      }
+      /* Oculta o subtítulo "INICIA NA PORTA DA SALA" de dentro do cabeçalho da Fila 1 */
+      .fila-header small,
+      .fila-header .sub-porta {
+        display: none !important;
+      }
+      .seat-card {
+        padding: 5px 4px !important;
+        border-radius: 8px !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      .seat-card .seat-badge,
+      .fila-coluna.fila-porta-destaque .seat-badge {
+        background: #15438c !important;
+        color: #ffffff !important;
+        font-size: 0.56rem !important;
+        padding: 2px 5px !important;
+        border-radius: 4px !important;
+      }
+      .seat-photo-box {
+        width: 48px !important;
+        height: 64px !important;
+        margin: 3px auto !important;
+      }
+      .seat-select {
+        font-size: 0.63rem !important;
+        padding: 2px 16px 2px 4px !important;
+        width: 100% !important;
       }
 
       .d-flex.gap-2, .d-flex.gap-3, .btn-group {
@@ -389,19 +468,37 @@
           max-width: 38px !important;
           max-height: 50px !important;
         }
-        th.col-nome-larga-eemti,
-        td.col-nome-larga-eemti {
-          width: 38% !important;
-          min-width: 105px !important;
+        /* No celular, o mapeamento de sala ajusta fontes e fotos para caberem todas as filas */
+        .room-columns-wrapper,
+        #containerColunasSala,
+        #containerColunasVisualizacao {
+          gap: 3px !important;
         }
-        th.col-secundaria-larga-eemti,
-        td.col-secundaria-larga-eemti {
-          width: 30% !important;
-          min-width: 90px !important;
+        .fila-coluna,
+        .fila-coluna.fila-porta-destaque {
+          padding: 2px !important;
+          border-radius: 6px !important;
         }
-        th.col-acoes-visivel-eemti,
-        td.col-acoes-visivel-eemti {
-          min-width: 58px !important;
+        .fila-header,
+        .fila-coluna.fila-porta-destaque .fila-header {
+          font-size: 0.52rem !important;
+          padding: 3px 1px !important;
+        }
+        .seat-card {
+          padding: 2px 1px !important;
+        }
+        .seat-card .seat-badge {
+          font-size: 0.44rem !important;
+          padding: 1px 2px !important;
+        }
+        .seat-photo-box {
+          width: 30px !important;
+          height: 40px !important;
+          margin: 2px auto !important;
+        }
+        .seat-select {
+          font-size: 0.48rem !important;
+          padding: 1px 2px !important;
         }
         .col-oculta-mobile-eemti {
           display: none !important;
@@ -420,13 +517,14 @@
 
   // =========================================================================
   // 1. SEPARAÇÃO EXATA DAS IMAGENS:
-  // - TOPO DAS PÁGINAS E TODOS OS PDFs: "brasaoestado.png"
-  // - MARCA D'ÁGUA DE FUNDO (.watermark-brasao-fundo): "LOGO-removebg-preview.png"
+  // - TOPO DAS PÁGINAS HTML (.brand-escola img): "brasaoestado.png"
+  // - MARCA D'ÁGUA DE FUNDO E TODOS OS PDFs: "LOGO-removebg-preview.png"
   // =========================================================================
   function aplicarImagensOficiaisTopoEMarcaDagua() {
     const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
     const b64LogoMarcaDagua = localStorage.getItem('cache_logo_escola_marcadagua_b64');
 
+    // Topo das páginas HTML: brasaoestado.png
     document.querySelectorAll('.brand-escola img, header img#logoEscola').forEach(img => {
       img.onerror = function() {
         if (this.src.endsWith('brasaoestado.png') && !this.src.endsWith('brasaoestado.png.png')) {
@@ -443,6 +541,7 @@
       }
     });
 
+    // Marca d'água de fundo das páginas HTML: LOGO-removebg-preview.png
     document.querySelectorAll('img.watermark-brasao-fundo').forEach(img => {
       img.onerror = function() {
         if (b64LogoMarcaDagua && this.src !== b64LogoMarcaDagua) {
@@ -458,24 +557,49 @@
     });
   }
 
-  function configurarInterceptadorBrasaoNosPdfs() {
-    if (!window.jspdf || !window.jspdf.jsPDF || window.jspdf.jsPDF._eemtiBrasaoHooked) return;
+  // Intercepta qualquer geração de PDF para garantir que o logo no cabeçalho do PDF seja SEMPRE a "LOGO-removebg-preview.png"!
+  function configurarInterceptadorLogoNosPdfs() {
+    if (!window.jspdf || !window.jspdf.jsPDF || window.jspdf.jsPDF._eemtiLogoHooked) return;
     try {
       const proto = window.jspdf.jsPDF.API || window.jspdf.jsPDF.prototype;
       if (proto && typeof proto.addImage === 'function') {
         const origAddImage = proto.addImage;
         proto.addImage = function(imageData, format, x, y, w, h) {
-          const b64BrasaoEstado = localStorage.getItem('cache_brasao_estado_topo_b64');
-          const b64LogoAntiga = localStorage.getItem('cache_logo_escola_marcadagua_b64');
-          const ehPosicaoLogoCabecalhoPdf = (typeof x === 'number' && x <= 25 && typeof y === 'number' && y <= 20 && Math.abs((w || 0) - (h || 0)) <= 4);
-          if (b64BrasaoEstado && (ehPosicaoLogoCabecalhoPdf || (b64LogoAntiga && imageData === b64LogoAntiga))) {
-            imageData = b64BrasaoEstado;
+          const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64');
+          const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
+
+          // Se for a posição do logo no cabeçalho do PDF (canto superior esquerdo, x <= 25, y <= 20 e proporção quadrada)
+          const ehPosicaoLogoCabecalhoPdf = (typeof x === 'number' && x <= 25 && typeof y === 'number' && y <= 20 && Math.abs((w || 0) - (h || 0)) <= 5);
+          if (b64LogoEscola && (ehPosicaoLogoCabecalhoPdf || (b64BrasaoTopo && imageData === b64BrasaoTopo))) {
+            arguments[0] = b64LogoEscola;
           }
           return origAddImage.apply(this, arguments);
         };
-        window.jspdf.jsPDF._eemtiBrasaoHooked = true;
+        window.jspdf.jsPDF._eemtiLogoHooked = true;
       }
     } catch (e) {}
+  }
+
+  // Carrega jsPDF + autoTable dinamicamente caso a página (ex: reservas.html) não tenha os scripts no <head>!
+  function carregarScriptDinamico(url) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Falha ao carregar ' + url));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function garantirBibliotecasPdfCarregadas() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      await carregarScriptDinamico('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    }
+    const proto = (window.jspdf && window.jspdf.jsPDF) ? (window.jspdf.jsPDF.API || window.jspdf.jsPDF.prototype) : null;
+    if (proto && typeof proto.autoTable !== 'function') {
+      await carregarScriptDinamico('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js');
+    }
+    configurarInterceptadorLogoNosPdfs();
   }
 
   // =========================================================================
@@ -541,14 +665,10 @@
     Swal.fire({ title: 'Gerando Relatório PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
+      await garantirBibliotecasPdfCarregadas();
+
       const pathLower = window.location.pathname.toLowerCase();
       const ehReservaLivros = pathLower.includes('reservas-livros');
-
-      if (!window.jspdf || !window.jspdf.jsPDF) {
-        Swal.close();
-        window.print();
-        return;
-      }
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('l', 'mm', 'a4');
@@ -597,6 +717,7 @@
         return;
       }
 
+      // Caso padrão: Reservas de Ambientes e Equipamentos (reservas.html)
       let listaRes = cacheUltimasReservasCarregadas;
       if (!Array.isArray(listaRes) || listaRes.length === 0) {
         const rApi = await _fetchNativo(API_PADRAO_URL, {
@@ -623,7 +744,11 @@
 
       const corpoTabela = reservasNoPeriodo.map((r, idx) => {
         const aulasFormatadas = Array.isArray(r.aulas)
-          ? r.aulas.map((val, i) => val ? `${i + 1}ª Aula (${val})` : '').filter(Boolean).join(', ')
+          ? r.aulas.map((val, i) => {
+              const vStr = String(val || '').trim();
+              if (!vStr) return '';
+              return vStr.toUpperCase().includes('AULA') ? vStr : `${i + 1}ª Aula (${vStr})`;
+            }).filter(Boolean).join(', ')
           : '-';
         return [
           idx + 1,
@@ -655,6 +780,7 @@
     if (!pathLower.includes('reservas')) return;
 
     const botoesPdf = Array.from(document.querySelectorAll('button, a.btn')).filter(b => {
+      if (b.id && b.id.includes('swal')) return false;
       const txt = (b.textContent || '').toUpperCase();
       const onc = (b.getAttribute('onclick') || '').toUpperCase();
       return txt.includes('PDF') || onc.includes('PDF');
@@ -671,22 +797,151 @@
           window.abrirModalPdfReservasPorPeriodoEEMTI();
         }, true);
       });
-    } else {
-      const cabecalhoCard = document.querySelector('.card-header-custom, .card h5, .card h4');
-      if (cabecalhoCard && !document.getElementById('btnPdfReservasPorPeriodoEEMTI')) {
-        const btnNovo = document.createElement('button');
-        btnNovo.type = 'button';
-        btnNovo.id = 'btnPdfReservasPorPeriodoEEMTI';
-        btnNovo.className = 'btn btn-danger btn-sm fw-bold rounded-pill px-3 ms-auto';
-        btnNovo.innerHTML = `<i class="bi bi-file-earmark-pdf-fill me-1"></i>Relatório PDF (Período)`;
-        btnNovo.onclick = () => window.abrirModalPdfReservasPorPeriodoEEMTI();
-        cabecalhoCard.appendChild(btnNovo);
-      }
     }
   }
 
   // =========================================================================
-  // 3. FUNÇÕES DE FORMATAÇÃO E MODAIS DE DETALHES AO CLICAR NA LINHA
+  // 3. AJUSTE DO MAPEAMENTO DE SALA (PORTA/FILA 1 NA ESQUERDA E SEM DESTAQUE LARANJA)
+  // =========================================================================
+  function ajustarLayoutMapeamentoDeSala() {
+    const pathLower = window.location.pathname.toLowerCase();
+    if (!pathLower.includes('mapeamento')) return;
+
+    // 1. Remove a classe de destaque laranja da Fila 1 e padroniza o cabeçalho para "FILA 1" igual às demais filas
+    document.querySelectorAll('.fila-coluna.fila-porta-destaque').forEach(col => {
+      col.classList.remove('fila-porta-destaque');
+      const header = col.querySelector('.fila-header');
+      if (header) {
+        header.innerHTML = `<i class="bi bi-View-list me-1"></i>FILA 1`;
+      }
+    });
+
+    // 2. Sobrescreve o gerador de PDF do Mapeamento de Sala caso ele estivesse desenhando a Fila 1 na direita ou em laranja!
+    if (typeof window.desenharPlantaDeSalaNoDocumentoPdf === 'function' && !window.desenharPlantaDeSalaNoDocumentoPdf._eemtiFixed) {
+      window.desenharPlantaDeSalaNoDocumentoPdf = async function(doc, cfg, adicionarNovaPaginaAntes) {
+        if (adicionarNovaPaginaAntes) doc.addPage();
+
+        const serie = cfg.serie;
+        const pdt = cfg.pdt || "NÃO ATRIBUÍDO";
+        const cols = Math.min(8, Math.max(1, Number(cfg.colunas) || 6));
+        const rows = Math.min(8, Math.max(1, Number(cfg.linhas) || 7));
+        const pos = cfg.posicoes || {};
+        const dtStr = cfg.ultimaAtualizacao || new Date().toLocaleDateString('pt-BR');
+
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        const marginX = 8;
+
+        const yAposCabecalho = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: `MAPEAMENTO OFICIAL DE SALA DE AULA — ${serie}`,
+          subtitulo1: `Professor(a) Diretor(a) de Turma (PDT): ${pdt}`,
+          subtitulo2: `Layout: ${cols} Filas x ${rows} Carteiras | Atualizado em: ${dtStr}`
+        });
+
+        // Barra de Referência Frontal: PORTA DA SALA (FILA 1) na Esquerda | QUADRO BRANCO no Centro | JANELAS na Direita
+        const refY = yAposCabecalho;
+        doc.setFillColor(255, 251, 235);
+        doc.setDrawColor(217, 119, 6);
+        doc.setLineWidth(0.35);
+        doc.roundedRect(marginX, refY, 64, 6.2, 1.2, 1.2, 'FD');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(180, 83, 9);
+        doc.text("PORTA DA SALA (FILA 1 INICIA AQUI)", marginX + 32, refY + 4.1, { align: "center" });
+
+        doc.setFillColor(30, 41, 59);
+        doc.roundedRect((pageW / 2) - 42, refY, 84, 6.2, 1.2, 1.2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(6.8);
+        doc.text("QUADRO BRANCO / MESA DO PROFESSOR (FRENTE)", pageW / 2, refY + 4.1, { align: "center" });
+
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(pageW - marginX - 52, refY, 52, 6.2, 1.2, 1.2, 'FD');
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(6.2);
+        doc.text("Lado Oposto / Janelas", pageW - marginX - 26, refY + 4.1, { align: "center" });
+
+        const startY = refY + 8.2;
+        const availW = pageW - (marginX * 2);
+        const availH = pageH - startY - 6;
+        const gapX = 2.0;
+        const gapY = 1.6;
+        const headerFilaH = 4.8;
+
+        const seatW = (availW - (gapX * (cols - 1))) / cols;
+        const seatH = (availH - headerFilaH - 1.2 - (gapY * (rows - 1))) / rows;
+
+        // Desenha da Esquerda para a Direita: Fila 1 na esquerda (Porta) até Fila N na direita, todas com o mesmo azul padrão!
+        for (let c = 1; c <= cols; c++) {
+          const xCol = marginX + (c - 1) * (seatW + gapX);
+          doc.setFillColor(21, 67, 140);
+          doc.roundedRect(xCol, startY, seatW, headerFilaH, 1, 1, 'F');
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6.5);
+          doc.setTextColor(255, 255, 255);
+          doc.text(`FILA ${c}`, xCol + (seatW / 2), startY + 3.3, { align: "center" });
+
+          for (let r = 1; r <= rows; r++) {
+            const ySeat = startY + headerFilaH + 1.2 + (r - 1) * (seatH + gapY);
+            const chave = `F${c}_C${r}`;
+            const nomeAlocado = pos[chave] || "";
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(203, 213, 225);
+            doc.setLineWidth(0.25);
+            doc.roundedRect(xCol, ySeat, seatW, seatH, 1.2, 1.2, 'FD');
+
+            doc.setFillColor(21, 67, 140);
+            doc.roundedRect(xCol + 1.2, ySeat + 1, 13, 3.2, 0.8, 0.8, 'F');
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(4.8);
+            doc.setTextColor(255, 255, 255);
+            doc.text(`${r}ª Cart.`, xCol + 7.7, ySeat + 3.2, { align: "center" });
+
+            const photoMaxH = Math.max(7, seatH - 8.8);
+            const photoW = Math.min(seatW - 6, photoMaxH * 0.75);
+            const photoH = photoW / 0.75;
+            const photoX = xCol + (seatW - photoW) / 2;
+            const photoY = ySeat + 4.6;
+
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(photoX, photoY, photoW, photoH, 'FD');
+
+            if (nomeAlocado) {
+              const infoCache = obterDadosCadastraisAlunoCache(nomeAlocado);
+              const fotoSrc = infoCache.foto || "";
+              const b64Img = fotoSrc ? await window.converterImagemParaDataUrlPdf(fotoSrc, 200, 260) : null;
+              if (b64Img) {
+                try { doc.addImage(b64Img, 'JPEG', photoX + 0.2, photoY + 0.2, photoW - 0.4, photoH - 0.4); } catch (e) {}
+              } else {
+                doc.setFontSize(4.3);
+                doc.setTextColor(148, 163, 184);
+                doc.text("SEM FOTO", photoX + (photoW / 2), photoY + (photoH / 2), { align: "center" });
+              }
+
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(4.8);
+              doc.setTextColor(15, 23, 42);
+              const linhasNome = doc.splitTextToSize(nomeAlocado, seatW - 2.4);
+              const yTexto = photoY + photoH + 2.3;
+              doc.text(linhasNome.slice(0, 2), xCol + (seatW / 2), yTexto, { align: "center" });
+            } else {
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(5);
+              doc.setTextColor(180, 180, 180);
+              doc.text("Vazio", xCol + (seatW / 2), photoY + (photoH / 2) + 1, { align: "center" });
+            }
+          }
+        }
+      };
+      window.desenharPlantaDeSalaNoDocumentoPdf._eemtiFixed = true;
+    }
+  }
+
+  // =========================================================================
+  // 4. FUNÇÕES DE FORMATAÇÃO E FICHA DO ALUNO (SEM REPETIÇÃO DE DADOS!)
   // =========================================================================
   window.abreviarSerieParaExibicao = function(textoSerie) {
     if (!textoSerie) return "";
@@ -741,6 +996,7 @@
     return Object.assign({}, baseAl, det);
   }
 
+  // Modal da Ficha Completa do Aluno: SEM repetição da caixa azul quando os dados são apenas Nome/Filiação/Série/Benefícios!
   window.abrirModalFichaCompletaAlunoEEMTI = async function(nomeAlunoClicado, serieHint, extrasLinhaHtml) {
     const nomeLimpo = String(nomeAlunoClicado || "").replace(/\s+/g, " ").trim().toUpperCase();
     if (!nomeLimpo || typeof Swal === 'undefined') return;
@@ -802,12 +1058,10 @@
             </div>
           </div>
 
-          ${extrasLinhaHtml ? `<div class="p-2 rounded border border-primary-subtle bg-primary-subtle bg-opacity-10 mb-2">${extrasLinhaHtml}</div>` : ''}
-
           <div class="p-2 rounded border mb-2">
             <div class="fw-bold text-primary small mb-1"><i class="bi bi-people-fill me-1"></i>Filiação e Contatos</div>
-            <div><b>Mãe:</b> ${maeExib} • <b>Contato:</b> ${telMaeExib}</div>
-            <div class="mt-1"><b>Pai:</b> ${paiExib} • <b>Contato:</b> ${telPaiExib}</div>
+            <div><b>Mãe:</b> ${maeExib} &bull; <b>Contato:</b> ${telMaeExib}</div>
+            <div class="mt-1"><b>Pai:</b> ${paiExib} &bull; <b>Contato:</b> ${telPaiExib}</div>
           </div>
 
           <div class="p-2 rounded border">
@@ -815,6 +1069,8 @@
             <div><b>Localidade:</b> ${locExib}</div>
             <div><b>Endereço:</b> ${endExib}</div>
           </div>
+
+          ${extrasLinhaHtml ? `<div class="p-2 rounded border border-primary-subtle bg-primary-subtle bg-opacity-10 mt-2">${extrasLinhaHtml}</div>` : ''}
         </div>
       `,
       confirmButtonColor: '#15438c',
@@ -833,10 +1089,24 @@
     if (parAluno && (path.includes('cadastro-alunos') || path.includes('situacao-aluno') || path.includes('aee') || path.includes('busca-ativa') || path.includes('atendimento'))) {
       const nomeBase = (tr.getAttribute('data-nome-aluno-limpo') || parAluno.valor.split('\n')[0]).trim();
       const parSerie = pares.find(p => p.titulo.includes('SÉRIE') || p.titulo.includes('TURMA'));
-      const htmlExtras = pares
-        .filter(p => !p.titulo.includes('AÇÕES') && !p.titulo.includes('FOTO') && p.valor)
-        .map(p => `<div class="mb-1"><b>${p.titulo}:</b> ${p.valor}</div>`)
-        .join('');
+
+      // Na página Gerenciar Alunos (cadastro-alunos), NÃO envia campos repetidos de Nome, Série, Filiação ou Benefícios para a caixa extra!
+      let htmlExtras = '';
+      if (!path.includes('cadastro-alunos')) {
+        htmlExtras = pares
+          .filter(p =>
+            !p.titulo.includes('AÇÕES') &&
+            !p.titulo.includes('FOTO') &&
+            !p.titulo.includes('ALUNO') &&
+            !p.titulo.includes('SÉRIE') &&
+            !p.titulo.includes('TURMA') &&
+            !p.titulo.includes('BENEFÍCIOS') &&
+            p.valor
+          )
+          .map(p => `<div class="mb-1"><b>${p.titulo}:</b> ${p.valor}</div>`)
+          .join('');
+      }
+
       window.abrirModalFichaCompletaAlunoEEMTI(nomeBase, parSerie ? parSerie.valor : '', htmlExtras);
       return;
     }
@@ -859,7 +1129,7 @@
   }
 
   // =========================================================================
-  // 4. REORGANIZADOR DAS TABELAS E BOTÕES
+  // 5. REORGANIZADOR DAS TABELAS E BOTÕES
   // =========================================================================
   function inserirLegendaAcimaDaTabela(tabela, tipoLegenda) {
     if (!tabela || !tabela.parentElement) return;
@@ -890,7 +1160,7 @@
         <span class="text-primary fw-bolder"><i class="bi bi-info-circle-fill me-1"></i>Legenda de Benefícios:</span>
         <span class="item-leg"><span class="badge bg-success">BF</span> Recebe Bolsa Família</span>
         <span class="item-leg"><span class="badge bg-success">PM</span> Recebe Pé-de-Meia</span>
-        <span class="item-leg text-muted small">(Cinza = Não recebe • Clique na linha do aluno para abrir a ficha completa)</span>
+        <span class="item-leg text-muted small">(Cinza = Não recebe &bull; Clique na linha do aluno para abrir a ficha completa)</span>
       `;
     }
 
@@ -950,8 +1220,9 @@
 
   function aplicarCompactacaoVisualNasTabelasEBotoes() {
     aplicarImagensOficiaisTopoEMarcaDagua();
-    configurarInterceptadorBrasaoNosPdfs();
+    configurarInterceptadorLogoNosPdfs();
     vincularBotaoPdfReservasComSeletorDePeriodo();
+    ajustarLayoutMapeamentoDeSala();
 
     let temBotoesAtividade = false;
     let temBotoesChamadaSec = false;
@@ -1040,6 +1311,7 @@
       }
       const titulosOriginais = tabela._titulosOriginaisThEEMTI;
 
+      let idxNumero = -1;
       let idxFoto = -1;
       let idxColStatusFoto = -1;
       let idxBeneficios = -1;
@@ -1075,6 +1347,11 @@
         const th = ths[idx];
         if (!th) return;
 
+        // Coluna Nº / # super estreita (ajustada apenas para o número!)
+        if (t === 'Nº' || t === 'N°' || t === '#' || t === 'ORD.' || t === 'POS.' || t === 'POSIÇÃO') {
+          idxNumero = idx;
+          th.classList.add('col-numero-estreita-eemti');
+        }
         if (t.includes('FOTO 3X4') || t === 'FOTO') idxFoto = idx;
         if (t.includes('STATUS DA FOTO') || t === 'STATUS FOTO') idxColStatusFoto = idx;
         if (t.includes('BENEFÍCIOS') || t.includes('BENEFICIOS')) idxBeneficios = idx;
@@ -1265,6 +1542,7 @@
           }));
         }
 
+        if (idxNumero >= 0 && tds[idxNumero]) tds[idxNumero].classList.add('col-numero-estreita-eemti');
         if (idxAluno >= 0 && tds[idxAluno]) tds[idxAluno].classList.add('col-nome-larga-eemti');
         if (idxAcoesBotoes >= 0 && tds[idxAcoesBotoes]) tds[idxAcoesBotoes].classList.add('col-acoes-visivel-eemti');
 
@@ -1417,7 +1695,7 @@
               const partesEnd = [];
               if (locAluno) partesEnd.push(`<b>Loc.:</b> ${locAluno}`);
               if (endAluno) partesEnd.push(`<b>End.:</b> ${endAluno}`);
-              htmlLocalEndereco = `<div class="text-secondary mt-1 pt-1 border-top" style="font-size:0.65rem;line-height:1.2;"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${partesEnd.join(' • ')}</div>`;
+              htmlLocalEndereco = `<div class="text-secondary mt-1 pt-1 border-top" style="font-size:0.65rem;line-height:1.2;"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${partesEnd.join(' &bull; ')}</div>`;
             } else if (textoBenefOrig) {
               const limpoBenef = textoBenefOrig.replace(/BF:\s*(SIM|NÃO|NAO)/gi, '').replace(/PM:\s*(SIM|NÃO|NAO)/gi, '').trim();
               if (limpoBenef) {
@@ -1500,7 +1778,7 @@
               <div class="fw-bold text-dark" style="font-size:0.76rem;line-height:1.22;">${motivoTxt}</div>
               <div class="mt-1 d-flex align-items-center flex-wrap gap-1">
                 ${statusTxt ? `<span class="badge ${corStatus}" style="font-size:0.6rem;">${statusTxt}</span>` : ''}
-                ${acaoTxt ? `<span class="text-secondary small" style="font-size:0.66rem;">• <b>Ação:</b> ${acaoTxt}</span>` : ''}
+                ${acaoTxt ? `<span class="text-secondary small" style="font-size:0.66rem;">&bull; <b>Ação:</b> ${acaoTxt}</span>` : ''}
               </div>
             `;
           }
@@ -1547,7 +1825,7 @@
             const partesPais = [];
             if (maeNome) partesPais.push(`<b>Mãe:</b> ${maeNome}`);
             if (paiNome) partesPais.push(`<b>Pai:</b> ${paiNome}`);
-            htmlPais = `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;">${partesPais.join(' • ')}</div>`;
+            htmlPais = `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;">${partesPais.join(' &bull; ')}</div>`;
           }
 
           tds[idxAluno].innerHTML = `
@@ -1555,7 +1833,7 @@
               ${nomeAl} ${serieAl ? `<span class="badge bg-primary ms-1" style="font-size:0.58rem;">${serieAl}</span>` : ''}
             </div>
             <div class="text-dark mt-1" style="font-size:0.66rem;line-height:1.2;">
-              <b>Data Nasc.:</b> ${nascAl} • <b>Matrícula:</b> <span class="fw-bold text-primary">${matSomenteNumeros}</span>
+              <b>Data Nasc.:</b> ${nascAl} &bull; <b>Matrícula:</b> <span class="fw-bold text-primary">${matSomenteNumeros}</span>
             </div>
             ${htmlPais}
           `;
@@ -1657,7 +1935,7 @@
   }
 
   // =========================================================================
-  // 5. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL
+  // 6. MOTOR UNIVERSAL DE PESQUISA EM TEMPO REAL
   // =========================================================================
   function limparAcentosComparacao(str) {
     return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
@@ -1840,7 +2118,7 @@
   }
 
   // =========================================================================
-  // 6. SELO DE ATUALIZAÇÃO APÓS O BOTÃO SAIR + BOTÕES VOLTAR E INÍCIO
+  // 7. SELO DE ATUALIZAÇÃO APÓS O BOTÃO SAIR + BOTÕES VOLTAR E INÍCIO
   // =========================================================================
   function registrarDataHoraAtualizacaoBanco() {
     const agora = new Date();
@@ -1895,7 +2173,7 @@
     const estaNoLogin = path.endsWith('login.html');
 
     aplicarImagensOficiaisTopoEMarcaDagua();
-    configurarInterceptadorBrasaoNosPdfs();
+    configurarInterceptadorLogoNosPdfs();
 
     if (navigator.onLine) {
       window.converterImagemParaDataUrlPdf('brasaoestado.png', 300, 300).then(b64 => {
@@ -2081,7 +2359,7 @@
   }
 
   // =========================================================================
-  // 7. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 OFFLINE
+  // 8. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 OFFLINE
   // =========================================================================
   function abrirBancoSyncIDB() {
     return new Promise(resolve => {
@@ -2260,7 +2538,7 @@
   }
 
   // =========================================================================
-  // 8. MOTOR DE SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR ONLINE OU CLICANDO EM ATUALIZAR)
+  // 9. MOTOR DE SINCRONIZAÇÃO GERAL (1 VEZ AO ABRIR ONLINE OU CLICANDO EM ATUALIZAR)
   // =========================================================================
   window.executarPreCarregamentoTotalOffline = async function(forcarManual = false) {
     if (!navigator.onLine || prefetchEmAndamento) return;
@@ -2889,9 +3167,6 @@
     return null;
   }
 
-  // =========================================================================
-  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
-  // =========================================================================
   async function espelharFilaParaIndexedDB(filaArray) {
     const db = await abrirBancoSyncIDB();
     if (!db) return;
@@ -2906,8 +3181,6 @@
       });
     } catch (e) {}
 
-    // Registra SEMPRE a tag 'sync-fila-eemti' quando houver itens na fila!
-    // (No sw.js já existe a proteção que só deixa o SW enviar quando a janela estiver minimizada ou fechada!)
     if ('serviceWorker' in navigator && filaArray && filaArray.length > 0) {
       try {
         const reg = await navigator.serviceWorker.ready;
@@ -3383,7 +3656,7 @@
   });
 
   // =========================================================================
-  // 11. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "brasaoestado.png"!)
+  // 11. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "LOGO-removebg-preview.png"!)
   // =========================================================================
   window.converterImagemParaDataUrlPdf = function(srcOuBase64, larg = 300, alt = 400) {
     return new Promise(resolve => {
@@ -3411,16 +3684,15 @@
   };
 
   window.desenharCabecalhoPadraoEEMTI = async function(doc, opcoes = {}) {
-    configurarInterceptadorBrasaoNosPdfs();
+    configurarInterceptadorLogoNosPdfs();
     const largPagina = doc.internal.pageSize.getWidth();
     const margemEsq = 14;
     const margemDir = largPagina - 14;
     const temFotoAluno = Boolean(opcoes.exibirMolduraFoto || opcoes.fotoAlunoBase64);
 
-    const b64BrasaoEstado = localStorage.getItem('cache_brasao_estado_topo_b64');
-    const logoB64 = b64BrasaoEstado ||
-                    await window.converterImagemParaDataUrlPdf('brasaoestado.png', 240, 240) ||
-                    await window.converterImagemParaDataUrlPdf('brasaoestado.png.png', 240, 240);
+    // REGRA SOLICITADA: Nos PDFs usa SEMPRE a "LOGO-removebg-preview.png" que está nos arquivos!
+    const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64');
+    const logoB64 = b64LogoEscola || await window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 240, 240);
 
     if (logoB64) {
       try { doc.addImage(logoB64, 'JPEG', margemEsq, 10, 20, 20); } catch (e) {}
