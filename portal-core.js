@@ -1,10 +1,11 @@
 // =========================================================================
-// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA ANTI-DUPLICIDADE
-// 1. INTERCEPTA localStorage.setItem DAS PÁGINAS ANTIGAS (RAC/ATIVIDADES/MAPA) NA HORA:
-//    GARANTE ENVIO COM O APP FECHADO PELO SW.JS E IMPEDE ENVIO DUPLICADO (4X) AO ABRIR!
-// 2. AEE CORRIGIDO: MATRÍCULA SÓ COM NÚMEROS (SEM NOME REPETIDO) + MÃE E PAI ABAIXO
-// 3. GERENCIAR ALUNOS: NOME + FILIAÇÃO COM CONTATO | SÉRIE + BF/PM + LOCALIDADE E ENDEREÇO
-// 4. SUSPENSÕES PDT (4 COLUNAS ALINHADAS) + RESERVAS PDF POR PERÍODO + LOGO NOS PDFS
+// MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
+// 1. SINCRONIZAÇÃO OFFLINE UNIFICADA NO INDEXEDDB + SW.JS:
+//    ENVIA OCORRÊNCIAS, FREQUÊNCIAS E ATIVIDADES MESMO COM O APP FECHADO
+//    E EXIBE APENAS O AVISO DE CIÊNCIA QUANDO O PROFESSOR ABRIR O APP!
+// 2. MAPEAMENTO DE SALA: SEM DESTAQUE AMARELO/LARANJA NA FILA 1, ORDEM INVERTIDA
+//    PARA O LADO CONTRÁRIO (ESQUERDO) E AJUSTADO ATÉ 8x8 NA TELA DO CELULAR!
+// 3. HISTÓRICO ELETIVAS (5 COLUNAS), AEE, GERENCIAR ALUNOS, SUSPENSÕES E PDF RESERVAS
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -19,7 +20,9 @@
   const FILAS_LEGADAS = [
     'fila_offline_rac_eemti_v1',
     'fila_offline_atividades_eemti_v1',
-    'fila_offline_mapeamento_v1'
+    'fila_offline_mapeamento_v1',
+    'fila_offline_frequencia_secretaria_v1',
+    'fila_offline_frequencia_eletivas_v1'
   ];
 
   window.KEY_ALUNOS_UNIVERSAL_EEMTI = 'cache_rac_alunos_leve_v3';
@@ -96,407 +99,473 @@
   const assinaturasRecentementeEnviadas = new Set();
 
   // =========================================================================
-  // 0. INTERCEPTADOR IMEDIATO DE FILAS LEGADAS NO LOCALSTORAGE
+  // 0. INTERCEPTADOR IMEDIATO DE QUALQUER FILA OFFLINE NO LOCALSTORAGE
+  // Garante que Ocorrências, Atividades e Frequências vão na mesma hora para o IndexedDB!
   // =========================================================================
   const _setItemNativo = Storage.prototype.setItem;
   Storage.prototype.setItem = function(chave, valor) {
     _setItemNativo.call(this, chave, valor);
-    if (FILAS_LEGADAS.includes(chave) && valor && valor !== '[]') {
+    if ((FILAS_LEGADAS.includes(chave) || String(chave).includes('fila_offline')) && chave !== FILA_GLOBAL_KEY && valor && valor !== '[]') {
       setTimeout(() => {
         unificarFilasOfflineNoStorage();
         window.atualizarBadgeStatusConexaoGlobal();
-      }, 10);
+      }, 5);
     }
   };
 
   function injetarResponsividadeGlobalEEMTI() {
-    if (document.getElementById('estiloResponsivoUniversalEEMTI')) return;
-    const style = document.createElement('style');
-    style.id = 'estiloResponsivoUniversalEEMTI';
-    style.innerHTML = `
-      html, body {
-        max-width: 100vw !important;
-        overflow-x: hidden !important;
-      }
-      .main-container, .container, .container-fluid, .card, .table-responsive {
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-        box-sizing: border-box !important;
-      }
+    let style = document.getElementById('estiloResponsivoUniversalEEMTI');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'estiloResponsivoUniversalEEMTI';
+      style.innerHTML = `
+        html, body {
+          max-width: 100vw !important;
+          overflow-x: hidden !important;
+        }
+        .main-container, .container, .container-fluid, .card, .table-responsive {
+          max-width: 100% !important;
+          overflow-x: hidden !important;
+          box-sizing: border-box !important;
+        }
 
-      table.table, .tabela-enquadrada {
-        width: 100% !important;
-        max-width: 100% !important;
-        table-layout: auto !important;
-        border-collapse: collapse !important;
-      }
-      table.table th, table.table td, .tabela-enquadrada th, .tabela-enquadrada td {
-        word-break: normal !important;
-        overflow-wrap: break-word !important;
-        white-space: normal !important;
-        vertical-align: middle !important;
-      }
+        table.table, .tabela-enquadrada {
+          width: 100% !important;
+          max-width: 100% !important;
+          table-layout: auto !important;
+          border-collapse: collapse !important;
+        }
+        table.table th, table.table td, .tabela-enquadrada th, .tabela-enquadrada td {
+          word-break: normal !important;
+          overflow-wrap: break-word !important;
+          white-space: normal !important;
+          vertical-align: middle !important;
+        }
 
-      /* Ajuste exclusivo da coluna Nº na Frequência da Secretaria (justa ao número) */
-      th.col-numero-estreita-eemti,
-      td.col-numero-estreita-eemti {
-        width: 1% !important;
-        min-width: 26px !important;
-        max-width: 34px !important;
-        padding-left: 3px !important;
-        padding-right: 3px !important;
-        text-align: center !important;
-        white-space: nowrap !important;
-      }
-
-      table.table td .badge {
-        white-space: normal !important;
-        line-height: 1.2 !important;
-        text-align: center !important;
-        display: inline-block !important;
-        max-width: 100% !important;
-      }
-
-      .col-oculta-eemti {
-        display: none !important;
-      }
-
-      tr.linha-tabela-clicavel-eemti {
-        cursor: pointer;
-        transition: background-color 0.15s ease;
-      }
-      tr.linha-tabela-clicavel-eemti:hover {
-        background-color: #eff6ff !important;
-      }
-
-      .btn-chamada-compacto {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        min-width: 30px !important;
-        max-width: 38px !important;
-        height: 28px !important;
-        padding: 0 7px !important;
-        font-weight: 800 !important;
-        font-size: 0.74rem !important;
-        border-radius: 6px !important;
-        line-height: 1 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin: 1px !important;
-      }
-
-      td:has(.btn-chamada-compacto),
-      th.col-status-compacta-eemti {
-        width: 1% !important;
-        white-space: nowrap !important;
-        text-align: center !important;
-      }
-      td .d-flex:has(.btn-chamada-compacto),
-      td .btn-group:has(.btn-chamada-compacto),
-      td div:has(> .btn-chamada-compacto) {
-        display: inline-flex !important;
-        flex-wrap: nowrap !important;
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 4px !important;
-        width: auto !important;
-      }
-
-      th.col-nome-larga-eemti,
-      td.col-nome-larga-eemti {
-        width: 42% !important;
-        min-width: 140px !important;
-        text-align: left !important;
-      }
-
-      th.col-secundaria-larga-eemti,
-      td.col-secundaria-larga-eemti {
-        width: 34% !important;
-        min-width: 120px !important;
-        text-align: left !important;
-      }
-
-      th.col-acoes-visivel-eemti,
-      td.col-acoes-visivel-eemti {
-        width: 1% !important;
-        min-width: 72px !important;
-        white-space: nowrap !important;
-        text-align: center !important;
-      }
-
-      /* Ajuste exclusivo da página de Mapeamento de Sala (até 8x8 na tela e sem destaque laranja na Fila 1) */
-      .room-grid-scroll {
-        overflow-x: hidden !important;
-        width: 100% !important;
-      }
-      .room-columns-wrapper,
-      #containerColunasSala,
-      #containerColunasVisualizacao {
-        display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
-        gap: 6px !important;
-        width: 100% !important;
-        min-width: 0 !important;
-      }
-      .fila-coluna,
-      .fila-coluna.fila-porta-destaque {
-        min-width: 0 !important;
-        width: 100% !important;
-        background: #f8fafc !important;
-        border: 1px solid #cbd5e1 !important;
-        box-shadow: none !important;
-      }
-      .fila-header,
-      .fila-coluna.fila-porta-destaque .fila-header {
-        background: #15438c !important;
-        color: #ffffff !important;
-      }
-      .fila-header small,
-      .fila-header .sub-porta {
-        display: none !important;
-      }
-      .fila-coluna.fila-porta-destaque .seat-badge {
-        background: #15438c !important;
-        color: #ffffff !important;
-      }
-
-      .d-flex.gap-2, .d-flex.gap-3, .btn-group {
-        gap: 4px !important;
-      }
-      td .btn + .btn, td .btn + button {
-        margin-left: 2px !important;
-      }
-
-      .barra-legenda-compacta-eemti {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-        background: #f8fafc;
-        border: 1px solid #cbd5e1;
-        border-radius: 10px;
-        padding: 7px 12px;
-        margin-bottom: 10px;
-        font-size: 0.74rem;
-        font-weight: 700;
-        color: #334155;
-      }
-      .barra-legenda-compacta-eemti .item-leg {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-      }
-
-      .badge-sync-header-eemti {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 0.67rem;
-        font-weight: 700;
-        color: #0f766e;
-        background: #f0fdfa;
-        border: 1px solid #99f6e4;
-        padding: 4px 9px;
-        border-radius: 50px;
-        cursor: pointer;
-        user-select: none;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-      }
-      .badge-sync-header-eemti:hover {
-        background: #ccfbf1;
-      }
-      .badge-sync-header-eemti.sincronizando {
-        color: #1d4ed8;
-        background: #eff6ff;
-        border-color: #bfdbfe;
-      }
-      .badge-sync-header-eemti.offline {
-        color: #b91c1c;
-        background: #fef2f2;
-        border-color: #fecaca;
-      }
-
-      .menu-autocompletar-eemti {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 100%;
-        z-index: 9999;
-        background: #ffffff;
-        border: 1px solid #94a3b8;
-        border-radius: 10px;
-        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16);
-        max-height: 220px;
-        overflow-y: auto;
-        margin-top: 3px;
-      }
-      .menu-autocompletar-eemti .item-auto-eemti {
-        padding: 8px 12px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: #1e293b;
-        border-bottom: 1px solid #f1f5f9;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .menu-autocompletar-eemti .item-auto-eemti:hover {
-        background: #eff6ff;
-        color: #15438c;
-      }
-
-      @media (max-width: 768px) {
-        .top-header {
-          flex-direction: column !important;
-          align-items: center !important;
+        th.col-numero-estreita-eemti,
+        td.col-numero-estreita-eemti {
+          width: 1% !important;
+          min-width: 26px !important;
+          max-width: 34px !important;
+          padding-left: 3px !important;
+          padding-right: 3px !important;
           text-align: center !important;
-          padding: 10px 8px 6px 8px !important;
-          gap: 8px !important;
+          white-space: nowrap !important;
         }
-        .brand-escola {
-          flex-direction: row !important;
+
+        table.table td .badge {
+          white-space: normal !important;
+          line-height: 1.2 !important;
+          text-align: center !important;
+          display: inline-block !important;
+          max-width: 100% !important;
+        }
+
+        .col-oculta-eemti {
+          display: none !important;
+        }
+
+        tr.linha-tabela-clicavel-eemti {
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        }
+        tr.linha-tabela-clicavel-eemti:hover {
+          background-color: #eff6ff !important;
+        }
+
+        .btn-chamada-compacto {
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 30px !important;
+          max-width: 38px !important;
+          height: 28px !important;
+          padding: 0 7px !important;
+          font-weight: 800 !important;
+          font-size: 0.74rem !important;
+          border-radius: 6px !important;
+          line-height: 1 !important;
+          display: inline-flex !important;
+          align-items: center !important;
           justify-content: center !important;
-          text-align: left !important;
-          gap: 10px !important;
+          margin: 1px !important;
         }
-        .brand-escola img {
-          height: 58px !important;
+
+        td:has(.btn-chamada-compacto),
+        th.col-status-compacta-eemti {
+          width: 1% !important;
+          white-space: nowrap !important;
+          text-align: center !important;
+        }
+        td .d-flex:has(.btn-chamada-compacto),
+        td .btn-group:has(.btn-chamada-compacto),
+        td div:has(> .btn-chamada-compacto) {
+          display: inline-flex !important;
+          flex-wrap: nowrap !important;
+          justify-content: center !important;
+          align-items: center !important;
+          gap: 4px !important;
           width: auto !important;
         }
-        .brand-titulo-principal {
-          font-size: 1.35rem !important;
-        }
-        .brand-subtitulo {
-          font-size: 0.55rem !important;
-        }
-        .brand-slogan {
-          font-size: 1.08rem !important;
-        }
-        .user-bar {
-          flex-wrap: wrap !important;
-          justify-content: center !important;
-          width: 100% !important;
-          padding: 6px 8px !important;
-          border-radius: 14px !important;
-          gap: 5px !important;
-        }
-        .main-container {
-          padding: 6px 4px 24px 4px !important;
-        }
-        .card {
-          padding: 10px 6px !important;
-          border-radius: 12px !important;
-          margin-bottom: 12px !important;
-        }
-        .nav-tabs {
-          display: flex !important;
-          flex-wrap: wrap !important;
-          gap: 3px !important;
-        }
-        .nav-tabs .nav-item {
-          flex: 1 1 auto !important;
-        }
-        .nav-tabs .nav-link {
-          font-size: 0.72rem !important;
-          padding: 6px 7px !important;
-          text-align: center !important;
-        }
-        table.table th {
-          font-size: 0.61rem !important;
-          padding: 5px 2px !important;
-          line-height: 1.1 !important;
-        }
-        table.table td {
-          font-size: 0.68rem !important;
-          padding: 5px 2px !important;
-          line-height: 1.18 !important;
-        }
-        table.table td .btn:not(.btn-chamada-compacto) {
-          font-size: 0.62rem !important;
-          padding: 3px 5px !important;
-          margin: 1px 0 !important;
-        }
-        .btn-chamada-compacto {
-          min-width: 27px !important;
-          max-width: 34px !important;
-          height: 26px !important;
-          padding: 0 5px !important;
-          font-size: 0.7rem !important;
-        }
-        table.table td .badge {
-          font-size: 0.57rem !important;
-          padding: 2px 4px !important;
-        }
-        table.table td img {
-          max-width: 38px !important;
-          max-height: 50px !important;
-        }
+
         th.col-nome-larga-eemti,
         td.col-nome-larga-eemti {
-          width: 38% !important;
-          min-width: 105px !important;
+          width: 42% !important;
+          min-width: 140px !important;
+          text-align: left !important;
         }
+
         th.col-secundaria-larga-eemti,
         td.col-secundaria-larga-eemti {
-          width: 30% !important;
-          min-width: 90px !important;
+          width: 34% !important;
+          min-width: 120px !important;
+          text-align: left !important;
         }
+
         th.col-acoes-visivel-eemti,
         td.col-acoes-visivel-eemti {
-          min-width: 58px !important;
+          width: 1% !important;
+          min-width: 72px !important;
+          white-space: nowrap !important;
+          text-align: center !important;
         }
-        /* Mapeamento de Sala 8x8 no celular sem rolagem lateral */
+
+        /* =================================================================== */
+        /* MAPEAMENTO DE SALA: ATÉ 8x8 NA TELA E SEM DESTAQUE AMARELO NA FILA 1 */
+        /* =================================================================== */
+        .room-grid-scroll {
+          overflow-x: hidden !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: 2px 0 !important;
+        }
         .room-columns-wrapper,
         #containerColunasSala,
         #containerColunasVisualizacao {
-          gap: 2px !important;
+          display: grid !important;
+          grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
+          gap: 5px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
         }
         .fila-coluna,
         .fila-coluna.fila-porta-destaque {
-          padding: 2px 1px !important;
-          border-radius: 5px !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          width: 100% !important;
+          background: #f8fafc !important;
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 10px !important;
+          padding: 4px !important;
+          box-shadow: none !important;
         }
         .fila-header,
         .fila-coluna.fila-porta-destaque .fila-header {
-          font-size: 0.48rem !important;
-          padding: 2px 1px !important;
+          background: #15438c !important;
+          background-image: none !important;
+          color: #ffffff !important;
+          font-size: 0.66rem !important;
+          padding: 5px 2px !important;
+          border-radius: 6px !important;
+          text-align: center !important;
+          font-weight: 800 !important;
+          border: none !important;
         }
-        .seat-card {
-          padding: 2px 1px !important;
-          margin-bottom: 2px !important;
-        }
-        .seat-card .seat-badge {
-          font-size: 0.38rem !important;
-          padding: 1px 2px !important;
-        }
-        .seat-photo-box {
-          width: 26px !important;
-          height: 34px !important;
-          margin: 1px auto !important;
-        }
-        .seat-select {
-          font-size: 0.42rem !important;
-          padding: 1px !important;
-          height: 18px !important;
-        }
-        .seat-student-name {
-          font-size: 0.4rem !important;
-          line-height: 1.05 !important;
-        }
-        .col-oculta-mobile-eemti {
+        .fila-header small,
+        .fila-header .sub-porta {
           display: none !important;
         }
-        .barra-legenda-compacta-eemti {
-          font-size: 0.68rem;
-          padding: 6px 8px;
-          gap: 6px;
+        .seat-card,
+        .fila-coluna.fila-porta-destaque .seat-card {
+          padding: 4px 2px !important;
+          border-radius: 7px !important;
+          background: #ffffff !important;
+          border: 1px solid #e2e8f0 !important;
+          min-width: 0 !important;
         }
-      }
-    `;
-    (document.head || document.documentElement).appendChild(style);
+        .seat-card .seat-badge,
+        .fila-coluna.fila-porta-destaque .seat-badge {
+          background: #15438c !important;
+          color: #ffffff !important;
+          font-size: 0.54rem !important;
+          padding: 2px 4px !important;
+          border-radius: 4px !important;
+        }
+        .seat-photo-box {
+          width: 44px !important;
+          height: 58px !important;
+          max-width: 100% !important;
+          margin: 2px auto !important;
+        }
+        .seat-select {
+          font-size: 0.58rem !important;
+          padding: 2px 10px 2px 2px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .d-flex.gap-2, .d-flex.gap-3, .btn-group {
+          gap: 4px !important;
+        }
+        td .btn + .btn, td .btn + button {
+          margin-left: 2px !important;
+        }
+
+        .barra-legenda-compacta-eemti {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-radius: 10px;
+          padding: 7px 12px;
+          margin-bottom: 10px;
+          font-size: 0.74rem;
+          font-weight: 700;
+          color: #334155;
+        }
+        .barra-legenda-compacta-eemti .item-leg {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .badge-sync-header-eemti {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.67rem;
+          font-weight: 700;
+          color: #0f766e;
+          background: #f0fdfa;
+          border: 1px solid #99f6e4;
+          padding: 4px 9px;
+          border-radius: 50px;
+          cursor: pointer;
+          user-select: none;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        .badge-sync-header-eemti:hover {
+          background: #ccfbf1;
+        }
+        .badge-sync-header-eemti.sincronizando {
+          color: #1d4ed8;
+          background: #eff6ff;
+          border-color: #bfdbfe;
+        }
+        .badge-sync-header-eemti.offline {
+          color: #b91c1c;
+          background: #fef2f2;
+          border-color: #fecaca;
+        }
+
+        .menu-autocompletar-eemti {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 100%;
+          z-index: 9999;
+          background: #ffffff;
+          border: 1px solid #94a3b8;
+          border-radius: 10px;
+          box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16);
+          max-height: 220px;
+          overflow-y: auto;
+          margin-top: 3px;
+        }
+        .menu-autocompletar-eemti .item-auto-eemti {
+          padding: 8px 12px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: #1e293b;
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .menu-autocompletar-eemti .item-auto-eemti:hover {
+          background: #eff6ff;
+          color: #15438c;
+        }
+
+        @media (max-width: 768px) {
+          .top-header {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            padding: 10px 8px 6px 8px !important;
+            gap: 8px !important;
+          }
+          .brand-escola {
+            flex-direction: row !important;
+            justify-content: center !important;
+            text-align: left !important;
+            gap: 10px !important;
+          }
+          .brand-escola img {
+            height: 58px !important;
+            width: auto !important;
+          }
+          .brand-titulo-principal {
+            font-size: 1.35rem !important;
+          }
+          .brand-subtitulo {
+            font-size: 0.55rem !important;
+          }
+          .brand-slogan {
+            font-size: 1.08rem !important;
+          }
+          .user-bar {
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            width: 100% !important;
+            padding: 6px 8px !important;
+            border-radius: 14px !important;
+            gap: 5px !important;
+          }
+          .main-container {
+            padding: 6px 4px 24px 4px !important;
+          }
+          .card {
+            padding: 10px 6px !important;
+            border-radius: 12px !important;
+            margin-bottom: 12px !important;
+          }
+          .nav-tabs {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 3px !important;
+          }
+          .nav-tabs .nav-item {
+            flex: 1 1 auto !important;
+          }
+          .nav-tabs .nav-link {
+            font-size: 0.72rem !important;
+            padding: 6px 7px !important;
+            text-align: center !important;
+          }
+          table.table th {
+            font-size: 0.61rem !important;
+            padding: 5px 2px !important;
+            line-height: 1.1 !important;
+          }
+          table.table td {
+            font-size: 0.68rem !important;
+            padding: 5px 2px !important;
+            line-height: 1.18 !important;
+          }
+          table.table td .btn:not(.btn-chamada-compacto) {
+            font-size: 0.62rem !important;
+            padding: 3px 5px !important;
+            margin: 1px 0 !important;
+          }
+          .btn-chamada-compacto {
+            min-width: 27px !important;
+            max-width: 34px !important;
+            height: 26px !important;
+            padding: 0 5px !important;
+            font-size: 0.7rem !important;
+          }
+          table.table td .badge {
+            font-size: 0.57rem !important;
+            padding: 2px 4px !important;
+          }
+          table.table td img {
+            max-width: 38px !important;
+            max-height: 50px !important;
+          }
+          th.col-nome-larga-eemti,
+          td.col-nome-larga-eemti {
+            width: 38% !important;
+            min-width: 105px !important;
+          }
+          th.col-secundaria-larga-eemti,
+          td.col-secundaria-larga-eemti {
+            width: 30% !important;
+            min-width: 90px !important;
+          }
+          th.col-acoes-visivel-eemti,
+          td.col-acoes-visivel-eemti {
+            min-width: 58px !important;
+          }
+
+          /* Mapeamento de Sala 8x8 no celular cabendo 100% na tela sem rolar para o lado */
+          .room-front-bar {
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            gap: 4px !important;
+            padding: 5px !important;
+          }
+          .room-front-bar > div {
+            font-size: 0.52rem !important;
+            padding: 3px 5px !important;
+          }
+          .room-columns-wrapper,
+          #containerColunasSala,
+          #containerColunasVisualizacao {
+            gap: 2px !important;
+          }
+          .fila-coluna,
+          .fila-coluna.fila-porta-destaque {
+            padding: 2px 1px !important;
+            border-radius: 5px !important;
+          }
+          .fila-header,
+          .fila-coluna.fila-porta-destaque .fila-header {
+            font-size: 0.46rem !important;
+            padding: 2px 1px !important;
+            border-radius: 3px !important;
+          }
+          .seat-card {
+            padding: 2px 1px !important;
+            margin-bottom: 2px !important;
+            border-radius: 4px !important;
+          }
+          .seat-card .seat-badge,
+          .fila-coluna.fila-porta-destaque .seat-badge {
+            font-size: 0.36rem !important;
+            padding: 1px 2px !important;
+          }
+          .seat-photo-box {
+            width: 24px !important;
+            height: 32px !important;
+            margin: 1px auto !important;
+          }
+          .seat-photo-box i {
+            font-size: 0.65rem !important;
+          }
+          .seat-photo-box span {
+            font-size: 0.34rem !important;
+          }
+          .seat-select {
+            font-size: 0.4rem !important;
+            padding: 0 1px !important;
+            height: 16px !important;
+            background-image: none !important;
+          }
+          .seat-student-name {
+            font-size: 0.38rem !important;
+            line-height: 1.02 !important;
+          }
+          .col-oculta-mobile-eemti {
+            display: none !important;
+          }
+          .barra-legenda-compacta-eemti {
+            font-size: 0.68rem;
+            padding: 6px 8px;
+            gap: 6px;
+          }
+        }
+      `;
+    }
+    const alvo = document.body || document.head || document.documentElement;
+    if (alvo && alvo.lastElementChild !== style) {
+      alvo.appendChild(style);
+    }
   }
 
   injetarResponsividadeGlobalEEMTI();
@@ -795,20 +864,37 @@
     }
   }
 
+  // =========================================================================
+  // 2.1 AJUSTE DIRECIONADO DO MAPEAMENTO DE SALA:
+  // - Remove 100% do destaque amarelo/laranja da Fila 1 usando estilo inline !important
+  // - Deixa apenas o aviso da Porta acima no lado esquerdo e ajusta até 8x8 na tela!
+  // =========================================================================
   function ajustarPaginaMapeamentoDeSala() {
     const pathLower = window.location.pathname.toLowerCase();
     if (!pathLower.includes('mapeamento')) return;
 
-    // Garante que o estilo do portal-core fique no final do <head> na página de mapeamento
-    const st = document.getElementById('estiloResponsivoUniversalEEMTI');
-    if (st && document.head && document.head.lastElementChild !== st) {
-      document.head.appendChild(st);
-    }
+    injetarResponsividadeGlobalEEMTI();
 
-    // Garante que a Fila 1 inicie no lado esquerdo (lado da Porta) e remove o destaque laranja da Fila 1
+    // 1. Garante que a barra frontal tenha o aviso da Porta no lado esquerdo
+    document.querySelectorAll('.room-front-bar').forEach(barra => {
+      const filhos = Array.from(barra.children);
+      if (filhos.length >= 3) {
+        const idxPorta = filhos.findIndex(el => (el.textContent || '').toUpperCase().includes('PORTA'));
+        if (idxPorta > 0) {
+          barra.insertBefore(filhos[idxPorta], barra.firstChild);
+        }
+      }
+    });
+
+    // 2. Garante que a Fila 1 fique do lado esquerdo (abaixo do aviso da Porta)
     ['containerColunasSala', 'containerColunasVisualizacao'].forEach(idCont => {
       const cont = document.getElementById(idCont);
       if (!cont) return;
+      cont.style.setProperty('display', 'grid', 'important');
+      cont.style.setProperty('grid-template-columns', 'repeat(auto-fit, minmax(0, 1fr))', 'important');
+      cont.style.setProperty('width', '100%', 'important');
+      cont.style.setProperty('min-width', '0', 'important');
+
       const cols = Array.from(cont.querySelectorAll('.fila-coluna'));
       if (cols.length > 1) {
         const txtPrim = (cols[0].querySelector('.fila-header')?.textContent || '').toUpperCase();
@@ -819,12 +905,33 @@
       }
     });
 
-    document.querySelectorAll('.fila-coluna.fila-porta-destaque').forEach(col => {
+    // 3. Remove completamente o destaque amarelo/marrom da Fila 1 (força azul padrão em todas as filas!)
+    document.querySelectorAll('.fila-coluna').forEach(col => {
       col.classList.remove('fila-porta-destaque');
+      col.style.setProperty('background', '#f8fafc', 'important');
+      col.style.setProperty('border', '1px solid #cbd5e1', 'important');
+      col.style.setProperty('box-shadow', 'none', 'important');
+      col.style.setProperty('min-width', '0', 'important');
+
       const header = col.querySelector('.fila-header');
-      if (header && (header.innerHTML.includes('PORTA') || header.querySelector('small'))) {
-        header.innerHTML = `<i class="bi bi-list-ul me-1"></i>FILA 1`;
+      if (header) {
+        header.style.setProperty('background', '#15438c', 'important');
+        header.style.setProperty('background-image', 'none', 'important');
+        header.style.setProperty('color', '#ffffff', 'important');
+        header.style.setProperty('border', 'none', 'important');
+
+        const mNum = (header.textContent || '').match(/FILA\s*(\d+)/i);
+        if (mNum && (header.innerHTML.includes('PORTA') || header.querySelector('small') || header.innerHTML.includes('door'))) {
+          header.innerHTML = `<i class="bi bi-list-ul me-1"></i>FILA ${mNum[1]}`;
+        }
       }
+
+      col.querySelectorAll('.seat-badge').forEach(badge => {
+        badge.style.setProperty('background', '#15438c', 'important');
+        badge.style.setProperty('color', '#ffffff', 'important');
+        const limpo = (badge.textContent || '').replace(/🚪/g, '').trim();
+        if (badge.textContent !== limpo) badge.textContent = limpo;
+      });
     });
   }
 
@@ -949,8 +1056,8 @@
 
           <div class="p-2 rounded border mb-2">
             <div class="fw-bold text-primary small mb-1"><i class="bi bi-people-fill me-1"></i>Filiação e Contatos</div>
-            <div><b>Mãe:</b> ${maeExib} • <b>Contato:</b> ${telMaeExib}</div>
-            <div class="mt-1"><b>Pai:</b> ${paiExib} • <b>Contato:</b> ${telPaiExib}</div>
+            <div><b>Mãe:</b> ${maeExib} &bull; <b>Contato:</b> ${telMaeExib}</div>
+            <div class="mt-1"><b>Pai:</b> ${paiExib} &bull; <b>Contato:</b> ${telPaiExib}</div>
           </div>
 
           <div class="p-2 rounded border">
@@ -977,7 +1084,6 @@
       const nomeBase = (tr.getAttribute('data-nome-aluno-limpo') || parAluno.valor.split('\n')[0]).trim();
       const parSerie = pares.find(p => p.titulo.includes('SÉRIE') || p.titulo.includes('TURMA'));
 
-      // Evita repetir Nome/Filiação/Série/Benefícios em cima quando já aparecem nos quadros de baixo!
       const htmlExtras = path.includes('cadastro-alunos')
         ? ''
         : pares
@@ -1038,7 +1144,7 @@
         <span class="text-primary fw-bolder"><i class="bi bi-info-circle-fill me-1"></i>Legenda de Benefícios:</span>
         <span class="item-leg"><span class="badge bg-success">BF</span> Recebe Bolsa Família</span>
         <span class="item-leg"><span class="badge bg-success">PM</span> Recebe Pé-de-Meia</span>
-        <span class="item-leg text-muted small">(Cinza = Não recebe • Clique na linha do aluno para abrir a ficha completa)</span>
+        <span class="item-leg text-muted small">(Cinza = Não recebe &bull; Clique na linha do aluno para abrir a ficha completa)</span>
       `;
     }
 
@@ -1292,8 +1398,7 @@
         ths[5].style.width = '18%';
       }
 
-      // 2. HISTÓRICO DE ELETIVAS DO ALUNO (5 Colunas solicitadas):
-      // Col 1: Semestre + Série abaixo | Col 2: Tempo Eletivo + Dia abaixo | Col 3: Eletiva + Professor abaixo (Larga) | Col 4: Nota + % Freq | Col 5: C.H
+      // 2. HISTÓRICO DE ELETIVAS DO ALUNO (5 Colunas solicitadas)
       const ehTabelaHistoricoEletivas = (
         pathLower.includes('historico-eletivas') ||
         (idxEletiva >= 0 && idxNota >= 0 && (idxFreqPerc >= 0 || idxFaltas >= 0))
@@ -1486,7 +1591,7 @@
           }
         }
 
-        // B) HISTÓRICO DE ELETIVAS (5 Colunas: Semestre+Série | Tempo Eletivo+Dia | Eletiva+Prof | Nota+%Freq | C.H)
+        // B) HISTÓRICO DE ELETIVAS (5 Colunas)
         if (ehTabelaHistoricoEletivas && idxEletiva >= 0 && idxData >= 0 && idxColTempoElet >= 0 && !tr._eemtiHistEletFormatado) {
           tr._eemtiHistEletFormatado = true;
           [idxSerie, idxDia, idxProfessor, idxFaltas, idxFreqPerc].forEach(cIdx => {
@@ -1625,7 +1730,7 @@
               const partesEnd = [];
               if (locAluno) partesEnd.push(`<b>Loc.:</b> ${locAluno}`);
               if (endAluno) partesEnd.push(`<b>End.:</b> ${endAluno}`);
-              htmlLocalEndereco = `<div class="text-secondary mt-1 pt-1 border-top" style="font-size:0.65rem;line-height:1.2;"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${partesEnd.join(' • ')}</div>`;
+              htmlLocalEndereco = `<div class="text-secondary mt-1 pt-1 border-top" style="font-size:0.65rem;line-height:1.2;"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${partesEnd.join(' &bull; ')}</div>`;
             } else if (textoBenefOrig) {
               const limpoBenef = textoBenefOrig.replace(/BF:\s*(SIM|NÃO|NAO)/gi, '').replace(/PM:\s*(SIM|NÃO|NAO)/gi, '').trim();
               if (limpoBenef) {
@@ -1708,7 +1813,7 @@
               <div class="fw-bold text-dark" style="font-size:0.76rem;line-height:1.22;">${motivoTxt}</div>
               <div class="mt-1 d-flex align-items-center flex-wrap gap-1">
                 ${statusTxt ? `<span class="badge ${corStatus}" style="font-size:0.6rem;">${statusTxt}</span>` : ''}
-                ${acaoTxt ? `<span class="text-secondary small" style="font-size:0.66rem;">• <b>Ação:</b> ${acaoTxt}</span>` : ''}
+                ${acaoTxt ? `<span class="text-secondary small" style="font-size:0.66rem;">&bull; <b>Ação:</b> ${acaoTxt}</span>` : ''}
               </div>
             `;
           }
@@ -1755,7 +1860,7 @@
             const partesPais = [];
             if (maeNome) partesPais.push(`<b>Mãe:</b> ${maeNome}`);
             if (paiNome) partesPais.push(`<b>Pai:</b> ${paiNome}`);
-            htmlPais = `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;">${partesPais.join(' • ')}</div>`;
+            htmlPais = `<div class="text-secondary mt-1" style="font-size:0.66rem;line-height:1.2;">${partesPais.join(' &bull; ')}</div>`;
           }
 
           tds[idxAluno].innerHTML = `
@@ -1763,7 +1868,7 @@
               ${nomeAl} ${serieAl ? `<span class="badge bg-primary ms-1" style="font-size:0.58rem;">${serieAl}</span>` : ''}
             </div>
             <div class="text-dark mt-1" style="font-size:0.66rem;line-height:1.2;">
-              <b>Data Nasc.:</b> ${nascAl} • <b>Matrícula:</b> <span class="fw-bold text-primary">${matSomenteNumeros}</span>
+              <b>Data Nasc.:</b> ${nascAl} &bull; <b>Matrícula:</b> <span class="fw-bold text-primary">${matSomenteNumeros}</span>
             </div>
             ${htmlPais}
           `;
@@ -3145,6 +3250,7 @@
             if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
               reqRel.result.forEach(r => {
                 itensDoBackground.push(r.resumoHtml || r);
+                if (r.assinatura) assinaturasRecentementeEnviadas.add(r.assinatura);
               });
               const txClear = db.transaction('relatorio_concluido', 'readwrite');
               txClear.objectStore('relatorio_concluido').clear();
@@ -3230,6 +3336,8 @@
             let acaoInferida = 'salvarOcorrencia';
             if (chaveAntiga.includes('atividades')) acaoInferida = 'salvarAtividadeDisciplinas';
             if (chaveAntiga.includes('mapeamento')) acaoInferida = 'salvarMapeamentoSala';
+            if (chaveAntiga.includes('secretaria')) acaoInferida = 'salvarFrequenciaSecretaria';
+            if (chaveAntiga.includes('eletivas')) acaoInferida = 'salvarFrequencia';
             payloadUnificado = { action: acaoInferida, dados: item.dados };
           }
           if (payloadUnificado) {
@@ -3448,6 +3556,7 @@
     });
   }
 
+  // O portal-core sincroniza em conjunto com o Service Worker através do IndexedDB!
   window.sincronizarFilaOfflineGlobal = async function() {
     if (sincronizacaoEmAndamento || !navigator.onLine) return;
     sincronizacaoEmAndamento = true;
@@ -3547,7 +3656,11 @@
   window.addEventListener('online', () => {
     atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
-    setTimeout(window.sincronizarFilaOfflineGlobal, 350);
+    // Aciona também o Service Worker imediatamente quando a rede volta
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+    }
+    setTimeout(window.sincronizarFilaOfflineGlobal, 450);
   });
 
   window.addEventListener('offline', () => {
@@ -3558,7 +3671,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       const filaRestante = unificarFilasOfflineNoStorage();
-      if (filaRestante.length > 0 && !sincronizacaoEmAndamento) {
+      if (filaRestante.length > 0) {
         espelharFilaParaIndexedDB(filaRestante).then(() => {
           if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
             navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
