@@ -8,6 +8,7 @@ const URLS_TO_CACHE = [
   './manifest.json',
   './portal-core.js',
   './LOGO-removebg-preview.png',
+  './brasaoestado.png.png',
   './ocorrencias.html',
   './registro-ocorrencias.html',
   './consulta-ocorrencias-aluno.html',
