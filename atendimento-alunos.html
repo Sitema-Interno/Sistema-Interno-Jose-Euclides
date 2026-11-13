@@ -686,7 +686,6 @@
         ? (mapaPdtPorSerie[serieSel] || nomeUser)
         : (isAdminOuGestao ? "Todas as Turmas (Selecione uma série para filtrar)" : `PDT: ${nomeUser}`);
 
-      // Filtra ESTRITAMENTE pelas turmas do PDT logado!
       listaSuspensoesFiltrada = listaSuspensoesBruta.filter(item => {
         if (!setPermitidas.has(item.serie)) return false;
         if (serieSel && item.serie !== serieSel) return false;
@@ -715,29 +714,34 @@
           ? `<span class="badge bg-warning text-dark">Manual</span>`
           : `<span class="badge bg-danger">Automática</span>`;
 
+        // Na coluna MOTIVO / CRITÉRIO mostra apenas o resumo limpo (o detalhamento completo vai para o Termo PDF!)
         html += `
           <tr>
             <td class="fw-bold text-dark">${item.aluno}</td>
             <td>
-              <div class="fw-bold text-dark" style="font-size: 0.76rem;">${item.serie}</div>
-              <div class="text-muted" style="font-size: 0.68rem;"><i class="bi bi-person-badge me-1"></i>PDT: ${pdtNome}</div>
+              <div class="fw-bold text-dark" style="font-size: 0.75rem;">${item.serie}</div>
+              <div class="text-muted" style="font-size: 0.65rem;"><i class="bi bi-person-badge me-1"></i>PDT: ${pdtNome}</div>
             </td>
             <td class="text-center">${badgeOrigem}</td>
             <td class="text-center">
-              <input type="date" id="inpDataInicioSusp_${idx}" class="form-control form-control-sm fw-bold text-center mx-auto" style="max-width: 138px;" value="${hojeIso}">
-              <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Últ. ocorr.: ${item.dataSuspensao || '-'}</small>
+              <input type="date" id="inpDataInicioSusp_${idx}" class="form-control form-control-sm fw-bold text-center mx-auto" style="max-width: 125px;" value="${hojeIso}">
+              <small class="text-muted d-block mt-1" style="font-size: 0.62rem;">Últ.: ${item.dataSuspensao || '-'}</small>
             </td>
             <td>
-              <div class="fw-bold text-danger small"><i class="bi bi-exclamation-triangle-fill me-1"></i>${item.motivo}</div>
-              <div class="text-muted" style="font-size: 0.7rem;">${item.detalhesOcorrencias || '-'}</div>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold" style="white-space: normal; text-align: left;">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>${item.motivo}
+              </span>
+              <small class="text-muted d-block mt-1" style="font-size: 0.63rem;">Detalhes completos no Termo PDF</small>
             </td>
-            <td class="text-center text-nowrap">
-              <button type="button" class="btn btn-sm btn-outline-danger fw-bold py-1 px-2 me-1" onclick="abrirModalGerarTermoSuspensaoPdf(${idx})">
-                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Termo PDF
-              </button>
-              <button type="button" class="btn btn-sm btn-success fw-bold py-1 px-2" onclick="iniciarAtendimentoParaResolverSuspensao(${idx})">
-                <i class="bi bi-person-check-fill me-1"></i>Atender
-              </button>
+            <td class="text-center">
+              <div class="d-flex flex-column flex-md-row gap-1 justify-content-center align-items-stretch">
+                <button type="button" class="btn btn-sm btn-outline-danger fw-bold py-1 px-2" onclick="abrirModalGerarTermoSuspensaoPdf(${idx})">
+                  <i class="bi bi-file-earmark-pdf-fill me-1"></i>Termo PDF
+                </button>
+                <button type="button" class="btn btn-sm btn-success fw-bold py-1 px-2" onclick="iniciarAtendimentoParaResolverSuspensao(${idx})">
+                  <i class="bi bi-person-check-fill me-1"></i>Atender
+                </button>
+              </div>
             </td>
           </tr>`;
       });
