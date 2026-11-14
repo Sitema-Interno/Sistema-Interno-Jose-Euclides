@@ -980,18 +980,82 @@
   }
 
   // =========================================================================
-  // 2.1 AJUSTE DIRECIONADO DO MAPEAMENTO DE SALA (mapeamento-sala.html):
-  // - Muda a posição da Fila 1 e do aviso da Porta para o lado contrário (Direita: Fila N ... Fila 1)
-  // - Remove 100% do destaque amarelo/laranja da Fila 1 na tela e no PDF!
-  // - Mantém apenas o aviso da Porta acima da Fila 1 e enquadra até 8x8 na tela!
+  // 2.1 AJUSTE DO MAPEAMENTO DE SALA + FOTO 3x4 NAS OCORRÊNCIAS OFFLINE
   // =========================================================================
+  function injetarFotoAlunoNaOcorrenciaOffline() {
+    const pathLower = window.location.pathname.toLowerCase();
+    if (!pathLower.includes('ocorrencia')) return;
+
+    // Procura o select de aluno na página de Ocorrências
+    const selects = Array.from(document.querySelectorAll('select'));
+    const selAluno = selects.find(s => {
+      const id = (s.id || '').toLowerCase();
+      const lbl = s.previousElementSibling ? (s.previousElementSibling.textContent || '').toUpperCase() : '';
+      return id.includes('aluno') || lbl.includes('ALUNO');
+    });
+
+    if (!selAluno) return;
+
+    const atualizarMolduraFotoOcorrencia = () => {
+      const nomeSel = String(selAluno.value || '').replace(/\s+/g, ' ').trim().toUpperCase();
+      if (!nomeSel || nomeSel.includes('SELECIONE')) return;
+
+      const infoCache = obterDadosCadastraisAlunoCache(nomeSel);
+      const fotoB64 = infoCache.foto || '';
+      if (!fotoB64 || !String(fotoB64).startsWith('data:image')) return;
+
+      // Localiza a moldura onde aparece "Modo Offline" ou a foto do aluno no card de Ocorrência
+      const cardForm = selAluno.closest('.card') || document;
+      cardForm.querySelectorAll('div, span, small').forEach(el => {
+        if ((el.textContent || '').trim() === 'Modo Offline' && el.children.length === 0) {
+          const caixaMoldura = el.parentElement;
+          if (caixaMoldura && !caixaMoldura.querySelector('img')) {
+            caixaMoldura.innerHTML = `<img src="${fotoB64}" alt="${nomeSel}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">`;
+          }
+        }
+      });
+
+      const imgExistente = cardForm.querySelector('#imgFotoAlunoOcorrencia, #fotoAlunoPreview, .moldura-foto-aluno img, .foto-aluno-box img');
+      if (imgExistente && imgExistente.src !== fotoB64) {
+        imgExistente.src = fotoB64;
+        imgExistente.style.display = 'block';
+      }
+    };
+
+    if (!selAluno._eemtiFotoOfflineBound) {
+      selAluno._eemtiFotoOfflineBound = true;
+      selAluno.addEventListener('change', () => {
+        setTimeout(atualizarMolduraFotoOcorrencia, 20);
+        setTimeout(atualizarMolduraFotoOcorrencia, 120);
+      });
+    }
+    atualizarMolduraFotoOcorrencia();
+  }
+
   function ajustarPaginaMapeamentoDeSala() {
+    injetarFotoAlunoNaOcorrenciaOffline();
+
     const pathLower = window.location.pathname.toLowerCase();
     if (!pathLower.includes('mapeamento')) return;
 
     injetarResponsividadeGlobalEEMTI();
 
-    // 1. Na barra superior (.barra-orientacao-sala), coloca o aviso da Porta no lado direito (acima da Fila 1) e Janelas no lado esquerdo
+    // Corrige imediatamente se o input PDT estiver escrito "ADMINISTRADOR" ou "USUÁRIO" (evita erro de validação na célula B2!)
+    const inpPdt = document.getElementById('mapPdtInput');
+    const selSerie = document.getElementById('mapSerieSelect');
+    if (inpPdt && selSerie && selSerie.value) {
+      const valPdtAtual = String(inpPdt.value || '').trim().toUpperCase();
+      if (!valPdtAtual || valPdtAtual === 'ADMINISTRADOR' || valPdtAtual === 'USUÁRIO' || valPdtAtual === 'USUARIO') {
+        const mapaPdtCache = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+        const serieNorm = normalizarSeriePadraoCore(selSerie.value);
+        if (mapaPdtCache[serieNorm]) {
+          inpPdt.value = mapaPdtCache[serieNorm];
+          const badgePdt = document.getElementById('badgePdtAtivoMapa');
+          if (badgePdt) badgePdt.innerText = 'PDT: ' + mapaPdtCache[serieNorm];
+        }
+      }
+    }
+
     document.querySelectorAll('.barra-orientacao-sala').forEach(barra => {
       barra.style.setProperty('border-left', '1px solid #cbd5e1', 'important');
       barra.style.setProperty('border-right', '5px solid #15438c', 'important');
@@ -1010,8 +1074,6 @@
       }
     });
 
-    // 2. Nos containers reais do mapeamento (#containerGridCarteiras e #containerGridVisualizadorAba2),
-    // inverte a ordem das colunas para a Fila 1 ficar na direita (abaixo do aviso da Porta) e caber 8x8 na tela!
     ['containerGridCarteiras', 'containerGridVisualizadorAba2'].forEach(idCont => {
       const cont = document.getElementById(idCont);
       if (!cont) return;
@@ -1026,7 +1088,6 @@
         if (cols.length > 1) {
           const txtPrim = (cols[0].querySelector('.header-fila')?.textContent || '').toUpperCase();
           const txtUlt = (cols[cols.length - 1].querySelector('.header-fila')?.textContent || '').toUpperCase();
-          // Se a Fila 1 ainda estiver na primeira coluna (esquerda), inverte para a Fila 1 ficar na direita!
           if (txtPrim.includes('FILA 1') && !txtUlt.includes('FILA 1')) {
             cols.reverse().forEach(c => cont.appendChild(c));
           }
@@ -1034,7 +1095,6 @@
       }
     });
 
-    // 3. Remove 100% do destaque amarelo/laranja da Fila 1 (.coluna-fila-porta, .fila-1-porta, .subbadge-porta-fila1 e .tag-posicao-carteira)
     document.querySelectorAll('.coluna-fila').forEach(col => {
       col.classList.remove('coluna-fila-porta');
       col.style.setProperty('background', 'transparent', 'important');
@@ -1062,7 +1122,6 @@
       });
     });
 
-    // 4. Sobrescreve a função baixarPdfMapeamento3x4 da página para que o PDF também tenha a Fila 1 na direita e sem cor amarela/laranja!
     if (typeof window.baixarPdfMapeamento3x4 === 'function' && !window.baixarPdfMapeamento3x4._eemtiCustomPdf) {
       const fnPdfCustom = async function(origem = 'EDICAO') {
         await garantirBibliotecasPdfCarregadas();
@@ -1102,7 +1161,6 @@
         doc.setTextColor(60, 60, 60);
         doc.text(`PDT: ${pdt} | Orientação Oficial: A FILA 1 inicia ao lado da PORTA DA SALA | Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 30, 17);
 
-        // Barra superior do PDF: Lado Oposto/Janelas na esquerda | Quadro no centro | Porta da Sala (Fila 1) na direita!
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(203, 213, 225);
         doc.roundedRect(14, 20, 56, 7, 1.5, 1.5, 'FD');
@@ -1133,7 +1191,6 @@
         const altHeaderFila = 5.5;
         const altCarteira = (alturaUtil - altHeaderFila - (gapY * numLinhas)) / numLinhas;
 
-        // Desenha da esquerda para a direita: Fila N na esquerda ... até Fila 1 na direita (abaixo da Porta), todas em azul padrão!
         for (let idxPos = 0; idxPos < numColunas; idxPos++) {
           const f = numColunas - idxPos;
           const xCol = margemX + idxPos * (largCol + gapX);
@@ -3512,12 +3569,66 @@
     }
   }
   // =========================================================================
-  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
+  // 8.1 PRÉ-CARREGAMENTO EM SEGUNDO PLANO DAS FOTOS 3x4 E CAPAS DE LIVROS
+  // =========================================================================
+  let preCarregamentoMidiaEmAndamento = false;
+  async function preCarregarFotosAlunosECapasLivrosEmBackground() {
+    if (!navigator.onLine || preCarregamentoMidiaEmAndamento) return;
+    preCarregamentoMidiaEmAndamento = true;
+
+    try {
+      await new Promise(r => setTimeout(r, 1500));
+
+      const livrosCache = JSON.parse(localStorage.getItem(KEY_LIVROS_BIBLIOTECA_OFFLINE) || '{"lista":[]}');
+      const listaLivros = Array.isArray(livrosCache.lista) ? livrosCache.lista : [];
+
+      for (const livro of listaLivros) {
+        if (!navigator.onLine) break;
+        const imgRaw = String(livro.imagem || '').trim();
+        if (!imgRaw) continue;
+        if (imgRaw.startsWith('data:image')) {
+          await salvarFotoNoIndexedDB('ARQ_' + imgRaw, { success: true, base64: imgRaw });
+        } else if (!mapaFotosAlunosCacheMemoria['ARQ_' + imgRaw]) {
+          try {
+            const resCapa = await fetchComTimeoutSeguranca(API_PADRAO_URL, {
+              method: 'POST',
+              body: JSON.stringify({ action: 'obterCapaLivroDrive', caminho: imgRaw })
+            }, 8000).then(r => r.json());
+            if (resCapa && resCapa.success && resCapa.base64) {
+              await salvarFotoNoIndexedDB('ARQ_' + imgRaw, resCapa);
+            }
+          } catch (e) {}
+        }
+      }
+
+      const alunosLista = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      for (const al of alunosLista) {
+        if (!navigator.onLine) break;
+        const chAl = 'ALUNO_' + al.nome;
+        if (mapaFotosAlunosCacheMemoria[chAl] && mapaFotosAlunosCacheMemoria[chAl].foto) continue;
+        try {
+          const resFoto = await fetchComTimeoutSeguranca(API_PADRAO_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'obterFotoAlunoIndividual', aluno: al.nome })
+          }, 6000).then(r => r.json());
+          if (resFoto && resFoto.success) {
+            await salvarFotoNoIndexedDB(chAl, Object.assign({}, al, resFoto));
+          }
+        } catch (e) {}
+      }
+    } finally {
+      preCarregamentoMidiaEmAndamento = false;
+    }
+  }
+
+  // =========================================================================
+  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (1 ÚNICO AVISO + ENVIO COM APP FECHADO)
   // =========================================================================
   let bufferItensParaAvisoUnico = [];
   let timerAvisoUnico = null;
+  let verificandoBackgroundEmAndamento = false;
+  let ultimoAvisoExibidoTimestamp = 0;
 
-  // Agrupa todos os lançamentos enviados (ex: 5 registros) para mostrar 1 ÚNICO aviso consolidado!
   function agendarExibicaoUnicaDeSincronizados(novosItensHtml) {
     if (!Array.isArray(novosItensHtml) || novosItensHtml.length === 0) return;
     novosItensHtml.forEach(item => {
@@ -3530,6 +3641,10 @@
     timerAvisoUnico = setTimeout(() => {
       if (bufferItensParaAvisoUnico.length === 0) return;
       if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
+        const agora = Date.now();
+        if (agora - ultimoAvisoExibidoTimestamp < 2500) return;
+        ultimoAvisoExibidoTimestamp = agora;
+
         const listaFinalUnica = Array.from(new Set(bufferItensParaAvisoUnico));
         bufferItensParaAvisoUnico = [];
         exibirAvisoFinalDeDadosSincronizados(listaFinalUnica);
@@ -3539,7 +3654,7 @@
         _setItemNativo.call(localStorage, LOG_SINCRONIZADOS_KEY, JSON.stringify(somados));
         bufferItensParaAvisoUnico = [];
       }
-    }, 600);
+    }, 700);
   }
 
   async function adicionarItensNaFilaIndexedDB(filaArray) {
@@ -3585,57 +3700,64 @@
     } catch (e) {}
   }
 
+  // Com trava (verificandoBackgroundEmAndamento) para NUNCA ler duas vezes seguidas e não repetir o aviso!
   async function verificarSincronizacoesFeitasComAppFechado() {
-    const db = await abrirBancoSyncIDB();
+    if (verificandoBackgroundEmAndamento) return false;
+    verificandoBackgroundEmAndamento = true;
+
     let itensDoBackground = [];
+    try {
+      const db = await abrirBancoSyncIDB();
+      if (db) {
+        await new Promise(resolve => {
+          try {
+            const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
+            const storeRel = tx.objectStore('relatorio_concluido');
+            const storeFila = tx.objectStore('fila_pendente');
 
-    if (db) {
-      await new Promise(resolve => {
-        try {
-          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
-          const storeRel = tx.objectStore('relatorio_concluido');
-          const storeFila = tx.objectStore('fila_pendente');
+            const reqRel = storeRel.getAll();
+            const reqFila = storeFila.getAll();
 
-          const reqRel = storeRel.getAll();
-          const reqFila = storeFila.getAll();
+            tx.oncomplete = () => {
+              if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
+                reqRel.result.forEach(r => {
+                  itensDoBackground.push(r.resumoHtml || r);
+                  if (r.assinatura) assinaturasRecentementeEnviadas.add(r.assinatura);
+                });
+                const txClear = db.transaction('relatorio_concluido', 'readwrite');
+                txClear.objectStore('relatorio_concluido').clear();
 
-          tx.oncomplete = () => {
-            if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
-              reqRel.result.forEach(r => {
-                itensDoBackground.push(r.resumoHtml || r);
-                if (r.assinatura) assinaturasRecentementeEnviadas.add(r.assinatura);
-              });
-              const txClear = db.transaction('relatorio_concluido', 'readwrite');
-              txClear.objectStore('relatorio_concluido').clear();
-
-              const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
-              _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
-              FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
-            }
+                const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
+                _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
+                FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
+              }
+              resolve();
+            };
+            tx.onerror = () => resolve();
+          } catch (e) {
             resolve();
-          };
-          tx.onerror = () => resolve();
-        } catch (e) {
-          resolve();
-        }
-      });
-    }
+          }
+        });
+      }
 
-    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
-    if (logLocal.length > 0) {
-      itensDoBackground = itensDoBackground.concat(logLocal);
-      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
-    }
+      const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+      if (logLocal.length > 0) {
+        itensDoBackground = itensDoBackground.concat(logLocal);
+        localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
+      }
 
-    if (itensDoBackground.length > 0) {
-      sincronizacaoEmAndamento = false;
-      window.atualizarBadgeStatusConexaoGlobal();
-      registrarDataHoraAtualizacaoBanco();
-      agendarExibicaoUnicaDeSincronizados(itensDoBackground);
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
-      return true;
+      if (itensDoBackground.length > 0) {
+        sincronizacaoEmAndamento = false;
+        window.atualizarBadgeStatusConexaoGlobal();
+        registrarDataHoraAtualizacaoBanco();
+        agendarExibicaoUnicaDeSincronizados(itensDoBackground);
+        setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
+        return true;
+      }
+      return false;
+    } finally {
+      verificandoBackgroundEmAndamento = false;
     }
-    return false;
   }
 
   if ('serviceWorker' in navigator) {
@@ -3661,8 +3783,24 @@
   }
 
   // =========================================================================
-  // 10. FILA OFFLINE COM ASSINATURA ÚNICA (ZERO DUPLICIDADE NO ENVIO!)
+  // 10. FILA OFFLINE COM ASSINATURA ÚNICA + CORREÇÃO DA CÉLULA B2 NO MAPEAMENTO
   // =========================================================================
+  function normalizarPayloadAntesDeEnviar(payloadObj) {
+    if (!payloadObj || typeof payloadObj !== 'object') return payloadObj;
+    // Impede que o campo PDT seja enviado como "ADMINISTRADOR" (o que viola a validação da célula B2 na planilha!)
+    if (payloadObj.action === 'salvarMapeamentoSala' && payloadObj.dados) {
+      const serieNorm = normalizarSeriePadraoCore(payloadObj.dados.serie || '');
+      const pdtAtual = String(payloadObj.dados.pdt || '').trim().toUpperCase();
+      if (!pdtAtual || pdtAtual === 'ADMINISTRADOR' || pdtAtual === 'USUÁRIO' || pdtAtual === 'USUARIO') {
+        const mapaPdt = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+        if (mapaPdt[serieNorm]) {
+          payloadObj.dados.pdt = mapaPdt[serieNorm];
+        }
+      }
+    }
+    return payloadObj;
+  }
+
   function gerarAssinaturaUnicaPayload(payload) {
     try {
       const copia = JSON.parse(JSON.stringify(payload || {}));
@@ -3704,6 +3842,7 @@
             }
           }
           if (payloadUnificado) {
+            normalizarPayloadAntesDeEnviar(payloadUnificado);
             const nomeAutor = obterNomeUsuarioLogadoCore();
             if (nomeAutor && !payloadUnificado.usuarioLogado) payloadUnificado.usuarioLogado = nomeAutor;
 
@@ -3729,6 +3868,7 @@
     const vistas = new Set();
     const filaSemDuplicatas = [];
     filaGlobal.forEach(item => {
+      normalizarPayloadAntesDeEnviar(item.payload);
       const ass = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
       if (!vistas.has(ass) && !assinaturasRecentementeEnviadas.has(ass)) {
         vistas.add(ass);
@@ -3774,6 +3914,7 @@
       let bodyObj = {};
       try {
         bodyObj = JSON.parse(options.body);
+        normalizarPayloadAntesDeEnviar(bodyObj);
         const nomeAutor = obterNomeUsuarioLogadoCore();
         if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
         options.body = JSON.stringify(bodyObj);
@@ -3879,6 +4020,7 @@
   };
 
   window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
+    normalizarPayloadAntesDeEnviar(payload);
     const fila = unificarFilasOfflineNoStorage();
     const assinatura = gerarAssinaturaUnicaPayload(payload);
 
@@ -3922,7 +4064,7 @@
         </div>
       `,
       showConfirmButton: false,
-      timer: 5000,
+      timer: 4500,
       timerProgressBar: true
     });
   }
@@ -3991,7 +4133,6 @@
       registrarDataHoraAtualizacaoBanco();
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
       window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
-      // Agrupa tudo em 1 único aviso!
       agendarExibicaoUnicaDeSincronizados(sincronizadosHtml);
     }
   };
@@ -4029,19 +4170,24 @@
     }
   }
 
-  async function aoAcessarOuVoltarParaOApp() {
-    const exibiuDoSW = await verificarSincronizacoesFeitasComAppFechado();
-    if (!exibiuDoSW && navigator.onLine) {
-      window.sincronizarFilaOfflineGlobal();
-    }
+  let timerDebounceAcessoApp = null;
+  function aoAcessarOuVoltarParaOApp() {
+    if (timerDebounceAcessoApp) clearTimeout(timerDebounceAcessoApp);
+    timerDebounceAcessoApp = setTimeout(async () => {
+      const exibiuDoSW = await verificarSincronizacoesFeitasComAppFechado();
+      if (!exibiuDoSW && navigator.onLine) {
+        window.sincronizarFilaOfflineGlobal();
+      }
+    }, 180);
   }
 
-  // Captura o evento 'online' na fase de captura (true) e limpa as filas legadas antes que as páginas tentem mostrar 5 alertas separados!
   window.addEventListener('online', () => {
     unificarFilasOfflineNoStorage();
     atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    // Quando a janela está minimizada/oculta, manda o Service Worker enviar tudo;
+    // quando a janela está aberta na frente do usuário, sincroniza direto em 1 lote único!
+    if (document.visibilityState === 'hidden' && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
     } else {
       window.sincronizarFilaOfflineGlobal();
@@ -4069,13 +4215,13 @@
     if (document.visibilityState === 'visible') {
       verificarSincronizacoesFeitasComAppFechado();
     }
-    if (navigator.onLine) {
+    if (navigator.onLine && !sincronizacaoEmAndamento) {
       const f = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
-      if (f.length > 0 && !sincronizacaoEmAndamento) {
+      if (f.length > 0) {
         window.sincronizarFilaOfflineGlobal();
       }
     }
-  }, 4000);
+  }, 4500);
 
   window.addEventListener('DOMContentLoaded', async () => {
     injetarResponsividadeGlobalEEMTI();
