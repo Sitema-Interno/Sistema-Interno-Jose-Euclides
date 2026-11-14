@@ -181,7 +181,6 @@ async function registrarConcluidoNoIDB(db, item) {
 
 async function processarFilaEmSegundoPlanoSW() {
   if (envioSwEmAndamento) return;
-  if (self.navigator && self.navigator.onLine === false) return;
   envioSwEmAndamento = true;
 
   try {
@@ -190,19 +189,20 @@ async function processarFilaEmSegundoPlanoSW() {
 
     let enviouAlgum = false;
 
-    // Envia TODOS os itens da fila em sequência antes de avisar o cliente!
+    // Envia TODOS os itens da fila em sequência antes de avisar o aplicativo!
     while (true) {
       const item = await retirarProximoItemDaFilaIDB(db);
       if (!item) break;
 
       try {
+        // IMPORTANTE: Sem keepalive:true aqui dentro do SW para o Android permitir o redirect 302 do Google Apps Script em background!
         const res = await fetch(item.url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(item.payload),
           redirect: 'follow',
           credentials: 'omit',
-          keepalive: true
+          cache: 'no-store'
         });
 
         const texto = await res.text();
@@ -217,8 +217,9 @@ async function processarFilaEmSegundoPlanoSW() {
           break;
         }
       } catch (errRede) {
+        // Devolve para a fila e lança erro para o Android reagendar o Background Sync automaticamente!
         await devolverItemParaFilaIDB(db, item);
-        break;
+        throw errRede;
       }
     }
 
@@ -235,7 +236,7 @@ async function processarFilaEmSegundoPlanoSW() {
 }
 
 self.addEventListener('sync', event => {
-  if (event.tag === 'sync-fila-eemti') {
+  if (event.tag === 'sync-fila-eemti' || event.tag.startsWith('sync-fila-eemti')) {
     event.waitUntil(processarFilaEmSegundoPlanoSW());
   }
 });
