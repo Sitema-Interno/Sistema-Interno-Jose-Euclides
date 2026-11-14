@@ -4429,4 +4429,207 @@
     doc.line(margemEsq, 34, margemDir, 34);
     return 38;
   };
+// =========================================================================
+  // 12. MOTOR OFICIAL DE REGRAS CRO (NOTAS SEMESTRAIS CUMULATIVAS + ATRASOS + GRAVES)
+  // Regra 01: 1º ao 3º CRO leve válido = 0 pts perdidos | 4º = -1 pt | 5º = -2 pts...
+  // Regra 03: Cada 3 "Chegou atrasado no início da aula" = 1 CRO leve válido
+  // Regra 04: 1 Ocorrência Grave ([GRAVE] ou GRAU II) = Nota 0,00 imediata
+  // Regra 05: Cumulativo durante o Semestre (1º Sem = 1º e 2º Bim | 2º Sem = 3º e 4º Bim)
+  // =========================================================================
+  window.classificarRegistroCroEEMTI = function(descricaoOco, gravidadeOco) {
+    const desc = String(descricaoOco || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+    const grav = String(gravidadeOco || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+
+    if (desc.includes('[GRAVE]') || grav.includes('GRAU II') || grav.includes('GRAVISSIMA') || grav.includes('MAIS GRAVES')) {
+      return 'GRAVE';
+    }
+    if (desc.includes('CHEGOU ATRASADO NO INICIO DA AULA') || desc.includes('CHEGADA ATRASADA NO INICIO DA AULA') || grav.includes('GRAU 0')) {
+      return 'ATRASO_INICIO';
+    }
+    return 'LEVE';
+  };
+
+  window.calcularResultadoCroAcumuladoEEMTI = function(listaOcorrenciasDoSemestreAteOBimestre) {
+    let levesDiretas = 0;
+    let atrasosInicio = 0;
+    let graves = 0;
+
+    (listaOcorrenciasDoSemestreAteOBimestre || []).forEach(o => {
+      const desc = o.ocorrencia || o.descricao || o.tipo || '';
+      const grav = o.gravidade || '';
+      const tipo = window.classificarRegistroCroEEMTI(desc, grav);
+      if (tipo === 'GRAVE') graves++;
+      else if (tipo === 'ATRASO_INICIO') atrasosInicio++;
+      else levesDiretas++;
+    });
+
+    const crosDeAtraso = Math.floor(atrasosInicio / 3);
+    const crosLevesValidos = levesDiretas + crosDeAtraso;
+
+    let pontosPerdidos = 0;
+    let notaFinal = 10.0;
+
+    if (graves > 0) {
+      notaFinal = 0.0;
+      pontosPerdidos = 10.0;
+    } else if (crosLevesValidos >= 4) {
+      pontosPerdidos = crosLevesValidos - 3;
+      notaFinal = Math.max(0.0, 10.0 - pontosPerdidos);
+    }
+
+    return {
+      nota: notaFinal,
+      notaFormatada: notaFinal.toFixed(2).replace('.', ','),
+      pontosPerdidos: pontosPerdidos,
+      crosLevesValidos: crosLevesValidos,
+      levesDiretas: levesDiretas,
+      atrasosInicio: atrasosInicio,
+      crosDeAtraso: crosDeAtraso,
+      graves: graves
+    };
+  };
+
+  // Descobre em qual Bimestre (1, 2, 3 ou 4) cai uma ocorrência pela data
+  function identificarNumeroBimestreDaOcorrencia(ocoObj, listaBimestresConfig) {
+    if (ocoObj.bimestre) {
+      const mBim = String(ocoObj.bimestre).match(/([1234])/);
+      if (mBim) return parseInt(mBim[1], 10);
+    }
+    const ts = converterDataParaTimestampLocal(ocoObj.data || '');
+    if (!ts) return 0;
+
+    if (Array.isArray(listaBimestresConfig) && listaBimestresConfig.length > 0) {
+      for (let i = 0; i < listaBimestresConfig.length; i++) {
+        const b = listaBimestresConfig[i];
+        const tsI = b.inicio || (b.inicioIso ? new Date(converterDataParaTimestampLocal(b.inicioIso)).setHours(0, 0, 0, 0) : 0);
+        const tsF = b.fim || (b.fimIso ? new Date(converterDataParaTimestampLocal(b.fimIso)).setHours(23, 59, 59, 999) : 0);
+        if (tsI > 0 && tsF > 0 && ts >= tsI && ts <= tsF) {
+          const m = String(b.nome || '').match(/([1234])/);
+          return m ? parseInt(m[1], 10) : (i + 1);
+        }
+      }
+    }
+
+    const mes = new Date(ts).getMonth() + 1;
+    if (mes >= 1 && mes <= 4) return 1;
+    if (mes >= 5 && mes <= 7) return 2;
+    if (mes >= 8 && mes <= 9) return 3;
+    return 4;
+  }
+
+  window.calcularQuatroBimestresCroDoAlunoEEMTI = function(ocorrenciasDoAluno, listaBimestresConfig) {
+    const ocosPorBim = { 1: [], 2: [], 3: [], 4: [] };
+    (ocorrenciasDoAluno || []).forEach(o => {
+      const numB = identificarNumeroBimestreDaOcorrencia(o, listaBimestresConfig);
+      if (numB >= 1 && numB <= 4) {
+        ocosPorBim[numB].push(o);
+      }
+    });
+
+    // Regra 05: Contagem cumulativa dentro do Semestre!
+    // 1º Semestre: 1º Bimestre = só [1] | 2º Bimestre = acumula [1 + 2]
+    // 2º Semestre: 3º Bimestre = só [3] | 4º Bimestre = acumula [3 + 4]
+    return {
+      1: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[1]),
+      2: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[1].concat(ocosPorBim[2])),
+      3: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[3]),
+      4: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[3].concat(ocosPorBim[4]))
+    };
+  };
+
+  function aplicarRegrasCroNaPaginaNotasEHistorico() {
+    const pathLower = window.location.pathname.toLowerCase();
+    const estaEmNotasRegistros = pathLower.includes('notas-registros');
+    const estaEmHistoricoOco = pathLower.includes('historico-ocorrencias');
+    if (!estaEmNotasRegistros && !estaEmHistoricoOco) return;
+
+    const bimsCache = JSON.parse(localStorage.getItem('cache_ativ_rapido_v3_bim') || '[]');
+    const todasOcoCache = JSON.parse(localStorage.getItem(KEY_TODAS_OCORRENCIAS_OFFLINE) || '[]');
+    const mapaPdtCache = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+
+    // 1. Na página notas-registros.html: corrige o nome do PDT (tira "ADMINISTRADOR") e recalcula a tabela pelas Regras CRO!
+    if (estaEmNotasRegistros) {
+      const selSerie = document.querySelector('select[id*="Serie"], select[id*="serie"], select[id*="Turma"]');
+      const serieAtual = selSerie && selSerie.value ? normalizarSeriePadraoCore(selSerie.value) : '';
+      const pdtReal = (serieAtual && mapaPdtCache[serieAtual]) ? mapaPdtCache[serieAtual] : '';
+
+      if (pdtReal && !pdtReal.includes('ADMIN')) {
+        document.querySelectorAll('input[readonly], input[disabled], input[id*="Pdt"], input[id*="pdt"]').forEach(inp => {
+          if (String(inp.value || '').toUpperCase().includes('ADMIN')) {
+            inp.value = pdtReal;
+          }
+        });
+        document.querySelectorAll('div, span, small, p').forEach(el => {
+          if (el.children.length === 0 && (el.textContent || '').includes('Professor Diretor de Turma (PDT): ADMINISTRADOR')) {
+            el.textContent = 'Professor Diretor de Turma (PDT): ' + pdtReal;
+          }
+        });
+      }
+
+      // Atualiza as 4 colunas (1º, 2º, 3º e 4º Bimestre) de cada aluno na tabela de Notas Bimestrais
+      const linhas = document.querySelectorAll('table.table tbody tr');
+      linhas.forEach(tr => {
+        const tds = tr.children;
+        if (!tds || tds.length < 5) return;
+
+        const textoCol0 = (tds[0].textContent || '').replace(/^\d+\.\s*/, '').replace(/\s+/g, ' ').trim().toUpperCase();
+        if (!textoCol0) return;
+
+        const ocosAluno = todasOcoCache.filter(o => {
+          const nAl = String(o.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase();
+          return nAl === textoCol0;
+        });
+
+        const resBim = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosAluno, bimsCache);
+
+        for (let b = 1; b <= 4; b++) {
+          const tdBim = tds[b];
+          if (!tdBim) continue;
+          const infoB = resBim[b];
+          const corNota = infoB.nota === 10 ? '#15803d' : (infoB.nota >= 7 ? '#b45309' : '#dc2626');
+          const novoTxt = infoB.notaFormatada;
+          if ((tdBim.textContent || '').trim() !== novoTxt) {
+            tdBim.innerHTML = `<span class="fw-bold" style="color:${corNota};" title="CROs Leves Válidos no Semestre: ${infoB.crosLevesValidos} (${infoB.levesDiretas} leve(s) + ${infoB.atrasosInicio} atraso(s)) | Graves: ${infoB.graves}">${novoTxt}</span>`;
+          }
+        }
+      });
+
+      // Atualiza também os objetos em memória caso o usuário clique em "Baixar PDF da Turma"
+      if (typeof window.dadosRelatorioNotasTurma !== 'undefined' && Array.isArray(window.dadosRelatorioNotasTurma)) {
+        window.dadosRelatorioNotasTurma.forEach(itemAl => {
+          const nomeAl = String(itemAl.nome || itemAl.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase();
+          const ocosAl = todasOcoCache.filter(o => String(o.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase() === nomeAl);
+          const r = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosAl, bimsCache);
+          itemAl.notaBim1 = r[1].nota;
+          itemAl.notaBim2 = r[2].nota;
+          itemAl.notaBim3 = r[3].nota;
+          itemAl.notaBim4 = r[4].nota;
+          itemAl.b1 = r[1].nota;
+          itemAl.b2 = r[2].nota;
+          itemAl.b3 = r[3].nota;
+          itemAl.b4 = r[4].nota;
+        });
+      }
+    }
+
+    // 2. Na página historico-ocorrencias.html: atualiza os cards de Nota de Comportamento por Bimestre/Semestre
+    if (estaEmHistoricoOco) {
+      const inpAluno = document.querySelector('input[list], select[id*="Aluno"], input[id*="Aluno"]');
+      const nomeAl = inpAluno ? String(inpAluno.value || '').replace(/\s+/g, ' ').trim().toUpperCase() : '';
+      if (!nomeAl) return;
+
+      const ocosAl = todasOcoCache.filter(o => String(o.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase() === nomeAl);
+      const rBim = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosAl, bimsCache);
+
+      [1, 2, 3, 4].forEach(b => {
+        const elCardNota = document.getElementById('notaBim' + b) || document.getElementById('valNotaBim' + b);
+        if (elCardNota && elCardNota.textContent !== rBim[b].notaFormatada) {
+          elCardNota.textContent = rBim[b].notaFormatada;
+        }
+      });
+    }
+  }
+
+  setInterval(aplicarRegrasCroNaPaginaNotasEHistorico, 600);
+
 })();
