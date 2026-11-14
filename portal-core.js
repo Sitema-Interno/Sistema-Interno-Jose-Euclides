@@ -3098,6 +3098,7 @@
       ]).catch(() => {});
 
       sessionStorage.setItem(SESSAO_JA_SINCRONIZADA_KEY, 'SIM');
+      preCarregarFotosAlunosECapasLivrosEmBackground();
       registrarDataHoraAtualizacaoBanco();
       configurarPesquisaVivaEmTempoRealEmTodosInputs();
     } catch (errPrefetch) {
@@ -3456,115 +3457,91 @@
     return null;
   }
 
-  // =========================================================================
-  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
-  // =========================================================================
-  async function espelharFilaParaIndexedDB(filaArray) {
-    const db = await abrirBancoSyncIDB();
-    if (!db) return;
+  // Baixa silenciosamente em segundo plano as fotos 3x4 dos alunos e capas de livros
+  // e guarda no IndexedDB (sem limite de memória) para aparecerem imediatamente quando pesquisar offline!
+  let preCarregamentoMidiaEmAndamento = false;
+  async function preCarregarFotosAlunosECapasLivrosEmBackground() {
+    if (!navigator.onLine || preCarregamentoMidiaEmAndamento) return;
+    preCarregamentoMidiaEmAndamento = true;
+
     try {
-      await new Promise(resolve => {
-        const tx = db.transaction('fila_pendente', 'readwrite');
-        const store = tx.objectStore('fila_pendente');
-        store.clear();
-        (filaArray || []).forEach(item => store.put(item));
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      });
-    } catch (e) {}
+      // Aguarda 1.5s para garantir que listarLivrosBiblioteca já salvou o catálogo no localStorage
+      await new Promise(r => setTimeout(r, 1500));
 
-    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0) {
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        if ('SyncManager' in window) {
-          await reg.sync.register('sync-fila-eemti');
+      // 1. Faz cache das capas dos livros cadastrados na Biblioteca
+      const livrosCache = JSON.parse(localStorage.getItem(KEY_LIVROS_BIBLIOTECA_OFFLINE) || '{"lista":[]}');
+      const listaLivros = Array.isArray(livrosCache.lista) ? livrosCache.lista : [];
+
+      for (const livro of listaLivros) {
+        if (!navigator.onLine) break;
+        const imgRaw = String(livro.imagem || '').trim();
+        if (!imgRaw) continue;
+        if (imgRaw.startsWith('data:image')) {
+          await salvarFotoNoIndexedDB('ARQ_' + imgRaw, { success: true, base64: imgRaw });
+        } else if (!mapaFotosAlunosCacheMemoria['ARQ_' + imgRaw]) {
+          try {
+            const resCapa = await fetchComTimeoutSeguranca(API_PADRAO_URL, {
+              method: 'POST',
+              body: JSON.stringify({ action: 'obterCapaLivroDrive', caminho: imgRaw })
+            }, 8000).then(r => r.json());
+            if (resCapa && resCapa.success && resCapa.base64) {
+              await salvarFotoNoIndexedDB('ARQ_' + imgRaw, resCapa);
+            }
+          } catch (e) {}
         }
-        if ('periodicSync' in reg) {
-          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
-        }
-      } catch (e) {}
-    }
-  }
+      }
 
-  async function verificarSincronizacoesFeitasComAppFechado() {
-    const db = await abrirBancoSyncIDB();
-    let itensDoBackground = [];
-
-    if (db) {
-      await new Promise(resolve => {
+      // 2. Faz cache das fotos 3x4 dos alunos que ainda não estão no IndexedDB
+      const alunosLista = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
+      for (const al of alunosLista) {
+        if (!navigator.onLine) break;
+        const chAl = 'ALUNO_' + al.nome;
+        if (mapaFotosAlunosCacheMemoria[chAl] && mapaFotosAlunosCacheMemoria[chAl].foto) continue;
         try {
-          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
-          const storeRel = tx.objectStore('relatorio_concluido');
-          const storeFila = tx.objectStore('fila_pendente');
-
-          const reqRel = storeRel.getAll();
-          const reqFila = storeFila.getAll();
-
-          tx.oncomplete = () => {
-            if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
-              reqRel.result.forEach(r => {
-                itensDoBackground.push(r.resumoHtml || r);
-                if (r.assinatura) assinaturasRecentementeEnviadas.add(r.assinatura);
-              });
-              const txClear = db.transaction('relatorio_concluido', 'readwrite');
-              txClear.objectStore('relatorio_concluido').clear();
-
-              const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
-              _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
-              FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
-            }
-            resolve();
-          };
-          tx.onerror = () => resolve();
-        } catch (e) {
-          resolve();
-        }
-      });
+          const resFoto = await fetchComTimeoutSeguranca(API_PADRAO_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'obterFotoAlunoIndividual', aluno: al.nome })
+          }, 6000).then(r => r.json());
+          if (resFoto && resFoto.success) {
+            await salvarFotoNoIndexedDB(chAl, Object.assign({}, al, resFoto));
+          }
+        } catch (e) {}
+      }
+    } finally {
+      preCarregamentoMidiaEmAndamento = false;
     }
-
-    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
-    if (logLocal.length > 0) {
-      itensDoBackground = itensDoBackground.concat(logLocal);
-      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
-    }
-
-    if (itensDoBackground.length > 0) {
-      sincronizacaoEmAndamento = false;
-      window.atualizarBadgeStatusConexaoGlobal();
-      registrarDataHoraAtualizacaoBanco();
-      const resumosUnicos = Array.from(new Set(itensDoBackground));
-      exibirAvisoFinalDeDadosSincronizados(resumosUnicos);
-      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
-      return true;
-    }
-    return false;
   }
-
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').then(reg => {
-        setInterval(() => reg.update(), 60000);
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-              window.location.reload();
-            }
-          });
-        });
-      }).catch(() => {});
-
-      navigator.serviceWorker.addEventListener('message', event => {
-        if (event.data && event.data.type === 'SYNC_BACKGROUND_CONCLUIDO') {
-          verificarSincronizacoesFeitasComAppFechado();
-        }
-      });
-    });
-  }// =========================================================================
+  // =========================================================================
   // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
   // =========================================================================
-  // Adiciona ou atualiza itens no IndexedDB SEM usar store.clear() a cada 35ms,
-  // para nunca apagar os itens enquanto o Service Worker está enviando com o app fechado!
+  let bufferItensParaAvisoUnico = [];
+  let timerAvisoUnico = null;
+
+  // Agrupa todos os lançamentos enviados (ex: 5 registros) para mostrar 1 ÚNICO aviso consolidado!
+  function agendarExibicaoUnicaDeSincronizados(novosItensHtml) {
+    if (!Array.isArray(novosItensHtml) || novosItensHtml.length === 0) return;
+    novosItensHtml.forEach(item => {
+      if (item && !bufferItensParaAvisoUnico.includes(item)) {
+        bufferItensParaAvisoUnico.push(item);
+      }
+    });
+
+    if (timerAvisoUnico) clearTimeout(timerAvisoUnico);
+    timerAvisoUnico = setTimeout(() => {
+      if (bufferItensParaAvisoUnico.length === 0) return;
+      if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
+        const listaFinalUnica = Array.from(new Set(bufferItensParaAvisoUnico));
+        bufferItensParaAvisoUnico = [];
+        exibirAvisoFinalDeDadosSincronizados(listaFinalUnica);
+      } else {
+        const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+        const somados = Array.from(new Set(logAnt.concat(bufferItensParaAvisoUnico)));
+        _setItemNativo.call(localStorage, LOG_SINCRONIZADOS_KEY, JSON.stringify(somados));
+        bufferItensParaAvisoUnico = [];
+      }
+    }, 600);
+  }
+
   async function adicionarItensNaFilaIndexedDB(filaArray) {
     const db = await abrirBancoSyncIDB();
     if (!db) return;
@@ -3654,8 +3631,7 @@
       sincronizacaoEmAndamento = false;
       window.atualizarBadgeStatusConexaoGlobal();
       registrarDataHoraAtualizacaoBanco();
-      const resumosUnicos = Array.from(new Set(itensDoBackground));
-      exibirAvisoFinalDeDadosSincronizados(resumosUnicos);
+      agendarExibicaoUnicaDeSincronizados(itensDoBackground);
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
       return true;
     }
@@ -3703,7 +3679,6 @@
     let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
     let alterou = false;
 
-    // Varre todas as chaves do localStorage que contenham 'fila_offline' (para capturar Ocorrências, Atividades, Frequências e Mapas!)
     const todasChavesStorage = Object.keys(localStorage).filter(
       k => (FILAS_LEGADAS.includes(k) || k.includes('fila_offline')) && k !== FILA_GLOBAL_KEY
     );
@@ -3938,16 +3913,16 @@
       toast: true,
       position: 'top-end',
       icon: 'success',
-      title: 'Dados Offline Enviados ao Banco!',
+      title: `Sincronização Concluída (${listaHtmlSincronizados.length} registro${listaHtmlSincronizados.length > 1 ? 's' : ''})!`,
       html: `
-        <div class="text-start small mt-1" style="max-height: 150px; overflow-y: auto; font-size: 0.76rem;">
+        <div class="text-start small mt-1" style="max-height: 160px; overflow-y: auto; font-size: 0.75rem;">
           <ul class="ps-3 mb-0">
             ${listaHtmlSincronizados.join('')}
           </ul>
         </div>
       `,
       showConfirmButton: false,
-      timer: 4500,
+      timer: 5000,
       timerProgressBar: true
     });
   }
@@ -4015,15 +3990,9 @@
     if (sincronizadosHtml.length > 0) {
       registrarDataHoraAtualizacaoBanco();
       setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
-
-      const unicosHtml = Array.from(new Set(sincronizadosHtml));
       window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
-      if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
-        exibirAvisoFinalDeDadosSincronizados(unicosHtml);
-      } else {
-        const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
-        _setItemNativo.call(localStorage, LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(unicosHtml)));
-      }
+      // Agrupa tudo em 1 único aviso!
+      agendarExibicaoUnicaDeSincronizados(sincronizadosHtml);
     }
   };
 
@@ -4049,7 +4018,6 @@
     }
   };
 
-  // Dispara o envio em segundo plano (com keepalive:true) no instante em que o app é minimizado ou fechado!
   function dispararEnvioAoMinimizarOuFechar() {
     const filaRestante = unificarFilasOfflineNoStorage();
     if (filaRestante.length > 0) {
@@ -4058,13 +4026,9 @@
           navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
         }
       });
-      if (navigator.onLine) {
-        window.sincronizarFilaOfflineGlobal();
-      }
     }
   }
 
-  // Verifica e exibe o aviso IMEDIATAMENTE assim que o usuário abre/foca no aplicativo (sem precisar clicar em nada!)
   async function aoAcessarOuVoltarParaOApp() {
     const exibiuDoSW = await verificarSincronizacoesFeitasComAppFechado();
     if (!exibiuDoSW && navigator.onLine) {
@@ -4072,19 +4036,22 @@
     }
   }
 
+  // Captura o evento 'online' na fase de captura (true) e limpa as filas legadas antes que as páginas tentem mostrar 5 alertas separados!
   window.addEventListener('online', () => {
+    unificarFilasOfflineNoStorage();
     atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+    } else {
+      window.sincronizarFilaOfflineGlobal();
     }
-    window.sincronizarFilaOfflineGlobal();
-  });
+  }, true);
 
   window.addEventListener('offline', () => {
     atualizarSeloTopoSincronizacao('OFFLINE');
     window.atualizarBadgeStatusConexaoGlobal();
-  });
+  }, true);
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
@@ -4098,7 +4065,6 @@
   window.addEventListener('focus', aoAcessarOuVoltarParaOApp);
   window.addEventListener('pageshow', aoAcessarOuVoltarParaOApp);
 
-  // Verificador automático a cada 4 segundos enquanto houver itens pendentes ou recém-enviados pelo SW
   setInterval(() => {
     if (document.visibilityState === 'visible') {
       verificarSincronizacoesFeitasComAppFechado();
@@ -4128,7 +4094,6 @@
       setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 500);
     }
   });
-
   // =========================================================================
   // 11. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "LOGO-removebg-preview.png"!)
   // =========================================================================
