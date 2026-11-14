@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v15';
+const CACHE_NAME = 'sistema-jose-euclides-v16';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 const IDB_VERSION = 2;
 
@@ -74,12 +74,11 @@ self.addEventListener('activate', event => {
         cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
       );
     }).then(() => self.clients.claim())
-     .then(() => processarFilaEmSegundoPlanoSW())
+      .then(() => processarFilaEmSegundoPlanoSW())
   );
 });
 
 self.addEventListener('fetch', event => {
-  // Sempre que o navegador fizer qualquer requisição com internet ativa, aproveita para esvaziar a fila pendente em background!
   if (self.navigator && self.navigator.onLine !== false) {
     processarFilaEmSegundoPlanoSW();
   }
@@ -89,9 +88,7 @@ self.addEventListener('fetch', event => {
   }
 
   let reqUrl = event.request.url;
-  const lower = reqUrl.toLowerCase();
-
-  if (lower.includes('2941658.png')) {
+  if (reqUrl.toLowerCase().includes('2941658.png')) {
     reqUrl = new URL('./brasaoestado.png', self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/')).href;
   }
 
@@ -114,10 +111,6 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// =========================================================================
-// MOTOR BACKGROUND SYNC: ENVIA OCORRÊNCIAS, FREQUÊNCIAS E ATIVIDADES
-// MESMO COM O APLICATIVO FECHADO OU MINIMIZADO!
-// =========================================================================
 let envioSwEmAndamento = false;
 
 function abrirBancoNoServiceWorker() {
@@ -142,10 +135,7 @@ async function retirarProximoItemDaFilaIDB(db) {
       const req = store.getAll();
       req.onsuccess = () => {
         const todos = req.result || [];
-        if (todos.length === 0) {
-          resolve(null);
-          return;
-        }
+        if (todos.length === 0) return resolve(null);
         const primeiro = todos[0];
         store.delete(primeiro.idFila);
         tx.oncomplete = () => resolve(primeiro);
@@ -200,6 +190,7 @@ async function processarFilaEmSegundoPlanoSW() {
 
     let enviouAlgum = false;
 
+    // Envia TODOS os itens da fila em sequência antes de avisar o cliente!
     while (true) {
       const item = await retirarProximoItemDaFilaIDB(db);
       if (!item) break;
@@ -231,6 +222,7 @@ async function processarFilaEmSegundoPlanoSW() {
       }
     }
 
+    // Só envia 1 única mensagem depois que TODOS os registros terminarem de subir!
     if (enviouAlgum) {
       const todosClientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       todosClientes.forEach(cliente => {
