@@ -587,28 +587,44 @@
           </div>
         </div>
 
-        <!-- TABELA DE CONTABILIZAÇÃO DE ATIVIDADES E NOTA CALCULADA (0 A 10) -->
-        <div class="card p-4">
-          <h6 class="fw-bold text-dark mb-3">
-            <i class="bi bi-award-fill text-primary me-2"></i>Contabilização de Atividades Enviadas e Nota Calculada (0,0 a 10,0)
-          </h6>
+        <!-- TABELA DE CONTABILIZAÇÃO DE ATIVIDADES + NOTA CRO + MÉDIA FINAL -->
+        <div class="card p-3 p-md-4">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <h6 class="fw-bold text-dark m-0">
+              <i class="bi bi-award-fill text-primary me-2"></i>Contabilização de Atividades, Nota CRO e Média Final (0,0 a 10,0)
+            </h6>
+          </div>
+
+          <!-- BARRA DE LEGENDA DAS ABREVIAÇÕES -->
+          <div class="d-flex flex-wrap align-items-center gap-2 p-2 mb-3 rounded border bg-light" style="font-size: 0.73rem; font-weight: 700; color: #334155;">
+            <span class="text-primary fw-bolder"><i class="bi bi-info-circle-fill me-1"></i>Legenda:</span>
+            <span><span class="badge bg-secondary">AE</span> Ativ. Enviadas</span>
+            <span><span class="badge bg-success">R</span> Realizadas (Entregues)</span>
+            <span><span class="badge bg-danger">NR</span> Não Realizou</span>
+            <span><span class="badge bg-warning text-dark">A</span> Ausente</span>
+            <span><span class="badge bg-primary">N. ATIV</span> Nota Atividade</span>
+            <span><span class="badge bg-dark">N. CRO</span> Nota Disciplinar (CRO)</span>
+            <span><span class="badge" style="background-color:#0f766e;">MÉDIA</span> Média (Ativ + CRO)</span>
+          </div>
 
           <div class="w-100">
             <table class="table table-hover border align-middle mb-0 tabela-enquadrada">
               <thead>
                 <tr>
-                  <th style="width: 5%;" class="text-center">Nº</th>
-                  <th style="width: 31%;">Aluno(a) Matriculado(a)</th>
-                  <th style="width: 12%;" class="text-center">Turma</th>
-                  <th style="width: 13%;" class="text-center">Atividades Enviadas</th>
-                  <th style="width: 13%;" class="text-center">Entregues (Realizadas)</th>
-                  <th style="width: 11%;" class="text-center">Não Realizou</th>
-                  <th style="width: 8%;" class="text-center">Ausente</th>
-                  <th style="width: 12%;" class="text-center">Nota Calculada</th>
+                  <th style="width: 4%;" class="text-center px-1">Nº</th>
+                  <th style="width: 32%;" class="px-2">ALUNO(A)</th>
+                  <th style="width: 8%;" class="text-center px-1">TURMA</th>
+                  <th style="width: 7%;" class="text-center px-1" title="Atividades Enviadas no Período">AE</th>
+                  <th style="width: 7%;" class="text-center px-1" title="Atividades Entregues / Realizadas">R</th>
+                  <th style="width: 7%;" class="text-center px-1" title="Não Realizou">NR</th>
+                  <th style="width: 6%;" class="text-center px-1" title="Ausente">A</th>
+                  <th style="width: 9%;" class="text-center px-1" title="Nota Calculada das Atividades (0,0 a 10,0)">N. ATIV</th>
+                  <th style="width: 10%;" class="text-center px-1" title="Nota Disciplinar CRO no Período (0,0 a 10,0)">N. CRO</th>
+                  <th style="width: 10%;" class="text-center px-1" title="Média Final: (Nota Atividade + Nota CRO) / 2">MÉDIA</th>
                 </tr>
               </thead>
               <tbody id="tbodyRelatorioNotasAtiv">
-                <tr><td colspan="8" class="text-center py-4 text-muted">Selecione uma disciplina ou eletiva para listar os alunos matriculados e calcular a nota.</td></tr>
+                <tr><td colspan="10" class="text-center py-4 text-muted">Selecione uma disciplina ou eletiva para listar os alunos matriculados e calcular as notas.</td></tr>
               </tbody>
             </table>
           </div>
@@ -1312,22 +1328,34 @@
       return expandida;
     }
 
+    let todasOcorrenciasCroRelatorio = JSON.parse(localStorage.getItem('cache_rac_todas_ocorrencias_v1') || '[]');
+
     async function carregarRelatorioUnificadoServidor(forcarRecarga) {
-      if (todosLancamentosAtividadesBanco.length > 0 && !forcarRecarga) {
+      if (todosLancamentosAtividadesBanco.length > 0 && todasOcorrenciasCroRelatorio.length > 0 && !forcarRecarga) {
         await calcularTabelaRelatorioNotas();
         return;
       }
 
       const tbody = document.getElementById('tbodyRelatorioNotasAtiv');
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Consultando atividades enviadas no banco de dados...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Sincronizando atividades e notas CRO no banco de dados...</td></tr>';
 
-      const res = await chamarAPI({ action: 'listarAtividadesUnificadas' });
-      const bruta = (res && Array.isArray(res.lista)) ? res.lista : [];
+      const [resAtiv, resOco] = await Promise.all([
+        chamarAPI({ action: 'listarAtividadesUnificadas' }),
+        (navigator.onLine && (forcarRecarga || todasOcorrenciasCroRelatorio.length === 0))
+          ? chamarAPI({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } })
+          : Promise.resolve(todasOcorrenciasCroRelatorio)
+      ]);
+
+      const bruta = (resAtiv && Array.isArray(resAtiv.lista)) ? resAtiv.lista : [];
       todosLancamentosAtividadesBanco = normalizarListaVindaDoServidor(bruta);
+
+      if (Array.isArray(resOco) && resOco.length > 0) {
+        todasOcorrenciasCroRelatorio = resOco;
+        try { localStorage.setItem('cache_rac_todas_ocorrencias_v1', JSON.stringify(resOco)); } catch (e) {}
+      }
 
       await calcularTabelaRelatorioNotas();
     }
-
     async function obterAlunosMatriculadosParaRelatorio(modo, serieTurma, semestreEletiva, nomeComponente) {
       if (modo === "DISCIPLINA") {
         return todosAlunosEscolaCache
@@ -1359,8 +1387,66 @@
       return listaMatriculados;
     }
 
+    // Calcula a Nota CRO do aluno dentro do período/bimestre selecionado usando as Regras Oficiais CRO
+    function obterNotaCroDoAlunoNoPeriodoFiltro(nomeAluno, idxBimFiltro, mesFiltro, tsIni, tsFim) {
+      const nomeLimpo = String(nomeAluno || "").replace(/\s+/g, " ").trim().toUpperCase();
+      const fonteOco = (Array.isArray(todasOcorrenciasCroRelatorio) && todasOcorrenciasCroRelatorio.length > 0)
+        ? todasOcorrenciasCroRelatorio
+        : JSON.parse(localStorage.getItem('cache_rac_todas_ocorrencias_v1') || '[]');
+
+      const ocosDoAluno = fonteOco.filter(o => String(o.aluno || "").replace(/\s+/g, " ").trim().toUpperCase() === nomeLimpo);
+
+      // Caso 1: Se um Bimestre específico estiver selecionado (ou Todos os Bimestres sem filtro de mês/data),
+      // usa o cálculo oficial semestral cumulativo do portal-core.js!
+      if (typeof window.calcularQuatroBimestresCroDoAlunoEEMTI === 'function' && !mesFiltro && (!tsIni || idxBimFiltro !== "")) {
+        const calc4 = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosDoAluno, listaBimestresEscola);
+        if (idxBimFiltro !== "") {
+          const bimObj = listaBimestresEscola[Number(idxBimFiltro)];
+          const mNum = bimObj && bimObj.nome ? String(bimObj.nome).match(/([1234])/) : null;
+          const numBim = mNum ? parseInt(mNum[1], 10) : (Number(idxBimFiltro) + 1);
+          if (calc4[numBim]) {
+            return {
+              nota: calc4[numBim].nota,
+              notaStr: calc4[numBim].nota1Casa,
+              detalheTooltip: `${numBim}º Bimestre: ${calc4[numBim].crosLevesValidos} CRO(s) leve(s) válido(s) | Graves: ${calc4[numBim].graves}`
+            };
+          }
+        } else {
+          // Sem filtro de período: usa a nota atual do 2º Semestre (ou Média Anual)
+          return {
+            nota: calc4[4].nota,
+            notaStr: calc4[4].nota1Casa,
+            detalheTooltip: `Semestre Atual: ${calc4[4].crosLevesValidos} CRO(s) leve(s) válido(s) | Graves: ${calc4[4].graves}`
+          };
+        }
+      }
+
+      // Caso 2: Filtro por Mês ou Intervalo de Datas personalizado (De / Até)
+      const ocosNoIntervalo = ocosDoAluno.filter(o => {
+        const pData = String(o.data || "").split(' ')[0].split('/');
+        const mesOco = pData.length === 3 ? String(parseInt(pData[1], 10)) : "";
+        if (mesFiltro && mesOco !== mesFiltro) return false;
+        const tsOco = extrairTimestampSeguroLocal(o.data);
+        if (tsIni > 0 && (!tsOco || tsOco < tsIni)) return false;
+        if (tsFim > 0 && (!tsOco || tsOco > tsFim)) return false;
+        return true;
+      });
+
+      if (typeof window.calcularResultadoCroAcumuladoEEMTI === 'function') {
+        const r = window.calcularResultadoCroAcumuladoEEMTI(ocosNoIntervalo);
+        return {
+          nota: r.nota,
+          notaStr: r.nota1Casa,
+          detalheTooltip: `No período filtrado: ${r.crosLevesValidos} CRO(s) leve(s) válido(s) (${r.levesDiretas} leve + ${r.atrasosInicio} atrasos) | Graves: ${r.graves}`
+        };
+      }
+
+      return { nota: 10.0, notaStr: '10,0', detalheTooltip: 'Sem descontos CRO no período' };
+    }
+
     async function calcularTabelaRelatorioNotas() {
       const mesFiltro = document.getElementById('relAtivMes').value;
+      const idxBimFiltro = document.getElementById('relAtivBimestre').value;
       const dtIniIso = document.getElementById('relAtivDataIni').value;
       const dtFimIso = document.getElementById('relAtivDataFim').value;
       const serieFiltro = document.getElementById('relAtivSerie').value;
@@ -1370,7 +1456,7 @@
 
       const tbody = document.getElementById('tbodyRelatorioNotasAtiv');
       if (!componenteFiltro) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Selecione uma Disciplina ou Eletiva para listar os alunos matriculados e calcular as notas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">Selecione uma Disciplina ou Eletiva para listar os alunos matriculados e calcular as notas.</td></tr>';
         return;
       }
 
@@ -1428,7 +1514,7 @@
       const totalAtividadesEnviadas = chavesAtividadesEnviadas.length;
 
       document.getElementById('lblResumoAulasRelatorioAtiv').innerHTML =
-        `<i class="bi bi-journal-check me-1"></i><b>${componenteFiltro}</b> ${modoRelatorioAtual === 'DISCIPLINA' ? `(${serieFiltro})` : `(${semestreEletFiltro})`} — Total de Atividades Enviadas no Período: <b>${totalAtividadesEnviadas} atividade(s)</b>`;
+        `<i class="bi bi-journal-check me-1"></i><b>${componenteFiltro}</b> ${modoRelatorioAtual === 'DISCIPLINA' ? `(${serieFiltro})` : `(${semestreEletFiltro})`} — Total de Atividades Enviadas (AE) no Período: <b>${totalAtividadesEnviadas} atividade(s)</b>`;
 
       const mapaAlunosCompletos = {};
       alunosMatriculados.forEach(al => {
@@ -1446,9 +1532,16 @@
       linhasCalculadasRelatorioAtual = [];
 
       if (listaAlunosOrdenada.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Nenhum aluno matriculado encontrado para esta seleção.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">Nenhum aluno matriculado encontrado para esta seleção.</td></tr>';
         return;
       }
+
+      const obterCorBadgeNota = (valorNum, semValor = false) => {
+        if (semValor) return 'bg-secondary';
+        if (valorNum >= 6.0) return 'bg-success';
+        if (valorNum >= 4.0) return 'bg-warning text-dark';
+        return 'bg-danger';
+      };
 
       let html = '';
       listaAlunosOrdenada.forEach((al, idx) => {
@@ -1458,7 +1551,6 @@
 
         chavesAtividadesEnviadas.forEach(chAtiv => {
           const statusDoAlunoNaAtividade = atividadesDistintasMap[chAtiv][al.nome];
-
           if (statusDoAlunoNaAtividade === "REALIZOU") {
             qtdRealizadas++;
           } else if (statusDoAlunoNaAtividade === "AUSENTE") {
@@ -1468,38 +1560,51 @@
           }
         });
 
-        const notaCalculadaNum = totalAtividadesEnviadas > 0
-          ? (qtdRealizadas / totalAtividadesEnviadas) * 10
-          : 0;
-        const notaFormatada = totalAtividadesEnviadas > 0
-          ? notaCalculadaNum.toFixed(1).replace('.', ',')
-          : '-';
+        // 1. Nota da Atividade (N. ATIV)
+        const temAtividades = totalAtividadesEnviadas > 0;
+        const notaAtivNum = temAtividades ? (qtdRealizadas / totalAtividadesEnviadas) * 10 : 0;
+        const notaAtivStr = temAtividades ? notaAtivNum.toFixed(1).replace('.', ',') : '-';
 
-        const corBadgeNota = totalAtividadesEnviadas === 0
-          ? 'bg-secondary'
-          : (notaCalculadaNum >= 6.0 ? 'bg-success' : (notaCalculadaNum >= 4.0 ? 'bg-warning text-dark' : 'bg-danger'));
+        // 2. Nota Disciplinar CRO no Período (N. CRO)
+        const infoCro = obterNotaCroDoAlunoNoPeriodoFiltro(al.nome, idxBimFiltro, mesFiltro, tsIni, tsFim);
+        const notaCroNum = infoCro.nota;
+        const notaCroStr = infoCro.notaStr;
+
+        // 3. Média Final: (N. ATIV + N. CRO) / 2  (Se ainda não houver atividades lançadas, exibe a média parcial com base na nota disponível)
+        const mediaFinalNum = temAtividades ? ((notaAtivNum + notaCroNum) / 2) : notaCroNum;
+        const mediaFinalStr = mediaFinalNum.toFixed(1).replace('.', ',');
+
+        const corBadgeAtiv = obterCorBadgeNota(notaAtivNum, !temAtividades);
+        const corBadgeCro = obterCorBadgeNota(notaCroNum, false);
+        const corBadgeMedia = obterCorBadgeNota(mediaFinalNum, false);
+
+        const serieCurta = window.abreviarSerieParaExibicao ? window.abreviarSerieParaExibicao(al.serie) : al.serie;
 
         linhasCalculadasRelatorioAtual.push({
           num: idx + 1,
           aluno: al.nome,
-          serie: al.serie,
+          serie: serieCurta,
           enviadas: totalAtividadesEnviadas,
           realizadas: qtdRealizadas,
           naoRealizadas: qtdNaoRealizou,
           ausentes: qtdAusente,
-          notaStr: notaFormatada
+          notaAtivStr: notaAtivStr,
+          notaCroStr: notaCroStr,
+          mediaStr: mediaFinalStr
         });
 
         html += `
           <tr>
-            <td class="text-center fw-bold text-muted">${idx + 1}</td>
-            <td class="fw-bold text-dark">${al.nome}</td>
-            <td class="text-center"><span class="badge bg-secondary">${al.serie}</span></td>
-            <td class="text-center fw-bold text-primary">${totalAtividadesEnviadas}</td>
-            <td class="text-center"><span class="badge bg-success-subtle text-success border border-success-subtle px-2 fs-6">${qtdRealizadas}</span></td>
-            <td class="text-center"><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 fs-6">${qtdNaoRealizou}</span></td>
-            <td class="text-center"><span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 fs-6">${qtdAusente}</span></td>
-            <td class="text-center"><span class="badge ${corBadgeNota} fs-6 px-3">${notaFormatada}</span></td>
+            <td class="text-center fw-bold text-muted px-1">${idx + 1}</td>
+            <td class="fw-bold text-dark px-2">${al.nome}</td>
+            <td class="text-center px-1"><span class="badge bg-secondary">${serieCurta}</span></td>
+            <td class="text-center fw-bold text-primary px-1">${totalAtividadesEnviadas}</td>
+            <td class="text-center px-1"><span class="badge bg-success-subtle text-success border border-success-subtle px-2">${qtdRealizadas}</span></td>
+            <td class="text-center px-1"><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2">${qtdNaoRealizou}</span></td>
+            <td class="text-center px-1"><span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2">${qtdAusente}</span></td>
+            <td class="text-center px-1"><span class="badge ${corBadgeAtiv} px-2" title="Nota das Atividades: ${notaAtivStr}">${notaAtivStr}</span></td>
+            <td class="text-center px-1"><span class="badge ${corBadgeCro} px-2" title="${infoCro.detalheTooltip}">${notaCroStr}</span></td>
+            <td class="text-center px-1"><span class="badge ${corBadgeMedia} px-2 fw-bolder" style="font-size:0.82rem;" title="Média Final (Ativ + CRO)">${mediaFinalStr}</span></td>
           </tr>`;
       });
 
@@ -1518,21 +1623,19 @@
         ? document.getElementById('relAtivSerie').value
         : document.getElementById('relAtivSemestreElet').value;
 
+      const selBim = document.getElementById('relAtivBimestre');
+      const selMes = document.getElementById('relAtivMes');
+      const periodoTxt = selBim.value !== ""
+        ? selBim.options[selBim.selectedIndex].text
+        : (selMes.value !== "" ? `Mês: ${selMes.options[selMes.selectedIndex].text}` : "Período Geral");
+
       let startY = 26;
       if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
         startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
-          tituloDocumento: "RELATÓRIO DE ATIVIDADES CONTÍNUAS E NOTA CALCULADA",
-          subtitulo1: `Componente: ${comp}   |   Turma/Semestre: ${serieOuSem}`,
-          subtitulo2: `Professor(a): ${nomeUser}   |   Data: ${new Date().toLocaleDateString('pt-BR')}`
+          tituloDocumento: "RELATÓRIO DE ATIVIDADES, NOTA CRO E MÉDIA FINAL",
+          subtitulo1: `Componente: ${comp} | Turma/Semestre: ${serieOuSem} | Período: ${periodoTxt}`,
+          subtitulo2: `Legenda: AE = Ativ. Enviadas | R = Realizadas | NR = Não Realizou | A = Ausente | N. ATIV = Nota Ativ. | N. CRO = Nota CRO`
         });
-      } else {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.setTextColor(21, 67, 140);
-        doc.text("RELATÓRIO DE ATIVIDADES CONTÍNUAS E NOTA CALCULADA — EEMTI DR. JOSÉ EUCLIDES", 14, 15);
-        doc.setFontSize(9);
-        doc.setTextColor(70, 70, 70);
-        doc.text(`Componente: ${comp}   |   Turma/Semestre: ${serieOuSem}   |   Professor(a): ${nomeUser}`, 14, 21);
       }
 
       const rows = linhasCalculadasRelatorioAtual.map(r => [
@@ -1543,19 +1646,34 @@
         r.realizadas,
         r.naoRealizadas,
         r.ausentes,
-        r.notaStr
+        r.notaAtivStr,
+        r.notaCroStr,
+        r.mediaStr
       ]);
 
       doc.autoTable({
         startY: startY,
-        head: [['Nº', 'Nome do(a) Aluno(a)', 'Turma', 'Enviadas', 'Entregues', 'Não Real.', 'Ausente', 'Nota (0-10)']],
+        head: [['Nº', 'ALUNO(A) MATRICULADO(A)', 'TURMA', 'AE', 'R', 'NR', 'A', 'N. ATIV', 'N. CRO', 'MÉDIA']],
         body: rows,
-        styles: { fontSize: 8.2, cellPadding: 2.2 },
-        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        theme: 'grid',
+        styles: { fontSize: 7.5, cellPadding: 1.8, valign: 'middle' },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { cellWidth: 9, halign: 'center' },
+          1: { cellWidth: 67, fontStyle: 'bold' },
+          2: { cellWidth: 16, halign: 'center' },
+          3: { cellWidth: 11, halign: 'center' },
+          4: { cellWidth: 11, halign: 'center' },
+          5: { cellWidth: 11, halign: 'center' },
+          6: { cellWidth: 11, halign: 'center' },
+          7: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+          8: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+          9: { cellWidth: 16, halign: 'center', fontStyle: 'bold' }
+        },
         alternateRowStyles: { fillColor: [248, 250, 252] }
       });
 
-      doc.save(`Notas_Atividades_${comp.replace(/[^a-zA-Z0-9]/g, '_')}_${serieOuSem.replace(/\s+/g, '_')}.pdf`);
+      doc.save(`Relatorio_Atividades_CRO_Media_${comp.replace(/[^a-zA-Z0-9]/g, '_')}_${serieOuSem.replace(/\s+/g, '_')}.pdf`);
     }
   </script>
 </body>
