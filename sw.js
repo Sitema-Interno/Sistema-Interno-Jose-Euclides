@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v14';
+const CACHE_NAME = 'sistema-jose-euclides-v15';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 const IDB_VERSION = 2;
 
@@ -74,10 +74,16 @@ self.addEventListener('activate', event => {
         cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
       );
     }).then(() => self.clients.claim())
+     .then(() => processarFilaEmSegundoPlanoSW())
   );
 });
 
 self.addEventListener('fetch', event => {
+  // Sempre que o navegador fizer qualquer requisição com internet ativa, aproveita para esvaziar a fila pendente em background!
+  if (self.navigator && self.navigator.onLine !== false) {
+    processarFilaEmSegundoPlanoSW();
+  }
+
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
@@ -128,7 +134,6 @@ function abrirBancoNoServiceWorker() {
   });
 }
 
-// Retira atomicamente 1 item da fila_pendente no IndexedDB ANTES de enviar (impede duplicidade!)
 async function retirarProximoItemDaFilaIDB(db) {
   return new Promise(resolve => {
     try {
@@ -186,6 +191,7 @@ async function registrarConcluidoNoIDB(db, item) {
 
 async function processarFilaEmSegundoPlanoSW() {
   if (envioSwEmAndamento) return;
+  if (self.navigator && self.navigator.onLine === false) return;
   envioSwEmAndamento = true;
 
   try {
@@ -204,7 +210,8 @@ async function processarFilaEmSegundoPlanoSW() {
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(item.payload),
           redirect: 'follow',
-          credentials: 'omit'
+          credentials: 'omit',
+          keepalive: true
         });
 
         const texto = await res.text();
@@ -219,7 +226,6 @@ async function processarFilaEmSegundoPlanoSW() {
           break;
         }
       } catch (errRede) {
-        // Se a internet oscilou/caiu, devolve o item para a fila para enviar assim que reconectar
         await devolverItemParaFilaIDB(db, item);
         break;
       }
