@@ -980,13 +980,16 @@
   }
 
   // =========================================================================
-  // 2.1 AJUSTE DO MAPEAMENTO DE SALA + FOTO 3x4 NAS OCORRÊNCIAS OFFLINE
+  // 2.1 AJUSTE DIRECIONADO DO MAPEAMENTO DE SALA (mapeamento-sala.html):
+  // - Muda a posição da Fila 1 e do aviso da Porta para o lado contrário (Direita: Fila N ... Fila 1)
+  // - Remove 100% do destaque amarelo/laranja da Fila 1 na tela e no PDF!
+  // - Mantém apenas o aviso da Porta acima da Fila 1 e enquadra até 8x8 na tela!
   // =========================================================================
+ // Faz a Foto 3x4 do aluno aparecer automaticamente ao selecionar o nome na Ocorrência mesmo OFFLINE!
   function injetarFotoAlunoNaOcorrenciaOffline() {
     const pathLower = window.location.pathname.toLowerCase();
     if (!pathLower.includes('ocorrencia')) return;
 
-    // Procura o select de aluno na página de Ocorrências
     const selects = Array.from(document.querySelectorAll('select'));
     const selAluno = selects.find(s => {
       const id = (s.id || '').toLowerCase();
@@ -994,43 +997,100 @@
       return id.includes('aluno') || lbl.includes('ALUNO');
     });
 
-    if (!selAluno) return;
+    const inputs = Array.from(document.querySelectorAll('input[list]'));
+    const campoAluno = selAluno || inputs[0];
+    if (!campoAluno) return;
 
-    const atualizarMolduraFotoOcorrencia = () => {
-      const nomeSel = String(selAluno.value || '').replace(/\s+/g, ' ').trim().toUpperCase();
+    const atualizarFotoNaMolduraOcorrencia = () => {
+      const nomeSel = String(campoAluno.value || '').replace(/\s+/g, ' ').trim().toUpperCase();
       if (!nomeSel || nomeSel.includes('SELECIONE')) return;
 
       const infoCache = obterDadosCadastraisAlunoCache(nomeSel);
-      const fotoB64 = infoCache.foto || '';
+      const fotoB64 = infoCache.foto || (mapaFotosAlunosCacheMemoria['ALUNO_' + nomeSel] && mapaFotosAlunosCacheMemoria['ALUNO_' + nomeSel].foto) || '';
       if (!fotoB64 || !String(fotoB64).startsWith('data:image')) return;
 
-      // Localiza a moldura onde aparece "Modo Offline" ou a foto do aluno no card de Ocorrência
-      const cardForm = selAluno.closest('.card') || document;
-      cardForm.querySelectorAll('div, span, small').forEach(el => {
-        if ((el.textContent || '').trim() === 'Modo Offline' && el.children.length === 0) {
-          const caixaMoldura = el.parentElement;
-          if (caixaMoldura && !caixaMoldura.querySelector('img')) {
-            caixaMoldura.innerHTML = `<img src="${fotoB64}" alt="${nomeSel}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">`;
+      // Substitui o aviso "Modo Offline" pela Foto 3x4 salva no cache IndexedDB!
+      document.querySelectorAll('div, span, small').forEach(el => {
+        const txt = (el.textContent || '').trim();
+        if ((txt === 'Modo Offline' || txt === 'Sem Foto' || txt === 'Foto 3x4') && el.children.length === 0) {
+          const containerMoldura = el.closest('[style*="dashed"], .moldura-foto-preview, .foto-aluno-box, #boxFotoAluno, #molduraFoto') || el.parentElement;
+          if (containerMoldura) {
+            containerMoldura.innerHTML = `<img src="${fotoB64}" alt="${nomeSel}" style="width:100%;height:100%;max-width:110px;max-height:145px;object-fit:cover;border-radius:10px;display:block;margin:0 auto;">`;
           }
         }
       });
 
-      const imgExistente = cardForm.querySelector('#imgFotoAlunoOcorrencia, #fotoAlunoPreview, .moldura-foto-aluno img, .foto-aluno-box img');
-      if (imgExistente && imgExistente.src !== fotoB64) {
-        imgExistente.src = fotoB64;
-        imgExistente.style.display = 'block';
-      }
+      document.querySelectorAll('#imgFotoAluno, #fotoAluno, #imgPreviewAluno, .card img').forEach(img => {
+        if (img.id === 'logoEscola' || img.classList.contains('watermark-brasao-fundo')) return;
+        if (img.src !== fotoB64) {
+          img.src = fotoB64;
+          img.style.display = 'block';
+        }
+      });
     };
 
-    if (!selAluno._eemtiFotoOfflineBound) {
-      selAluno._eemtiFotoOfflineBound = true;
-      selAluno.addEventListener('change', () => {
-        setTimeout(atualizarMolduraFotoOcorrencia, 20);
-        setTimeout(atualizarMolduraFotoOcorrencia, 120);
+    if (!campoAluno._eemtiFotoOfflineHook) {
+      campoAluno._eemtiFotoOfflineHook = true;
+      campoAluno.addEventListener('change', () => {
+        setTimeout(atualizarFotoNaMolduraOcorrencia, 15);
+        setTimeout(atualizarFotoNaMolduraOcorrencia, 120);
+      });
+      campoAluno.addEventListener('input', () => {
+        setTimeout(atualizarFotoNaMolduraOcorrencia, 30);
       });
     }
-    atualizarMolduraFotoOcorrencia();
+    atualizarFotoNaMolduraOcorrencia();
   }
+
+  let buscandoPdtEmergencia = false;
+  async function buscarMapaPdtDiretoDoServidor() {
+    const novoMapa = {};
+    try {
+      const [r1, r2] = await Promise.all([
+        _fetchNativo(API_PADRAO_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'listarPDT' }),
+          redirect: 'follow'
+        }).then(r => r.json()).catch(() => null),
+        _fetchNativo(API_PADRAO_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'listarConfig', tipo: 'PDT' }),
+          redirect: 'follow'
+        }).then(r => r.json()).catch(() => null)
+      ]);
+
+      const processarLista = (lista) => {
+        if (!Array.isArray(lista)) return;
+        lista.forEach(it => {
+          const s = normalizarSeriePadraoCore(it.serie || it.col1 || it.turma || '');
+          const p = String(it.professor || it.col2 || it.pdt || '').trim().toUpperCase();
+          if (s && p && s !== 'SÉRIE' && s !== 'SERIE' && !p.includes('ADMIN')) {
+            novoMapa[s] = p;
+          }
+        });
+      };
+
+      if (r1 && Array.isArray(r1.lista)) processarLista(r1.lista);
+      if (r2 && Array.isArray(r2.lista)) processarLista(r2.lista);
+
+      if (Object.keys(novoMapa).length > 0) {
+        salvarNoLocalStorageSeguro('cache_mapa_pdt_v4', novoMapa);
+        salvarNoLocalStorageSeguro('cache_req_v3_listarPDT_{"action":"listarPDT"}', {
+          success: true,
+          lista: Object.keys(novoMapa).map((s, idx) => ({ linha: idx + 2, serie: s, professor: novoMapa[s] }))
+        });
+      }
+    } catch (e) {}
+    return novoMapa;
+  }
+
+ const SERIES_FIXAS_ESCOLA_EEMTI = [
+    "1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C",
+    "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C",
+    "3ª SÉRIE A", "3ª SÉRIE B"
+  ];
 
   function ajustarPaginaMapeamentoDeSala() {
     injetarFotoAlunoNaOcorrenciaOffline();
@@ -1040,22 +1100,76 @@
 
     injetarResponsividadeGlobalEEMTI();
 
-    // Corrige imediatamente se o input PDT estiver escrito "ADMINISTRADOR" ou "USUÁRIO" (evita erro de validação na célula B2!)
-    const inpPdt = document.getElementById('mapPdtInput');
+    // 0. Garante que TODAS as 8 séries oficiais (incluindo 1ª SÉRIE A) estejam sempre presentes para Gestão/Admin!
+    if (typeof seriesOficiaisDaEscola !== 'undefined' && Array.isArray(seriesOficiaisDaEscola)) {
+      let adicionouSerie = false;
+      SERIES_FIXAS_ESCOLA_EEMTI.forEach(sFixa => {
+        if (!seriesOficiaisDaEscola.includes(sFixa)) {
+          seriesOficiaisDaEscola.push(sFixa);
+          adicionouSerie = true;
+        }
+      });
+      if (adicionouSerie) {
+        seriesOficiaisDaEscola.sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+        salvarNoLocalStorageSeguro('cache_mapa_series_v4', seriesOficiaisDaEscola);
+      }
+    }
+
     const selSerie = document.getElementById('mapSerieSelect');
-    if (inpPdt && selSerie && selSerie.value) {
-      const valPdtAtual = String(inpPdt.value || '').trim().toUpperCase();
-      if (!valPdtAtual || valPdtAtual === 'ADMINISTRADOR' || valPdtAtual === 'USUÁRIO' || valPdtAtual === 'USUARIO') {
-        const mapaPdtCache = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
-        const serieNorm = normalizarSeriePadraoCore(selSerie.value);
-        if (mapaPdtCache[serieNorm]) {
-          inpPdt.value = mapaPdtCache[serieNorm];
-          const badgePdt = document.getElementById('badgePdtAtivoMapa');
-          if (badgePdt) badgePdt.innerText = 'PDT: ' + mapaPdtCache[serieNorm];
+    if (selSerie && typeof isAdminOuGestao !== 'undefined' && isAdminOuGestao) {
+      const opcoesAtuais = Array.from(selSerie.options).map(o => o.value);
+      const faltandoAlguma = SERIES_FIXAS_ESCOLA_EEMTI.some(s => !opcoesAtuais.includes(s));
+      if (faltandoAlguma) {
+        const valorSelecionadoAntes = selSerie.value;
+        const todasOrdenadas = Array.from(new Set(SERIES_FIXAS_ESCOLA_EEMTI.concat(opcoesAtuais)))
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+        selSerie.innerHTML = todasOrdenadas.map(s => `<option value="${s}">${s}</option>`).join('');
+        selSerie.value = (valorSelecionadoAntes && todasOrdenadas.includes(valorSelecionadoAntes))
+          ? valorSelecionadoAntes
+          : todasOrdenadas[0];
+        if (typeof renderizarCardsMapeamentosSalvosOfflineEOnline === 'function') {
+          renderizarCardsMapeamentosSalvosOfflineEOnline();
         }
       }
     }
 
+    // Impede que o campo PDT fique escrito "ADMINISTRADOR"
+    const inpPdt = document.getElementById('mapPdtInput');
+    if (inpPdt && selSerie && selSerie.value) {
+      const serieNorm = normalizarSeriePadraoCore(selSerie.value);
+      const valPdtAtual = String(inpPdt.value || '').trim().toUpperCase();
+      const ehInvalido = (!valPdtAtual || valPdtAtual.includes('ADMIN') || valPdtAtual.includes('USUÁRIO') || valPdtAtual.includes('USUARIO') || valPdtAtual === '-');
+
+      if (ehInvalido) {
+        const mapaPdtCache = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+        const mapasSalvos = JSON.parse(localStorage.getItem('cache_todos_mapas_salvos_v4') || '{}');
+        let pdtValido = mapaPdtCache[serieNorm] || (mapasSalvos[serieNorm] && mapasSalvos[serieNorm].pdt) || '';
+
+        if (pdtValido && (pdtValido.includes('ADMIN') || pdtValido.includes('NÃO ATRIBUÍDO'))) {
+          pdtValido = '';
+        }
+
+        if (pdtValido) {
+          inpPdt.value = pdtValido;
+          const badgePdt = document.getElementById('badgePdtAtivoMapa');
+          if (badgePdt) badgePdt.innerText = 'PDT: ' + pdtValido;
+          if (typeof mapaPdtPorSerie !== 'undefined') mapaPdtPorSerie[serieNorm] = pdtValido;
+        } else if (navigator.onLine && !buscandoPdtEmergencia) {
+          buscandoPdtEmergencia = true;
+          buscarMapaPdtDiretoDoServidor().then(novoMapa => {
+            if (typeof mapaPdtPorSerie !== 'undefined') Object.assign(mapaPdtPorSerie, novoMapa);
+            const sAtual = normalizarSeriePadraoCore(selSerie.value);
+            if (novoMapa[sAtual]) {
+              inpPdt.value = novoMapa[sAtual];
+              const badgePdt = document.getElementById('badgePdtAtivoMapa');
+              if (badgePdt) badgePdt.innerText = 'PDT: ' + novoMapa[sAtual];
+            }
+          }).finally(() => { buscandoPdtEmergencia = false; });
+        }
+      }
+    }
+    // 1. Na barra superior (.barra-orientacao-sala), coloca o aviso da Porta no lado direito (acima da Fila 1) e Janelas no lado esquerdo
     document.querySelectorAll('.barra-orientacao-sala').forEach(barra => {
       barra.style.setProperty('border-left', '1px solid #cbd5e1', 'important');
       barra.style.setProperty('border-right', '5px solid #15438c', 'important');
@@ -1074,6 +1188,8 @@
       }
     });
 
+    // 2. Nos containers reais do mapeamento (#containerGridCarteiras e #containerGridVisualizadorAba2),
+    // inverte a ordem das colunas para a Fila 1 ficar na direita (abaixo do aviso da Porta) e caber 8x8 na tela!
     ['containerGridCarteiras', 'containerGridVisualizadorAba2'].forEach(idCont => {
       const cont = document.getElementById(idCont);
       if (!cont) return;
@@ -1088,6 +1204,7 @@
         if (cols.length > 1) {
           const txtPrim = (cols[0].querySelector('.header-fila')?.textContent || '').toUpperCase();
           const txtUlt = (cols[cols.length - 1].querySelector('.header-fila')?.textContent || '').toUpperCase();
+          // Se a Fila 1 ainda estiver na primeira coluna (esquerda), inverte para a Fila 1 ficar na direita!
           if (txtPrim.includes('FILA 1') && !txtUlt.includes('FILA 1')) {
             cols.reverse().forEach(c => cont.appendChild(c));
           }
@@ -1095,6 +1212,7 @@
       }
     });
 
+    // 3. Remove 100% do destaque amarelo/laranja da Fila 1 (.coluna-fila-porta, .fila-1-porta, .subbadge-porta-fila1 e .tag-posicao-carteira)
     document.querySelectorAll('.coluna-fila').forEach(col => {
       col.classList.remove('coluna-fila-porta');
       col.style.setProperty('background', 'transparent', 'important');
@@ -1122,6 +1240,7 @@
       });
     });
 
+    // 4. Sobrescreve a função baixarPdfMapeamento3x4 da página para que o PDF também tenha a Fila 1 na direita e sem cor amarela/laranja!
     if (typeof window.baixarPdfMapeamento3x4 === 'function' && !window.baixarPdfMapeamento3x4._eemtiCustomPdf) {
       const fnPdfCustom = async function(origem = 'EDICAO') {
         await garantirBibliotecasPdfCarregadas();
@@ -1161,6 +1280,7 @@
         doc.setTextColor(60, 60, 60);
         doc.text(`PDT: ${pdt} | Orientação Oficial: A FILA 1 inicia ao lado da PORTA DA SALA | Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 30, 17);
 
+        // Barra superior do PDF: Lado Oposto/Janelas na esquerda | Quadro no centro | Porta da Sala (Fila 1) na direita!
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(203, 213, 225);
         doc.roundedRect(14, 20, 56, 7, 1.5, 1.5, 'FD');
@@ -1191,6 +1311,7 @@
         const altHeaderFila = 5.5;
         const altCarteira = (alturaUtil - altHeaderFila - (gapY * numLinhas)) / numLinhas;
 
+        // Desenha da esquerda para a direita: Fila N na esquerda ... até Fila 1 na direita (abaixo da Porta), todas em azul padrão!
         for (let idxPos = 0; idxPos < numColunas; idxPos++) {
           const f = numColunas - idxPos;
           const xCol = margemX + idxPos * (largCol + gapX);
@@ -3117,9 +3238,9 @@
       if (resPdt && Array.isArray(resPdt.lista)) {
         const novoMapaPdt = {};
         resPdt.lista.forEach(item => {
-          const s = normalizarSeriePadraoCore(item.serie);
-          const p = String(item.professor || "").trim().toUpperCase();
-          if (s && p) novoMapaPdt[s] = p;
+          const s = normalizarSeriePadraoCore(item.serie || item.col1 || item.turma || "");
+          const p = String(item.professor || item.col2 || item.pdt || "").trim().toUpperCase();
+          if (s && p && s !== "SÉRIE" && s !== "SERIE") novoMapaPdt[s] = p;
         });
         salvarNoLocalStorageSeguro('cache_mapa_pdt_v4', novoMapaPdt);
       }
@@ -3514,60 +3635,6 @@
     return null;
   }
 
-  // Baixa silenciosamente em segundo plano as fotos 3x4 dos alunos e capas de livros
-  // e guarda no IndexedDB (sem limite de memória) para aparecerem imediatamente quando pesquisar offline!
-  let preCarregamentoMidiaEmAndamento = false;
-  async function preCarregarFotosAlunosECapasLivrosEmBackground() {
-    if (!navigator.onLine || preCarregamentoMidiaEmAndamento) return;
-    preCarregamentoMidiaEmAndamento = true;
-
-    try {
-      // Aguarda 1.5s para garantir que listarLivrosBiblioteca já salvou o catálogo no localStorage
-      await new Promise(r => setTimeout(r, 1500));
-
-      // 1. Faz cache das capas dos livros cadastrados na Biblioteca
-      const livrosCache = JSON.parse(localStorage.getItem(KEY_LIVROS_BIBLIOTECA_OFFLINE) || '{"lista":[]}');
-      const listaLivros = Array.isArray(livrosCache.lista) ? livrosCache.lista : [];
-
-      for (const livro of listaLivros) {
-        if (!navigator.onLine) break;
-        const imgRaw = String(livro.imagem || '').trim();
-        if (!imgRaw) continue;
-        if (imgRaw.startsWith('data:image')) {
-          await salvarFotoNoIndexedDB('ARQ_' + imgRaw, { success: true, base64: imgRaw });
-        } else if (!mapaFotosAlunosCacheMemoria['ARQ_' + imgRaw]) {
-          try {
-            const resCapa = await fetchComTimeoutSeguranca(API_PADRAO_URL, {
-              method: 'POST',
-              body: JSON.stringify({ action: 'obterCapaLivroDrive', caminho: imgRaw })
-            }, 8000).then(r => r.json());
-            if (resCapa && resCapa.success && resCapa.base64) {
-              await salvarFotoNoIndexedDB('ARQ_' + imgRaw, resCapa);
-            }
-          } catch (e) {}
-        }
-      }
-
-      // 2. Faz cache das fotos 3x4 dos alunos que ainda não estão no IndexedDB
-      const alunosLista = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
-      for (const al of alunosLista) {
-        if (!navigator.onLine) break;
-        const chAl = 'ALUNO_' + al.nome;
-        if (mapaFotosAlunosCacheMemoria[chAl] && mapaFotosAlunosCacheMemoria[chAl].foto) continue;
-        try {
-          const resFoto = await fetchComTimeoutSeguranca(API_PADRAO_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'obterFotoAlunoIndividual', aluno: al.nome })
-          }, 6000).then(r => r.json());
-          if (resFoto && resFoto.success) {
-            await salvarFotoNoIndexedDB(chAl, Object.assign({}, al, resFoto));
-          }
-        } catch (e) {}
-      }
-    } finally {
-      preCarregamentoMidiaEmAndamento = false;
-    }
-  }
   // =========================================================================
   // 8.1 PRÉ-CARREGAMENTO EM SEGUNDO PLANO DAS FOTOS 3x4 E CAPAS DE LIVROS
   // =========================================================================
@@ -3622,7 +3689,7 @@
   }
 
   // =========================================================================
-  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (1 ÚNICO AVISO + ENVIO COM APP FECHADO)
+  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
   // =========================================================================
   let bufferItensParaAvisoUnico = [];
   let timerAvisoUnico = null;
@@ -3654,7 +3721,7 @@
         _setItemNativo.call(localStorage, LOG_SINCRONIZADOS_KEY, JSON.stringify(somados));
         bufferItensParaAvisoUnico = [];
       }
-    }, 700);
+    }, 650);
   }
 
   async function adicionarItensNaFilaIndexedDB(filaArray) {
@@ -3700,7 +3767,6 @@
     } catch (e) {}
   }
 
-  // Com trava (verificandoBackgroundEmAndamento) para NUNCA ler duas vezes seguidas e não repetir o aviso!
   async function verificarSincronizacoesFeitasComAppFechado() {
     if (verificandoBackgroundEmAndamento) return false;
     verificandoBackgroundEmAndamento = true;
@@ -3785,20 +3851,37 @@
   // =========================================================================
   // 10. FILA OFFLINE COM ASSINATURA ÚNICA + CORREÇÃO DA CÉLULA B2 NO MAPEAMENTO
   // =========================================================================
-  function normalizarPayloadAntesDeEnviar(payloadObj) {
-    if (!payloadObj || typeof payloadObj !== 'object') return payloadObj;
-    // Impede que o campo PDT seja enviado como "ADMINISTRADOR" (o que viola a validação da célula B2 na planilha!)
-    if (payloadObj.action === 'salvarMapeamentoSala' && payloadObj.dados) {
-      const serieNorm = normalizarSeriePadraoCore(payloadObj.dados.serie || '');
-      const pdtAtual = String(payloadObj.dados.pdt || '').trim().toUpperCase();
-      if (!pdtAtual || pdtAtual === 'ADMINISTRADOR' || pdtAtual === 'USUÁRIO' || pdtAtual === 'USUARIO') {
-        const mapaPdt = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
-        if (mapaPdt[serieNorm]) {
-          payloadObj.dados.pdt = mapaPdt[serieNorm];
-        }
+  async function garantirPdtValidoAntesDeSalvarMapa(bodyObj) {
+    if (!bodyObj || bodyObj.action !== 'salvarMapeamentoSala' || !bodyObj.dados) return;
+    const serieNorm = normalizarSeriePadraoCore(bodyObj.dados.serie || '');
+    bodyObj.dados.serie = serieNorm;
+    let pdtAtual = String(bodyObj.dados.pdt || '').trim().toUpperCase();
+
+    let mapaPdt = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+    const mapasSalvos = JSON.parse(localStorage.getItem('cache_todos_mapas_salvos_v4') || '{}');
+    let pdtCorreto = mapaPdt[serieNorm] || (mapasSalvos[serieNorm] && mapasSalvos[serieNorm].pdt) || '';
+
+    if ((!pdtCorreto || pdtCorreto.includes('ADMIN') || pdtCorreto.includes('NÃO ATRIBUÍDO')) && navigator.onLine) {
+      const novoMapa = await buscarMapaPdtDiretoDoServidor();
+      pdtCorreto = novoMapa[serieNorm] || '';
+    }
+
+    if (!pdtAtual || pdtAtual.includes('ADMIN') || pdtAtual.includes('USUÁRIO') || pdtAtual.includes('USUARIO') || pdtAtual === '-') {
+      if (pdtCorreto && !pdtCorreto.includes('ADMIN') && !pdtCorreto.includes('NÃO ATRIBUÍDO')) {
+        bodyObj.dados.pdt = pdtCorreto;
       }
     }
-    return payloadObj;
+
+    const pdtFinal = bodyObj.dados.pdt || pdtCorreto;
+    if (pdtFinal && !pdtFinal.includes('ADMIN')) {
+      bodyObj.dados.pdt = pdtFinal;
+      bodyObj.dados.autor = pdtFinal;
+      bodyObj.usuarioLogado = pdtFinal;
+      const inpPdt = document.getElementById('mapPdtInput');
+      if (inpPdt) inpPdt.value = pdtFinal;
+      const badgePdt = document.getElementById('badgePdtAtivoMapa');
+      if (badgePdt) badgePdt.innerText = 'PDT: ' + pdtFinal;
+    }
   }
 
   function gerarAssinaturaUnicaPayload(payload) {
@@ -3842,7 +3925,6 @@
             }
           }
           if (payloadUnificado) {
-            normalizarPayloadAntesDeEnviar(payloadUnificado);
             const nomeAutor = obterNomeUsuarioLogadoCore();
             if (nomeAutor && !payloadUnificado.usuarioLogado) payloadUnificado.usuarioLogado = nomeAutor;
 
@@ -3868,7 +3950,6 @@
     const vistas = new Set();
     const filaSemDuplicatas = [];
     filaGlobal.forEach(item => {
-      normalizarPayloadAntesDeEnviar(item.payload);
       const ass = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
       if (!vistas.has(ass) && !assinaturasRecentementeEnviadas.has(ass)) {
         vistas.add(ass);
@@ -3914,7 +3995,9 @@
       let bodyObj = {};
       try {
         bodyObj = JSON.parse(options.body);
-        normalizarPayloadAntesDeEnviar(bodyObj);
+        if (bodyObj.action === 'salvarMapeamentoSala') {
+          await garantirPdtValidoAntesDeSalvarMapa(bodyObj);
+        }
         const nomeAutor = obterNomeUsuarioLogadoCore();
         if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
         options.body = JSON.stringify(bodyObj);
@@ -3992,7 +4075,13 @@
           }
         }).catch(() => {});
 
-        const textoOrdenado = await response.text();
+        let textoOrdenado = await response.text();
+        if (action === 'salvarMapeamentoSala' && textoOrdenado.includes('violam as regras de validação')) {
+          await garantirPdtValidoAntesDeSalvarMapa(bodyObj);
+          options.body = JSON.stringify(bodyObj);
+          const retryResp = await fetchComTimeoutSeguranca(url, options, 18000);
+          textoOrdenado = await retryResp.text();
+        }
         return new Response(ordenarRespostaEmOrdemAlfabetica(action, textoOrdenado), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
@@ -4020,7 +4109,6 @@
   };
 
   window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
-    normalizarPayloadAntesDeEnviar(payload);
     const fila = unificarFilasOfflineNoStorage();
     const assinatura = gerarAssinaturaUnicaPayload(payload);
 
@@ -4064,7 +4152,7 @@
         </div>
       `,
       showConfirmButton: false,
-      timer: 4500,
+      timer: 5000,
       timerProgressBar: true
     });
   }
@@ -4089,6 +4177,10 @@
         const item = fila.shift();
         _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
         await removerItemDaFilaIndexedDB(item.idFila);
+
+        if (item.payload && item.payload.action === 'salvarMapeamentoSala') {
+          await garantirPdtValidoAntesDeSalvarMapa(item.payload);
+        }
 
         const assItem = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
         if (assinaturasRecentementeEnviadas.has(assItem)) {
@@ -4185,8 +4277,6 @@
     unificarFilasOfflineNoStorage();
     atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
-    // Quando a janela está minimizada/oculta, manda o Service Worker enviar tudo;
-    // quando a janela está aberta na frente do usuário, sincroniza direto em 1 lote único!
     if (document.visibilityState === 'hidden' && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
     } else {
@@ -4240,6 +4330,7 @@
       setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 500);
     }
   });
+
   // =========================================================================
   // 11. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "LOGO-removebg-preview.png"!)
   // =========================================================================
