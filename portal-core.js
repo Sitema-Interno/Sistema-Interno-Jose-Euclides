@@ -2816,15 +2816,133 @@
     });
   }
 
+  // Memória de alta capacidade sincronizada com o IndexedDB (sem limite de 5 MB!)
+  window._cacheGrandeMemoriaEEMTI = window._cacheGrandeMemoriaEEMTI || {};
+
+  // Intercepta leituras do localStorage: se uma lista gigante ultrapassar os 5 MB do localStorage,
+  // entrega os 100% dos dados completos direto da memória/IndexedDB sem faltar 1 único registro!
+  const _getItemNativo = Storage.prototype.getItem;
+  Storage.prototype.getItem = function(chave) {
+    if (this === localStorage && window._cacheGrandeMemoriaEEMTI && window._cacheGrandeMemoriaEEMTI[chave]) {
+      return window._cacheGrandeMemoriaEEMTI[chave];
+    }
+    return _getItemNativo.call(this, chave);
+  };
+
   function salvarNoLocalStorageSeguro(chave, valorObj) {
+    const strJson = typeof valorObj === 'string' ? valorObj : JSON.stringify(valorObj);
+
+    // 1. Guarda sempre a versão 100% completa em memória e no IndexedDB (capacidade de Gigabytes)
+    window._cacheGrandeMemoriaEEMTI[chave] = strJson;
+    salvarFotoNoIndexedDB('CACHE_FULL_' + chave, strJson);
+
+    // 2. Grava também no localStorage tradicional (limpando chaves de requisição velhas se passar de 4,5 MB)
     try {
-      _setItemNativo.call(localStorage, chave, JSON.stringify(valorObj));
+      _setItemNativo.call(localStorage, chave, strJson);
     } catch (e) {
       liberarEspacoStorageAntigo();
-      try { _setItemNativo.call(localStorage, chave, JSON.stringify(valorObj)); } catch (e2) {}
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('cache_req_v3_') || k.startsWith('cache_rac_minhas_oco_')) {
+          localStorage.removeItem(k);
+        }
+      });
+      try { _setItemNativo.call(localStorage, chave, strJson); } catch (e2) {}
     }
   }
 
+  // Restaura todas as tabelas completas do IndexedDB assim que o app abre (mesmo em aparelhos simples)
+  async function restaurarCacheGrandeDoIndexedDB() {
+    const db = await abrirBancoSyncIDB();
+    if (!db || !db.objectStoreNames.contains('fotos_offline')) return;
+    return new Promise(resolve => {
+      try {
+        const tx = db.transaction('fotos_offline', 'readonly');
+        const req = tx.objectStore('fotos_offline').getAll();
+        req.onsuccess = () => {
+          (req.result || []).forEach(item => {
+            if (item && item.chave && item.chave.startsWith('CACHE_FULL_')) {
+              const nomeChaveOriginal = item.chave.replace('CACHE_FULL_', '');
+              if (typeof item.dados === 'string') {
+                window._cacheGrandeMemoriaEEMTI[nomeChaveOriginal] = item.dados;
+              }
+            }
+          });
+          resolve();
+        };
+        req.onerror = () => resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
+  // Solicita ao Android/Chrome proteção contra limpeza automática e mede o uso real de memória
+  window.diagnosticarCacheEEMTI = async function(exibirModal = false) {
+    let bytesLocalStorage = 0;
+    Object.keys(localStorage).forEach(k => {
+      const val = _getItemNativo.call(localStorage, k) || '';
+      bytesLocalStorage += (k.length + val.length) * 2;
+    });
+    const mbLocalStorage = (bytesLocalStorage / (1024 * 1024)).toFixed(2);
+    const percLocalStorage = Math.min(100, Math.round((bytesLocalStorage / (5 * 1024 * 1024)) * 100));
+
+    let mbIndexedDB = '0.00';
+    let quotaTotalMB = 'Ilimitado';
+    let persistenteAtivo = false;
+
+    if (navigator.storage && navigator.storage.persist) {
+      try { persistenteAtivo = await navigator.storage.persist(); } catch (e) {}
+    }
+    if (navigator.storage && navigator.storage.estimate) {
+      try {
+        const est = await navigator.storage.estimate();
+        if (est.usage) mbIndexedDB = (est.usage / (1024 * 1024)).toFixed(2);
+        if (est.quota) quotaTotalMB = Math.round(est.quota / (1024 * 1024)) + ' MB';
+      } catch (e) {}
+    }
+
+    const totalAlunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]').length;
+    const totalOco = JSON.parse(localStorage.getItem(KEY_TODAS_OCORRENCIAS_OFFLINE) || '[]').length;
+    const totalFotos = Object.keys(mapaFotosAlunosCacheMemoria).filter(k => k.startsWith('ALUNO_')).length;
+
+    const resumo = {
+      localStorageUsado: `${mbLocalStorage} MB / 5.00 MB (${percLocalStorage}%)`,
+      indexedDBUsado: `${mbIndexedDB} MB / Disponível no aparelho: ${quotaTotalMB}`,
+      protecaoAndroidPersistente: persistenteAtivo ? 'ATIVA' : 'PADRÃO',
+      alunosEmCache: totalAlunos,
+      ocorrenciasCompletasEmCache: totalOco,
+      fotos3x4EmCacheOffline: totalFotos
+    };
+
+    const selo = document.getElementById('seloTopoSyncBancoEEMTI');
+    if (selo) {
+      selo.title = `Cache Seguro (${ totalOco } CROs | ${ totalAlunos } Alunos | ${ totalFotos } Fotos 3x4) • Uso Local: ${ mbLocalStorage }MB | Banco Interno: ${ mbIndexedDB }MB`;
+    }
+
+    if (exibirModal && typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'info',
+        title: 'Diagnóstico de Memória e Cache Offline',
+        html: `
+          <div class="text-start small">
+            <p class="mb-1"><b>1. Cache Rápido (localStorage):</b> ${resumo.localStorageUsado}</p>
+            <p class="mb-1"><b>2. Banco Interno (IndexedDB):</b> ${resumo.indexedDBUsado}</p>
+            <p class="mb-2"><b>3. Blindagem contra exclusão:</b> <span class="badge bg-success">${resumo.protecaoAndroidPersistente}</span></p>
+            <hr class="my-2">
+            <p class="mb-1"><b>• Alunos Sincronizados:</b> ${totalAlunos}</p>
+            <p class="mb-1"><b>• Ocorrências (CRO) Completas:</b> ${totalOco} (100% desde Fev)</p>
+            <p class="mb-0"><b>• Fotos 3×4 Offline:</b> ${totalFotos}</p>
+          </div>
+        `,
+        confirmButtonColor: '#15438c'
+      });
+    }
+    return resumo;
+  };
+
+  setTimeout(() => {
+    restaurarCacheGrandeDoIndexedDB().then(() => window.diagnosticarCacheEEMTI(false));
+  }, 1500);
   // =========================================================================
   // 7. BANCO INDEXEDDB: FILA DE SYNC + CACHE DE FOTOS 3×4 OFFLINE
   // =========================================================================
@@ -3043,7 +3161,7 @@
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'getDadosMatricula' }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'PONTUACAO' }) }).then(r => r.json()).catch(() => null),
-        fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null),
+       _fetchNativo(API_PADRAO_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => null),
         fetchComTimeoutSeguranca(API_PADRAO_URL, { method: 'POST', body: JSON.stringify({ action: 'listarTodosMapeamentos' }) }).then(r => r.json()).catch(() => null)
       ]);
@@ -4740,47 +4858,128 @@
   }
 
   function ajustarLargurasTabelaHistoricoOcorrencias() {
-    document.querySelectorAll('table').forEach(tabela => {
-      const ths = Array.from(tabela.querySelectorAll('thead th')).filter(th => !th.classList.contains('col-oculta-eemti'));
-      if (ths.length === 4) {
-        const titulos = ths.map(t => (t.textContent || '').toUpperCase());
-        if (titulos.some(t => t.includes('OCORRÊNCIA')) && titulos.some(t => t.includes('OBSERVA'))) {
-          // Distribuição proporcional ajustável: Nº (5%) | DATA/HORA (15%) | OCORRÊNCIA (42%) | OBSERVAÇÕES (38%)
-          ths[0].style.setProperty('width', '5%', 'important');
-          ths[0].style.setProperty('white-space', 'nowrap', 'important');
+    const ehCelular = window.innerWidth <= 768;
 
-          ths[1].style.setProperty('width', '15%', 'important');
-          ths[1].style.setProperty('min-width', '125px', 'important');
-          ths[1].style.setProperty('white-space', 'nowrap', 'important');
-
-          ths[2].style.setProperty('width', '42%', 'important');
-          ths[2].style.setProperty('min-width', '210px', 'important');
-
-          ths[3].style.setProperty('width', '38%', 'important');
-          ths[3].style.setProperty('min-width', '200px', 'important');
-          ths[3].style.setProperty('text-align', 'left', 'important');
-
-          tabela.querySelectorAll('tbody tr').forEach(tr => {
-            const tdsVisiveis = Array.from(tr.children).filter(td => !td.classList.contains('col-oculta-eemti'));
-            if (tdsVisiveis.length === 4) {
-              tdsVisiveis[1].style.setProperty('white-space', 'nowrap', 'important');
-              tdsVisiveis[1].style.setProperty('width', '15%', 'important');
-              tdsVisiveis[2].style.setProperty('width', '42%', 'important');
-
-              const tdObs = tdsVisiveis[3];
-              const txtObs = (tdObs.textContent || '').trim();
-              tdObs.style.setProperty('width', '38%', 'important');
-              tdObs.style.setProperty('min-width', '190px', 'important');
-              tdObs.style.setProperty('line-height', '1.35', 'important');
-              tdObs.style.setProperty('padding', '8px 12px', 'important');
-              tdObs.style.setProperty('text-align', (txtObs === '-' || txtObs === '') ? 'center' : 'left', 'important');
-            }
-          });
+    // 1. No celular, organiza os cartões de Bimestre em grade de 2 por linha para leitura perfeita
+    if (ehCelular) {
+      document.querySelectorAll('.row.g-2 > div, .row.g-3 > div').forEach(col => {
+        const txt = (col.textContent || '').toUpperCase();
+        if (txt.includes('BIMESTRE') || txt.includes('TOTAL GERAL') || txt.includes('NO FILTRO')) {
+          col.style.setProperty('flex', '0 0 50%', 'important');
+          col.style.setProperty('max-width', '50%', 'important');
         }
+      });
+    }
+
+    // 2. Ajusta a tabela de Histórico de Ocorrências conforme o dispositivo (PC vs Celular)
+    document.querySelectorAll('table').forEach(tabela => {
+      const thsTodos = Array.from(tabela.querySelectorAll('thead th'));
+      const thObs = thsTodos.find(th => (th.textContent || '').toUpperCase().includes('OBSERVA'));
+      const thsVisiveis = thsTodos.filter(th => !th.classList.contains('col-oculta-eemti'));
+
+      if (!thObs) return;
+
+      if (ehCelular) {
+        // MODO CELULAR: Oculta a coluna lateral de Observações e exibe a Observação dentro da coluna de Ocorrência!
+        thObs.style.setProperty('display', 'none', 'important');
+
+        if (thsVisiveis.length >= 3) {
+          // Nº (8%) | DATA/HORA (24%) | OCORRÊNCIA + OBSERVAÇÃO (68%)
+          thsVisiveis[0].style.setProperty('width', '8%', 'important');
+          thsVisiveis[0].style.setProperty('min-width', '26px', 'important');
+
+          thsVisiveis[1].style.setProperty('width', '24%', 'important');
+          thsVisiveis[1].style.setProperty('min-width', '74px', 'important');
+          thsVisiveis[1].style.setProperty('white-space', 'normal', 'important');
+
+          thsVisiveis[2].style.setProperty('width', '68%', 'important');
+          thsVisiveis[2].style.setProperty('min-width', '0', 'important');
+        }
+
+        tabela.querySelectorAll('tbody tr').forEach(tr => {
+          const tds = Array.from(tr.children);
+          if (tds.length < 4) return;
+          const tdObs = tds[tds.length - 1];
+          const tdOco = tds.find(td => td.querySelector('.badge')) || tds[tds.length - 2];
+          const tdData = tds[1];
+
+          // Esconde a célula lateral de observação no celular
+          tdObs.style.setProperty('display', 'none', 'important');
+
+          // Formata data e hora em 2 linhas no celular para economizar espaço lateral
+          if (tdData && !tdData._eemtiDataMobFormatada) {
+            tdData._eemtiDataMobFormatada = true;
+            const partesData = (tdData.textContent || '').trim().split(/\s+/);
+            if (partesData.length === 2) {
+              tdData.innerHTML = `<div class="fw-bold">${partesData[0]}</div><div class="text-muted" style="font-size:0.62rem;">${partesData[1]}</div>`;
+            }
+          }
+
+          // Injeta a Observação dentro do card da Ocorrência no celular (se houver observação)
+          const txtObs = (tdObs.textContent || '').trim();
+          let boxObsMob = tdOco.querySelector('.box-obs-mobile-eemti');
+          if (txtObs && txtObs !== '-') {
+            if (!boxObsMob) {
+              boxObsMob = document.createElement('div');
+              boxObsMob.className = 'box-obs-mobile-eemti mt-1 p-1 rounded border-start border-3 border-warning bg-warning-subtle text-dark';
+              boxObsMob.style.cssText = 'font-size:0.68rem;line-height:1.28;text-align:left;word-break:break-word;';
+              tdOco.appendChild(boxObsMob);
+            }
+            const htmlEsperado = `<b>Obs.:</b> ${txtObs}`;
+            if (boxObsMob.innerHTML !== htmlEsperado) {
+              boxObsMob.innerHTML = htmlEsperado;
+            }
+          } else if (boxObsMob) {
+            boxObsMob.remove();
+          }
+        });
+      } else {
+        // MODO COMPUTADOR: Mostra as 4 colunas lado a lado com Observações ampla (38%)
+        thObs.style.removeProperty('display');
+
+        if (thsVisiveis.length >= 4) {
+          thsVisiveis[0].style.setProperty('width', '5%', 'important');
+          thsVisiveis[0].style.setProperty('white-space', 'nowrap', 'important');
+
+          thsVisiveis[1].style.setProperty('width', '15%', 'important');
+          thsVisiveis[1].style.setProperty('min-width', '125px', 'important');
+          thsVisiveis[1].style.setProperty('white-space', 'nowrap', 'important');
+
+          thsVisiveis[2].style.setProperty('width', '42%', 'important');
+          thsVisiveis[2].style.setProperty('min-width', '210px', 'important');
+
+          thsVisiveis[3].style.setProperty('width', '38%', 'important');
+          thsVisiveis[3].style.setProperty('min-width', '200px', 'important');
+          thsVisiveis[3].style.setProperty('text-align', 'left', 'important');
+        }
+
+        tabela.querySelectorAll('tbody tr').forEach(tr => {
+          const tds = Array.from(tr.children);
+          if (tds.length < 4) return;
+          const tdObs = tds[tds.length - 1];
+          tdObs.style.removeProperty('display');
+
+          // Remove o box mobile caso a pessoa redimensione a tela para PC
+          const boxObsMob = tr.querySelector('.box-obs-mobile-eemti');
+          if (boxObsMob) boxObsMob.remove();
+
+          const tdsVis = tds.filter(td => !td.classList.contains('col-oculta-eemti'));
+          if (tdsVis.length === 4) {
+            tdsVis[1].style.setProperty('white-space', 'nowrap', 'important');
+            tdsVis[1].style.setProperty('width', '15%', 'important');
+            tdsVis[2].style.setProperty('width', '42%', 'important');
+
+            const txtObs = (tdObs.textContent || '').trim();
+            tdObs.style.setProperty('width', '38%', 'important');
+            tdObs.style.setProperty('min-width', '190px', 'important');
+            tdObs.style.setProperty('line-height', '1.35', 'important');
+            tdObs.style.setProperty('padding', '8px 12px', 'important');
+            tdObs.style.setProperty('text-align', (txtObs === '-' || txtObs === '') ? 'center' : 'left', 'important');
+          }
+        });
       }
     });
   }
-
   function atualizarCardsETabelaHistoricoOcorrencias(bimsCache, todasOcoCache) {
     ajustarLargurasTabelaHistoricoOcorrencias();
 
