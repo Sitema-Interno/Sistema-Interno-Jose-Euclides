@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#15438c">
   <link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Análise Gráfica de Ocorrências - EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
-
+  <title>Gráfico e Relatório / Quantidade de Ocorrências (CRO) - EEMTI Dr. José Euclides</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <!-- Chart.js para os Gráficos -->
@@ -18,14 +16,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="portal-core.js"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@700&display=swap');
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #f4f7f6;
-      color: #333;
+      background-color: #f1f5f9;
+      color: #1e293b;
       display: flex;
       flex-direction: column;
       min-height: 100vh;
@@ -33,181 +30,320 @@
       position: relative;
     }
 
-    /* MARCA D'ÁGUA PADRONIZADA DO SITE */
-    .watermark-bg {
+    .watermark-brasao-fundo {
       position: fixed;
-      top: 50%;
+      top: 52%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 50vw;
-      max-width: 550px;
-      opacity: 0.08;
+      width: 48vw;
+      max-width: 520px;
+      opacity: 0.06;
       z-index: -1;
       pointer-events: none;
-      mix-blend-mode: multiply;
     }
 
-    /* CABEÇALHO PADRONIZADO DO SITE */
-    .navbar-custom {
-      background-color: rgba(255, 255, 255, 0.96);
-      padding: 15px 20px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    /* CABEÇALHO OFICIAL PADRONIZADO DO PORTAL */
+    .top-header {
+      background: #ffffff;
+      border-bottom: 3px solid #15438c;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
     }
 
-    .navbar-brand {
-      font-weight: 700;
-      font-size: 1.5rem;
-      color: #1e293b !important;
+    .brand-escola {
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 14px;
+      text-decoration: none;
     }
 
-    .sub-text {
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: #64748b;
-      margin-top: -3px;
-    }
-
-    .logo-escola {
-      height: 55px;
+    .brand-escola img {
+      height: 64px;
+      width: auto;
       object-fit: contain;
-      mix-blend-mode: multiply;
+    }
+
+    .brand-titulo-principal {
+      font-size: 1.55rem;
+      font-weight: 900;
+      color: #15438c;
+      letter-spacing: 0.5px;
+      line-height: 1.05;
+    }
+
+    .brand-subtitulo {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #334155;
+      letter-spacing: 0.3px;
+      margin-top: 2px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.2rem;
+      color: #0f766e;
+      margin-top: -2px;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 6px 14px;
+      border-radius: 50px;
     }
 
     .main-container {
-      padding: 30px 15px;
-      max-width: 1380px;
+      padding: 20px 16px 36px 16px;
+      max-width: 1440px;
       margin: 0 auto;
       width: 100%;
       flex: 1;
     }
 
-    /* CARTÕES PADRONIZADOS DO SITE */
-    .card {
-      border: none;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-      margin-bottom: 24px;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(5px);
-    }
-
-    .card-header-custom {
-      border-bottom: 1px solid #eaeaea;
-      padding-bottom: 14px;
-      margin-bottom: 18px;
+    /* BANNER TÍTULO ESTILO DASHBOARD DA IMAGEM */
+    .banner-titulo-dashboard {
+      background: #ffffff;
+      border: 2px solid #0f172a;
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 12px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
     }
 
-    .card-header-custom h5 {
-      font-size: 1.05rem;
-      font-weight: 700;
+    .banner-titulo-dashboard h2 {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #0f172a;
       margin: 0;
-      color: #1e293b;
-    }
-
-    .form-label {
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: #475569;
-      margin-bottom: 4px;
-    }
-
-    .form-control, .form-select {
-      border-radius: 8px;
-      border: 1px solid #ced4da;
-      padding: 8px 12px;
-      font-size: 0.88rem;
-    }
-
-    .form-control:focus, .form-select:focus {
-      border-color: #0f766e;
-      box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15);
-    }
-
-    .btn-tema {
-      background-color: #0f766e;
-      color: white;
-      border: none;
-      font-weight: 600;
-      border-radius: 8px;
-    }
-
-    .btn-tema:hover {
-      background-color: #0d645e;
-      color: white;
-    }
-
-    /* Indicadores Superiores */
-    .stat-card {
-      border-left: 4px solid #0f766e;
-      padding: 15px 18px;
-      border-radius: 12px;
-      background: #fff;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-    }
-
-    .stat-card.alunos { border-left-color: #2563eb; }
-    .stat-card.graves { border-left-color: #dc3545; }
-    .stat-card.grupos { border-left-color: #d97706; }
-
-    /* Áreas de rolagem e tabelas */
-    .tabela-scroll {
-      max-height: 350px;
-      overflow-y: auto;
-    }
-
-    .table th {
-      position: sticky;
-      top: 0;
-      background-color: #f8fafc;
-      border-bottom: 2px solid #e2e8f0;
-      color: #475569;
-      font-weight: 700;
-      font-size: 0.78rem;
+      letter-spacing: 0.4px;
       text-transform: uppercase;
-      z-index: 2;
     }
 
-    .table td {
-      vertical-align: middle;
-      font-size: 0.85rem;
-    }
-
-    .item-ocorrencia-barra {
-      cursor: pointer;
-      padding: 8px 10px;
+    /* CAIXA DESTAQUE TOTAL DE OCORRÊNCIAS (IGUAL À IMAGEM) */
+    .box-total-destaque {
+      background: #ffffff;
+      border: 2px solid #0f172a;
       border-radius: 8px;
-      border: 1px solid transparent;
-      transition: all 0.15s;
+      padding: 8px 18px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 250px;
     }
 
-    .item-ocorrencia-barra:hover {
-      background-color: #f0fdf4;
-      border-color: #cbd5e1;
+    .box-total-destaque .rotulo-total {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
     }
 
-    .item-ocorrencia-barra.selecionado {
-      background-color: #dcfce7;
-      border-color: #0f766e;
+    .box-total-destaque .valor-total {
+      font-size: 1.75rem;
+      font-weight: 900;
+      color: #15438c;
+      line-height: 1;
+    }
+
+    /* PAINEL DE FILTROS COMPLETO */
+    .card-filtros {
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    }
+
+    .form-label-filtro {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #1e293b;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .select-borda-forte, .input-borda-forte {
+      border: 1.5px solid #334155 !important;
+      border-radius: 7px !important;
+      font-size: 0.8rem !important;
+      font-weight: 600 !important;
+      padding: 6px 10px !important;
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+    }
+
+    .select-borda-forte:focus, .input-borda-forte:focus {
+      border-color: #15438c !important;
+      box-shadow: 0 0 0 3px rgba(21, 67, 140, 0.15) !important;
+    }
+
+    /* KPIs COMPLEMENTARES RÁPIDOS */
+    .kpi-mini-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-left: 4px solid #15438c;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .kpi-mini-card.graves { border-left-color: #dc2626; }
+    .kpi-mini-card.atrasos { border-left-color: #0284c7; }
+    .kpi-mini-card.alunos { border-left-color: #0f766e; }
+    .kpi-mini-card.profs { border-left-color: #d97706; }
+
+    /* AS 3 COLUNAS DE RANKING IGUAIS AO MODELO */
+    .box-ranking-pontilhado {
+      background: #ffffff;
+      border: 2px dotted #64748b;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      height: 430px;
+      overflow: hidden;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .header-ranking-azul {
+      background: #f8fafc;
+      border-bottom: 2px solid #cbd5e1;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: #15438c;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .corpo-ranking-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .tabela-ranking-modelo {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+    }
+
+    .tabela-ranking-modelo tr {
+      border-bottom: 1px solid #e2e8f0;
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+    }
+
+    .tabela-ranking-modelo tr:hover {
+      background-color: #eff6ff !important;
+    }
+
+    .tabela-ranking-modelo tr.linha-ativa-filtro {
+      background-color: #dbeafe !important;
+      font-weight: 800 !important;
+    }
+
+    .tabela-ranking-modelo td {
+      padding: 7px 10px;
+      font-size: 0.75rem;
+      color: #1e293b;
+      vertical-align: middle;
+      line-height: 1.25;
+    }
+
+    .tabela-ranking-modelo td.col-pos {
+      width: 32px;
+      text-align: center;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .tabela-ranking-modelo td.col-qtd {
+      width: 68px;
+      text-align: right;
+      font-weight: 800;
+      color: #0f172a;
+      padding-right: 14px;
+      white-space: nowrap;
+    }
+
+    .rodape-paginacao-ranking {
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    /* CONTAINER DO GRÁFICO DE SÉRIES E DEMAIS GRÁFICOS */
+    .box-grafico-pontilhado {
+      background: #ffffff;
+      border: 2px dotted #64748b;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .titulo-secao-grafico {
+      font-size: 1.02rem;
+      font-weight: 900;
+      color: #0f172a;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip-filtro-ativo {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #15438c;
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 50px;
+      cursor: pointer;
     }
 
     .footer-custom {
       text-align: center;
-      padding: 20px;
-      font-size: 0.85rem;
+      padding: 16px;
+      font-size: 0.8rem;
       color: #64748b;
-      border-top: 1px solid rgba(0, 0, 0, 0.05);
-      background: rgba(255, 255, 255, 0.8);
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
     }
   </style>
-
   <script>
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!usuarioLogado) window.location.href = 'login.html';
@@ -215,206 +351,327 @@
 </head>
 <body>
 
-  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
 
-  <!-- CABEÇALHO PADRONIZADO -->
-  <nav class="navbar navbar-custom">
-    <div class="container-fluid max-w-1380 mx-auto">
-      <span class="navbar-brand">
-        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
-        <div>
-          Análise Gráfica de Ocorrências
-          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
-        </div>
-      </span>
-      <div class="d-flex align-items-center gap-3">
-        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
-          <i class="bi bi-person-circle me-1"></i>A carregar...
-        </span>
-        <button class="btn btn-danger btn-sm fw-bold rounded-pill px-3 shadow-sm" onclick="gerarPdfPainelGrafico()">
-          <i class="bi bi-file-earmark-pdf-fill me-1"></i> Baixar PDF Analítico
-        </button>
-        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
-          <i class="bi bi-house-door-fill me-1"></i> Início
-        </a>
+  <!-- CABEÇALHO OFICIAL PADRONIZADO -->
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="brasaoestado.png" id="logoEscola" alt="Brasão do Ceará" onerror="this.src='LOGO-removebg-preview.png'">
+      <div>
+        <div class="brand-titulo-principal">JOSÉ EUCLIDES</div>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
       </div>
+    </a>
+
+    <div class="user-bar">
+      <span class="fw-bold text-dark small" id="nomeUsuarioUi">
+        <i class="bi bi-person-circle text-primary me-1"></i>Olá, Usuário
+      </span>
+      <span class="badge bg-primary rounded-pill" id="perfilUsuarioUi">Gestão</span>
+      <button type="button" class="btn btn-danger btn-sm rounded-pill px-3 fw-bold" onclick="gerarPdfPainelGrafico()">
+        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF Analítico
+      </button>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
     </div>
-  </nav>
+  </header>
 
   <div class="main-container">
 
-    <!-- CARDS DE INDICADORES RÁPIDOS -->
-    <div class="row g-3 mb-4">
-      <div class="col-6 col-md-3">
-        <div class="stat-card">
-          <span class="text-muted small fw-semibold d-block">Total de Ocorrências</span>
-          <h3 class="fw-bold m-0 text-dark" id="kpiTotalOcorrencias">0</h3>
+    <!-- FAIXA DE TÍTULO + CAIXA TOTAL DE OCORRÊNCIAS (MODELO DA FOTO) -->
+    <div class="banner-titulo-dashboard">
+      <div>
+        <h2><i class="bi bi-bar-chart-line-fill text-primary me-2"></i>GRÁFICO E RELATÓRIO / QUANTIDADE DE OCORRÊNCIAS</h2>
+        <div class="text-muted small fw-semibold mt-1">
+          Painel Interativo CRO • Clique em qualquer Professor, Ocorrência ou Aluno nas tabelas abaixo para cruzar os dados instantaneamente.
         </div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card alunos">
-          <span class="text-muted small fw-semibold d-block">Alunos com Registros</span>
-          <h3 class="fw-bold m-0 text-primary" id="kpiTotalAlunos">0</h3>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card graves">
-          <span class="text-muted small fw-semibold d-block">Graves / Gravíssimas</span>
-          <h3 class="fw-bold m-0 text-danger" id="kpiTotalGraves">0</h3>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card grupos">
-          <span class="text-muted small fw-semibold d-block">Tipos de Ocorrências</span>
-          <h3 class="fw-bold m-0 text-warning" id="kpiTotalTipos">0</h3>
-        </div>
+      <div class="box-total-destaque">
+        <span class="rotulo-total">TOTAL DE OCORRÊNCIAS:</span>
+        <span class="valor-total" id="kpiTotalOcorrencias">0</span>
       </div>
     </div>
 
-    <!-- PAINEL DE FILTROS COMPLETO (SÉRIE, BIMESTRE, GRAVIDADE, GRUPO, PROFESSOR E ALUNO) -->
-    <div class="card p-4">
-      <div class="card-header-custom">
-        <h5><i class="bi bi-funnel-fill text-primary me-2"></i>Filtros de Pesquisa e Cruzamento de Dados</h5>
-        <button class="btn btn-outline-secondary btn-sm fw-semibold" onclick="limparFiltros()">
-          <i class="bi bi-eraser-fill me-1"></i>Limpar Todos os Filtros
-        </button>
+    <!-- TODOS OS FILTROS POSSÍVEIS -->
+    <div class="card-filtros">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="fw-bolder text-dark small text-uppercase">
+            <i class="bi bi-funnel-fill text-primary me-1"></i>Filtros de Pesquisa e Período:
+          </span>
+          <div id="containerChipsFiltrosAtivos" class="d-flex gap-1 flex-wrap"></div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="recarregarDadosAoVivoDaPlanilha()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Atualizar Dados
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="limparFiltros()">
+            <i class="bi bi-eraser-fill me-1"></i>Limpar Todos os Filtros
+          </button>
+        </div>
       </div>
 
-      <div class="row g-3">
-        <div class="col-12 col-sm-6 col-md-2">
-          <label class="form-label">Série / Turma</label>
-          <select id="filtroSerie" class="form-select" onchange="aplicarFiltros()">
+      <div class="row g-2">
+        <!-- 1. Semestre -->
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label-filtro">Semestre Letivo</label>
+          <select id="filtroSemestre" class="form-select select-borda-forte" onchange="aplicarFiltros()">
+            <option value="">Ano Inteiro (1º e 2º Sem)</option>
+            <option value="1">1º Semestre (1º e 2º Bim)</option>
+            <option value="2">2º Semestre (3º e 4º Bim)</option>
+          </select>
+        </div>
+
+        <!-- 2. Bimestre -->
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label-filtro">Bimestre</label>
+          <select id="filtroBimestre" class="form-select select-borda-forte" onchange="aplicarFiltros()">
+            <option value="">Todos os Bimestres</option>
+            <option value="1">1º Bimestre</option>
+            <option value="2">2º Bimestre</option>
+            <option value="3">3º Bimestre</option>
+            <option value="4">4º Bimestre</option>
+          </select>
+        </div>
+
+        <!-- 3. Data Inicial -->
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label-filtro">Período (Data Inicial)</label>
+          <input type="date" id="filtroDataInicio" class="form-control input-borda-forte" onchange="aplicarFiltros()">
+        </div>
+
+        <!-- 4. Data Final -->
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label-filtro">Período (Data Final)</label>
+          <input type="date" id="filtroDataFim" class="form-control input-borda-forte" onchange="aplicarFiltros()">
+        </div>
+
+        <!-- 5. Série / Turma -->
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label-filtro">Série / Turma</label>
+          <select id="filtroSerie" class="form-select select-borda-forte" onchange="aplicarFiltros()">
             <option value="">Todas as Séries</option>
           </select>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-2">
-          <label class="form-label">Bimestre / Período</label>
-          <select id="filtroBimestre" class="form-select" onchange="aplicarFiltros()">
-            <option value="">Todos os Bimestres</option>
-          </select>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-2">
-          <label class="form-label">Gravidade</label>
-          <select id="filtroGravidade" class="form-select" onchange="aplicarFiltros()">
-            <option value="">Todas as Gravidades</option>
-          </select>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-2">
-          <label class="form-label">Grupo da Ocorrência</label>
-          <select id="filtroGrupo" class="form-select" onchange="aplicarFiltros()">
+        <!-- 6. Grupo (Pedagógica / Gestão) -->
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label-filtro">Grupo da Ocorrência</label>
+          <select id="filtroGrupo" class="form-select select-borda-forte" onchange="aplicarFiltros()">
             <option value="">Todos os Grupos</option>
           </select>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-2">
-          <label class="form-label">Professor(a)</label>
-          <select id="filtroProfessor" class="form-select" onchange="aplicarFiltros()">
-            <option value="">Todos os Professores</option>
+        <!-- 7. Gravidade / Classificação CRO -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label-filtro">Gravidade / Regra CRO</label>
+          <select id="filtroGravidade" class="form-select select-borda-forte" onchange="aplicarFiltros()">
+            <option value="">Todas as Gravidades</option>
+            <option value="TIPO_LEVE">GRAU I — Ocorrências Leves</option>
+            <option value="TIPO_ATRASO">GRAU 0 — Chegada Atrasada no Início da Aula</option>
+            <option value="TIPO_GRAVE">GRAU II — Ocorrências Graves ([GRAVE])</option>
           </select>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-2">
-          <label class="form-label">Aluno / Ocorrência</label>
-          <input type="text" id="filtroBuscaTexto" list="datalistBusca" class="form-control" placeholder="Digite nome ou tipo..." oninput="aplicarFiltros()">
-          <datalist id="datalistBusca"></datalist>
+        <!-- 8. Funcionário / Professor -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label-filtro">Funcionário / Professor(a)</label>
+          <select id="filtroProfessor" class="form-select select-borda-forte" onchange="aplicarFiltros()">
+            <option value="">Todos os Funcionários / Professores</option>
+          </select>
+        </div>
+
+        <!-- 9. Ocorrência Específica -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label-filtro">Tipo de Ocorrência (CRO)</label>
+          <select id="filtroOcorrenciaSelect" class="form-select select-borda-forte" onchange="aplicarFiltros()">
+            <option value="">Todas as Ocorrências</option>
+          </select>
+        </div>
+
+        <!-- 10. Pesquisa por Aluno ou Palavra-Chave -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label-filtro">Pesquisar Aluno(a) / Observação</label>
+          <input type="text" id="filtroBuscaTexto" list="datalistAlunosGrafico" class="form-control input-borda-forte" placeholder="Digite o nome do aluno ou texto..." oninput="aplicarFiltros()">
+          <datalist id="datalistAlunosGrafico"></datalist>
         </div>
       </div>
     </div>
 
-    <!-- LINHA 1: OCORRÊNCIAS APLICADAS (ESQUERDA) + TABELA DETALHADA DE ALUNOS (DIREITA) -->
-    <div class="row g-4 mb-2">
-      <!-- Coluna Esquerda: Ranking de Tipos de Ocorrências -->
-      <div class="col-12 col-lg-5">
-        <div class="card p-4 h-100">
-          <div class="card-header-custom">
-            <h5><i class="bi bi-list-ol text-success me-2"></i>Ocorrências Aplicadas</h5>
-            <small class="text-muted">Clique num item para filtrar</small>
+    <!-- MINI INDICADORES COMPLEMENTARES -->
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card alunos">
+          <div>
+            <div class="text-muted fw-bold" style="font-size:0.68rem;text-transform:uppercase;">Alunos com Registros</div>
+            <div class="fw-bolder fs-5 text-dark" id="kpiTotalAlunos">0</div>
           </div>
-          <div class="tabela-scroll pe-1" id="containerRankingOcorrencias">
-            <div class="text-center text-muted py-5">Carregando ocorrências...</div>
-          </div>
+          <i class="bi bi-people-fill fs-3 text-success opacity-75"></i>
         </div>
       </div>
-
-      <!-- Coluna Direita: Tabela Aluno, Série, Grupo/Observação e Qtd. Ocorrências -->
-      <div class="col-12 col-lg-7">
-        <div class="card p-4 h-100">
-          <div class="card-header-custom">
-            <h5><i class="bi bi-people-fill text-primary me-2"></i>Detalhamento por Aluno e Observações</h5>
-            <span class="badge bg-secondary" id="badgeAlunosCount">0 alunos</span>
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card profs">
+          <div>
+            <div class="text-muted fw-bold" style="font-size:0.68rem;text-transform:uppercase;">Professores / Servidores</div>
+            <div class="fw-bolder fs-5 text-dark" id="kpiTotalProfessores">0</div>
           </div>
-          <div class="tabela-scroll">
-            <table class="table table-hover table-striped align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style="width: 28%;">Aluno</th>
-                  <th style="width: 13%;" class="text-center">Série</th>
-                  <th style="width: 45%;">Ocorrências / Grupo / Observação</th>
-                  <th style="width: 14%;" class="text-center">Qtd.</th>
-                </tr>
-              </thead>
-              <tbody id="tbodyAlunosOcorrencias">
-                <tr><td colspan="4" class="text-center text-muted py-5">Sincronizando banco de dados...</td></tr>
+          <i class="bi bi-person-Vcard-fill fs-3 text-warning opacity-75"></i>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card atrasos">
+          <div>
+            <div class="text-muted fw-bold" style="font-size:0.68rem;text-transform:uppercase;">Atrasos Início da Aula</div>
+            <div class="fw-bolder fs-5 text-primary" id="kpiTotalAtrasos">0</div>
+          </div>
+          <i class="bi bi-clock-history fs-3 text-info opacity-75"></i>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-mini-card graves">
+          <div>
+            <div class="text-muted fw-bold" style="font-size:0.68rem;text-transform:uppercase;">Ocorrências Graves (Grau II)</div>
+            <div class="fw-bolder fs-5 text-danger" id="kpiTotalGraves">0</div>
+          </div>
+          <i class="bi bi-exclamation-octagon-fill fs-3 text-danger opacity-75"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- AS 3 TABELAS DE RANKING LADO A LADO (FIEL À FOTO ENVIADA) -->
+    <div class="row g-3 mb-4">
+      <!-- COLUNA 1: FUNCIONÁRIO / PROFESSOR | Nº DE OCORRÊNCIAS -->
+      <div class="col-12 col-lg-4">
+        <div class="box-ranking-pontilhado">
+          <div class="header-ranking-azul">
+            <span>FUNCIONÁRIO / PROFESSOR</span>
+            <span>Nº DE OCORRÊNCIAS</span>
+          </div>
+          <div class="corpo-ranking-scroll">
+            <table class="tabela-ranking-modelo">
+              <tbody id="tbodyRankingProfessores">
+                <tr><td colspan="3" class="text-center text-muted py-5">Carregando ranking...</td></tr>
               </tbody>
             </table>
           </div>
+          <div class="rodape-paginacao-ranking">
+            <span class="text-muted">Clique no professor para filtrar</span>
+            <span id="contadorRodapeProfs">0 registros</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUNA 2: OCORRÊNCIAS | Nº DE OCORRÊNCIAS -->
+      <div class="col-12 col-lg-4">
+        <div class="box-ranking-pontilhado">
+          <div class="header-ranking-azul">
+            <span>OCORRÊNCIAS</span>
+            <span>Nº DE OCORRÊNCIAS</span>
+          </div>
+          <div class="corpo-ranking-scroll">
+            <table class="tabela-ranking-modelo">
+              <tbody id="tbodyRankingOcorrencias">
+                <tr><td colspan="3" class="text-center text-muted py-5">Carregando ocorrências...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="rodape-paginacao-ranking">
+            <span class="text-muted">Clique na ocorrência para filtrar</span>
+            <span id="contadorRodapeOcos">0 tipos</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUNA 3: RANKING ALUNOS POR QTD DE OCORRÊNCIAS -->
+      <div class="col-12 col-lg-4">
+        <div class="box-ranking-pontilhado">
+          <div class="header-ranking-azul">
+            <span>RANKING ALUNOS POR QTD DE OCORRÊNCIAS</span>
+            <span>QTD</span>
+          </div>
+          <div class="corpo-ranking-scroll">
+            <table class="tabela-ranking-modelo">
+              <tbody id="tbodyRankingAlunos">
+                <tr><td colspan="3" class="text-center text-muted py-5">Carregando alunos...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="rodape-paginacao-ranking">
+            <span class="text-muted">Clique no aluno para filtrar</span>
+            <span id="contadorRodapeAlunos">0 alunos</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- LINHA 2: GRÁFICOS (POR SÉRIE, POR BIMESTRE E POR GRAVIDADE/GRUPO) -->
-    <div class="row g-4">
-      <!-- Coluna Esquerda: Total por Série + Evolução por Bimestre -->
-      <div class="col-12 col-lg-8">
-        <div class="card p-4">
-          <div class="card-header-custom">
-            <h5><i class="bi bi-bar-chart-fill text-success me-2"></i>Total de Ocorrências por Série</h5>
-          </div>
-          <div style="height: 260px; position: relative;">
-            <canvas id="chartPorSerie"></canvas>
-          </div>
-        </div>
+    <!-- GRÁFICO PRINCIPAL: TOTAL DE OCORRÊNCIAS POR SÉRIE (FIEL À FOTO ENVIADA) -->
+    <div class="box-grafico-pontilhado">
+      <div class="titulo-secao-grafico">
+        <span><i class="bi bi-bar-chart-fill text-primary me-2"></i>TOTAL DE OCORRÊNCIAS POR SÉRIE</span>
+        <span class="badge bg-light text-dark border fw-bold">Ordenado por volume de ocorrências</span>
+      </div>
+      <div style="height: 310px; position: relative;">
+        <canvas id="chartPorSerie"></canvas>
+      </div>
+    </div>
 
-        <div class="card p-4 mb-0">
-          <div class="card-header-custom">
-            <h5><i class="bi bi-calendar-range-fill text-primary me-2"></i>Evolução das Ocorrências por Bimestre</h5>
-            <span class="badge bg-light text-dark border">Agrupado pelos períodos da aba BIMESTRE</span>
+    <!-- LINHA COMPLEMENTAR: EVOLUÇÃO POR BIMESTRE + GRAVIDADE/GRUPO + DETALHAMENTO -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-lg-7">
+        <div class="box-grafico-pontilhado h-100 mb-0">
+          <div class="titulo-secao-grafico">
+            <span><i class="bi bi-calendar-range-fill text-primary me-2"></i>EVOLUÇÃO POR BIMESTRE LETIVO</span>
+            <span class="badge bg-primary-subtle text-primary">1º ao 4º Bimestre</span>
           </div>
-          <div style="height: 260px; position: relative;">
+          <div style="height: 250px; position: relative;">
             <canvas id="chartPorBimestre"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- Coluna Direita: Distribuição por Gravidade + Distribuição por Grupo -->
-      <div class="col-12 col-lg-4">
-        <div class="card p-4 h-100 d-flex flex-column justify-content-between">
-          <div>
-            <div class="card-header-custom">
-              <h5><i class="bi bi-pie-chart-fill text-danger me-2"></i>Por Gravidade</h5>
-            </div>
-            <div style="height: 220px; position: relative;">
-              <canvas id="chartGravidade"></canvas>
-            </div>
+      <div class="col-12 col-lg-5">
+        <div class="box-grafico-pontilhado h-100 mb-0">
+          <div class="titulo-secao-grafico">
+            <span><i class="bi bi-pie-chart-fill text-danger me-2"></i>DISTRIBUIÇÃO POR GRAVIDADE E GRUPO</span>
           </div>
-
-          <div class="border-top pt-3 mt-3">
-            <h6 class="fw-bold text-dark small text-uppercase mb-2">
-              <i class="bi bi-diagram-3-fill text-warning me-1"></i>Ocorrências por Grupo
-            </h6>
-            <div id="listaResumoGrupos" class="small"></div>
-          </div>
-
-          <div class="border-top pt-3 mt-3">
-            <h6 class="fw-bold text-dark small text-uppercase mb-2">
-              <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>Top 5 Alunos no Filtro Atual
-            </h6>
-            <div id="listaTop5Alunos" class="small"></div>
+          <div class="row align-items-center">
+            <div class="col-12 col-sm-6">
+              <div style="height: 210px; position: relative;">
+                <canvas id="chartGravidade"></canvas>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6">
+              <div class="fw-bold text-secondary small text-uppercase mb-2">Por Grupo (Pedagógica / Gestão)</div>
+              <div id="listaResumoGrupos" class="small"></div>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- TABELA DE AUDITORIA DETALHADA DOS REGISTROS FILTRADOS -->
+    <div class="box-grafico-pontilhado mb-0">
+      <div class="titulo-secao-grafico">
+        <span><i class="bi bi-card-list text-primary me-2"></i>RELAÇÃO DETALHADA DE ALUNOS E OBSERVAÇÕES NO FILTRO ATUAL</span>
+        <span class="badge bg-secondary" id="badgeAlunosDetalheCount">0 alunos listados</span>
+      </div>
+      <div style="max-height: 360px; overflow-y: auto;">
+        <table class="table table-hover table-striped align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width: 5%;">#</th>
+              <th style="width: 26%;">ALUNO(A)</th>
+              <th style="width: 11%;" class="text-center">SÉRIE</th>
+              <th style="width: 48%;">ÚLTIMAS OCORRÊNCIAS E OBSERVAÇÕES NO FILTRO</th>
+              <th style="width: 10%;" class="text-center">QTD.</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAlunosOcorrencias">
+            <tr><td colspan="5" class="text-center text-muted py-4">Carregando...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -427,389 +684,561 @@
   <script>
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
 
-    // URL DO SISTEMA EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR
     const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
+
+    const SERIES_OFICIAIS_8 = [
+      "1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C",
+      "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C",
+      "3ª SÉRIE A", "3ª SÉRIE B"
+    ];
 
     let todasOcorrencias = [];
     let ocorrenciasFiltradas = [];
     let listaBimestres = [];
     let mapaGrupoPorOcorrencia = {};
+
+    // Filtros rápidos acionados ao clicar nas 3 tabelas de ranking
+    let professorClicadoFiltro = "";
     let ocorrenciaClicadaFiltro = "";
+    let alunoClicadoFiltro = "";
 
     let chartSerieInstance = null;
     let chartBimestreInstance = null;
     let chartGravidadeInstance = null;
 
-    function extrairTimestampSeguro(dataStr) {
-      if (!dataStr) return { ts: 0, br: "-" };
-      let s = String(dataStr).trim();
+    // Plugin customizado do Chart.js para desenhar os números dentro/acima das barras igual à imagem!
+    const pluginRotulosNasBarras = {
+      id: 'pluginRotulosNasBarras',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        chart.data.datasets.forEach((dataset, i) => {
+          if (dataset.type === 'line') return;
+          const meta = chart.getDatasetMeta(i);
+          if (meta.hidden) return;
+          meta.data.forEach((bar, index) => {
+            const valor = dataset.data[index];
+            if (!valor || valor <= 0) return;
+            const texto = Number(valor).toLocaleString('pt-BR');
+            ctx.font = '800 11.5px Inter, sans-serif';
+            ctx.textAlign = 'center';
 
-      if (s.includes('/')) {
-        let partes = s.split(' ')[0].split('/');
-        if (partes.length === 3) {
-          let dia = partes[0].padStart(2, '0');
-          let mes = partes[1].padStart(2, '0');
-          let ano = partes[2].length === 2 ? "20" + partes[2] : partes[2];
-          let d = new Date(Number(ano), Number(mes) - 1, Number(dia), 12, 0, 0);
-          if (!isNaN(d.getTime())) {
-            return { ts: d.getTime(), br: `${dia}/${mes}/${ano}` };
+            const alturaBarra = Math.abs(bar.base - bar.y);
+            if (alturaBarra >= 26) {
+              // Desenha dentro do topo da barra (igual ao modelo enviado)
+              ctx.fillStyle = '#1e293b';
+              ctx.fillText(texto, bar.x, bar.y + 15);
+            } else {
+              // Se a barra for baixinha, desenha logo acima dela
+              ctx.fillStyle = '#15438c';
+              ctx.fillText(texto, bar.x, bar.y - 6);
+            }
+          });
+        });
+        ctx.restore();
+      }
+    };
+
+    function normalizarSerieGrafico(s) {
+      let str = String(s || "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+      const m = str.match(/^([123])[ºª°oA]?\s*(?:ANO|SÉRIE|SERIE)?\s*([A-Z0-9].*)$/i);
+      return m ? `${m[1]}ª SÉRIE ${m[2].trim()}` : str;
+    }
+
+    function extrairTimestampSeguro(dataStr) {
+      if (!dataStr) return { ts: 0, br: "-", iso: "" };
+      let s = String(dataStr).trim();
+      const mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (mBr) {
+        let dia = mBr[1].padStart(2, '0');
+        let mes = mBr[2].padStart(2, '0');
+        let ano = mBr[3];
+        let d = new Date(Number(ano), Number(mes) - 1, Number(dia), 12, 0, 0);
+        if (!isNaN(d.getTime())) {
+          return { ts: d.getTime(), br: `${dia}/${mes}/${ano}`, iso: `${ano}-${mes}-${dia}` };
+        }
+      }
+      const mIso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (mIso) {
+        let ano = mIso[1];
+        let mes = mIso[2].padStart(2, '0');
+        let dia = mIso[3].padStart(2, '0');
+        let d = new Date(Number(ano), Number(mes) - 1, Number(dia), 12, 0, 0);
+        if (!isNaN(d.getTime())) {
+          return { ts: d.getTime(), br: `${dia}/${mes}/${ano}`, iso: `${ano}-${mes}-${dia}` };
+        }
+      }
+      return { ts: 0, br: s, iso: "" };
+    }
+
+    function identificarNumBimestreData(ts) {
+      if (!ts) return 0;
+      if (listaBimestres.length > 0) {
+        for (let i = 0; i < listaBimestres.length; i++) {
+          const b = listaBimestres[i];
+          if (b.tsIni > 0 && b.tsFim > 0 && ts >= b.tsIni && ts <= b.tsFim) {
+            return b.num;
           }
         }
       }
-
-      let d = new Date(s);
-      if (!isNaN(d.getTime())) {
-        let dia = String(d.getDate()).padStart(2, '0');
-        let mes = String(d.getMonth() + 1).padStart(2, '0');
-        let ano = d.getFullYear();
-        return { ts: d.getTime(), br: `${dia}/${mes}/${ano}` };
-      }
-      return { ts: 0, br: s };
+      const dt = new Date(ts);
+      const mes = dt.getMonth() + 1;
+      const dia = dt.getDate();
+      if (mes < 4 || (mes === 4 && dia <= 18)) return 1;
+      if (mes < 7 || (mes === 7 && dia <= 15)) return 2;
+      if (mes < 10 || (mes === 10 && dia <= 7)) return 3;
+      return 4;
     }
 
-    function parseDataBimestre(dataStr, isFim) {
-      if (!dataStr) return 0;
-      let s = String(dataStr).trim();
-      if (s.includes('-')) {
-        let p = s.split('T')[0].split('-');
-        if (p.length === 3) return new Date(p[0], p[1] - 1, p[2], isFim ? 23 : 0, isFim ? 59 : 0, isFim ? 59 : 0).getTime();
+    function classificarTipoCro(desc, grav) {
+      const d = String(desc || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      const g = String(grav || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      if (d.includes("[GRAVE]") || g.includes("GRAU II") || g.includes("GRAVISSIMA") || g.includes("MAIS GRAVES")) {
+        return "TIPO_GRAVE";
       }
-      if (s.includes('/')) {
-        let p = s.split(' ')[0].split('/');
-        if (p.length === 3) return new Date(p[2], p[1] - 1, p[0], isFim ? 23 : 0, isFim ? 59 : 0, isFim ? 59 : 0).getTime();
+      if (d.includes("CHEGOU ATRASADO NO INICIO DA AULA") || d.includes("CHEGADA ATRASADA NO INICIO DA AULA") || g.includes("GRAU 0")) {
+        return "TIPO_ATRASO";
       }
-      return new Date(s).getTime();
+      return "TIPO_LEVE";
     }
 
-    function descobrirBimestreDaData(timestamp) {
-      if (!timestamp || listaBimestres.length === 0) return "Fora do Bimestre";
-      const bim = listaBimestres.find(b => timestamp >= b.tsIni && timestamp <= b.tsFim);
-      return bim ? bim.nome : "Outros Períodos";
+    function ehValorNuloOuInvalido(txt) {
+      const s = String(txt || "").trim().toUpperCase();
+      return !s || s === "NULL" || s === "UNDEFINED" || s === "NAN" || s === "-" || s === "NÃO INFORMADO" || s === "NÃO INFORMADA";
     }
 
     window.onload = async function() {
       const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
       if (u) {
-        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "Usuário").toUpperCase();
-        const elUser = document.getElementById('nomeUsuarioUi');
-        if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "USUÁRIO").toUpperCase();
+        let perm = (u.permissao || u.perfil || "Professor");
+        document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle text-primary me-1"></i>Olá, ${nomeProf}`;
+        document.getElementById('perfilUsuarioUi').innerText = perm;
       }
 
+      await carregarDadosPainelGrafico(false);
+    };
+
+    async function recarregarDadosAoVivoDaPlanilha() {
+      await carregarDadosPainelGrafico(true);
+    }
+
+    async function carregarDadosPainelGrafico(forcarServidor = false) {
       Swal.fire({
-        title: 'Sincronizando Análise Gráfica...',
-        text: 'Carregando ocorrências, bimestres, grupos e professores...',
+        title: 'Carregando Painel Analítico CRO...',
+        text: 'Processando ocorrências, professores, séries e alunos...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
 
       try {
-        const [resOco, resCat, resSeries, resBim, resProfs] = await Promise.all([
-          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json()),
-          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => ({ ocorrencias: [] })),
-          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json()).catch(() => ({ lista: [] })),
-          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json()).catch(() => ({ lista: [] })),
-          fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getProfessores' }) }).then(r => r.json()).catch(() => [])
+        // Se já houver cache local e não for forçado, carrega instantaneamente e atualiza em segundo plano
+        const [resOco, resCat, resBim] = await Promise.all([
+          fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } })
+          }).then(r => r.json()).catch(() => []),
+          fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getFiltrosOcorrencias' })
+          }).then(r => r.json()).catch(() => ({ ocorrencias: [] })),
+          fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' })
+          }).then(r => r.json()).catch(() => ({ lista: [] }))
         ]);
 
-        // 1. Configura os Bimestres (para o filtro e para o Gráfico por Bimestre)
         if (resBim && Array.isArray(resBim.lista)) {
-          listaBimestres = resBim.lista.map(b => ({
-            nome: String(b.col1 || "").trim(),
-            tsIni: parseDataBimestre(b.col2, false),
-            tsFim: parseDataBimestre(b.col3, true)
-          })).filter(b => b.nome !== "");
+          listaBimestres = resBim.lista.map((b, idx) => {
+            const nome = String(b.col1 || b.nome || "").trim();
+            const mNum = nome.match(/([1234])/);
+            const num = mNum ? parseInt(mNum[1], 10) : (idx + 1);
+            const dI = extrairTimestampSeguro(b.col2 || b.inicioIso);
+            const dF = extrairTimestampSeguro(b.col3 || b.fimIso);
+            return {
+              num: num,
+              nome: `${num}º Bimestre`,
+              tsIni: dI.ts > 0 ? new Date(dI.ts).setHours(0, 0, 0, 0) : 0,
+              tsFim: dF.ts > 0 ? new Date(dF.ts).setHours(23, 59, 59, 999) : 0
+            };
+          }).sort((a, b) => a.num - b.num);
         }
 
-        // 2. Mapeia cada Ocorrência ao seu Grupo (da aba OCORRÊNCIAS: Coluna C)
-        let gruposSet = new Set();
+        let gruposSet = new Set(["OCORRÊNCIA PEDAGÓGICA", "OCORRÊNCIA DE GESTÃO"]);
         if (resCat && Array.isArray(resCat.ocorrencias)) {
           resCat.ocorrencias.forEach(item => {
             let desc = String(item.descricao || "").trim().toUpperCase();
-            let grp = String(item.grupo || "GERAL").trim().toUpperCase();
-            if (desc) mapaGrupoPorOcorrencia[desc] = grp;
-            if (grp) gruposSet.add(grp);
+            let grp = String(item.grupo || "").trim().toUpperCase();
+            if (desc && grp) {
+              mapaGrupoPorOcorrencia[desc] = grp;
+              gruposSet.add(grp);
+            }
           });
         }
 
-        // 3. Processa todas as ocorrências atribuindo Bimestre e Grupo automaticamente
-        let seriesSet = new Set();
-        let gravidadesSet = new Set();
+        let seriesSet = new Set(SERIES_OFICIAIS_8);
         let professoresSet = new Set();
-        let buscaSet = new Set();
+        let ocorrenciasTiposSet = new Set();
+        let alunosSet = new Set();
 
-        if (Array.isArray(resProfs)) {
-          resProfs.forEach(p => { if (p) professoresSet.add(String(p).trim().toUpperCase()); });
-        }
-        if (resSeries && Array.isArray(resSeries.lista)) {
-          resSeries.lista.forEach(s => {
-            let nomeS = String(s.col2 || s.col1 || "").trim().toUpperCase();
-            if (nomeS && !nomeS.includes("SÉRIE") && !nomeS.includes("SERIE")) seriesSet.add(nomeS);
-          });
-        }
+        const listaBruta = Array.isArray(resOco) ? resOco : [];
 
-        todasOcorrencias = (Array.isArray(resOco) ? resOco : []).map(o => {
+        // Filtra rigorosamente qualquer linha vazia ou "null" para nunca sujar as 3 tabelas de ranking!
+        todasOcorrencias = [];
+        listaBruta.forEach(o => {
+          let alunoUpper = String(o.aluno || "").replace(/\s+/g, " ").trim().toUpperCase();
+          let ocTexto = String(o.ocorrencia || "").replace(/\s+/g, " ").trim().toUpperCase();
+          let profUpper = String(o.professor || "").replace(/\s+/g, " ").trim().toUpperCase();
+          let serieUpper = normalizarSerieGrafico(o.serie || "");
+
+          // Descarta linhas fantasmas ou nulas (como as 1.080 linhas em branco que apareciam no Looker Studio)
+          if (ehValorNuloOuInvalido(alunoUpper) || ehValorNuloOuInvalido(ocTexto)) return;
+
           let infoDt = extrairTimestampSeguro(o.data);
-          let ocTexto = String(o.ocorrencia || "OUTROS").trim();
-          let ocUpper = ocTexto.toUpperCase();
-          let serieUpper = String(o.serie || "NÃO INFORMADA").trim().toUpperCase();
-          let alunoUpper = String(o.aluno || "NÃO INFORMADO").trim().toUpperCase();
-          let profUpper = String(o.professor || "NÃO INFORMADO").trim().toUpperCase();
-          let gravUpper = String(o.gravidade || "LEVE").trim().toUpperCase();
-          let grupoOco = mapaGrupoPorOcorrencia[ocUpper] || "GERAL";
-          let nomeBimestre = descobrirBimestreDaData(infoDt.ts);
+          let numBim = identificarNumBimestreData(infoDt.ts);
+          let numSem = (numBim === 1 || numBim === 2) ? 1 : 2;
+          let gravUpper = String(o.gravidade || "GRAU I (INFRAÇÕES MAIS LEVES)").trim().toUpperCase();
+          let tipoCro = classificarTipoCro(ocTexto, gravUpper);
+          let grupoOco = mapaGrupoPorOcorrencia[ocTexto] || (gravUpper.includes("GESTÃO") ? "OCORRÊNCIA DE GESTÃO" : "OCORRÊNCIA PEDAGÓGICA");
 
-          if (serieUpper && serieUpper !== "NÃO INFORMADA") seriesSet.add(serieUpper);
-          if (gravUpper) gravidadesSet.add(gravUpper);
-          if (profUpper && profUpper !== "NÃO INFORMADO") professoresSet.add(profUpper);
-          if (grupoOco) gruposSet.add(grupoOco);
-          buscaSet.add(alunoUpper);
-          buscaSet.add(ocTexto);
+          if (serieUpper && !ehValorNuloOuInvalido(serieUpper)) seriesSet.add(serieUpper);
+          if (!ehValorNuloOuInvalido(profUpper)) professoresSet.add(profUpper);
+          ocorrenciasTiposSet.add(ocTexto);
+          alunosSet.add(alunoUpper);
+          gruposSet.add(grupoOco);
 
-          return {
-            ...o,
-            serieLimpa: serieUpper,
+          todasOcorrencias.push({
+            id: o.id || "",
+            serieLimpa: serieUpper || "SEM SÉRIE",
             alunoLimpo: alunoUpper,
-            professorLimpo: profUpper,
+            professorLimpo: ehValorNuloOuInvalido(profUpper) ? "NÃO IDENTIFICADO" : profUpper,
             ocorrenciaLimpa: ocTexto,
             gravidadeLimpa: gravUpper,
+            tipoCro: tipoCro,
             grupoLimpo: grupoOco,
-            bimestreNome: nomeBimestre,
-            obsLimpa: String(o.obs || "-").trim(),
+            numBimestre: numBim,
+            bimestreNome: numBim >= 1 && numBim <= 4 ? `${numBim}º Bimestre` : "Outro Período",
+            numSemestre: numSem,
+            obsLimpa: String(o.obs || o.observacoes || "-").trim(),
             infoData: infoDt
-          };
+          });
         });
 
-        // 4. Preenche todos os Selects de Filtro
-        const selSerie = document.getElementById('filtroSerie');
-        Array.from(seriesSet).sort().forEach(s => selSerie.innerHTML += `<option value="${s}">${s}</option>`);
+        // Preenche os Selects de Filtro mantendo o valor selecionado caso esteja atualizando
+        preencherSelectFiltro('filtroSerie', Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })), 'Todas as Séries');
+        preencherSelectFiltro('filtroGrupo', Array.from(gruposSet).sort(), 'Todos os Grupos');
+        preencherSelectFiltro('filtroProfessor', Array.from(professoresSet).sort((a, b) => a.localeCompare(b, 'pt-BR')), 'Todos os Funcionários / Professores');
+        preencherSelectFiltro('filtroOcorrenciaSelect', Array.from(ocorrenciasTiposSet).sort((a, b) => a.localeCompare(b, 'pt-BR')), 'Todas as Ocorrências');
 
-        const selBim = document.getElementById('filtroBimestre');
-        listaBimestres.forEach(b => selBim.innerHTML += `<option value="${b.nome}">${b.nome}</option>`);
-
-        const selGrav = document.getElementById('filtroGravidade');
-        Array.from(gravidadesSet).sort().forEach(g => selGrav.innerHTML += `<option value="${g}">${g}</option>`);
-
-        const selGrupo = document.getElementById('filtroGrupo');
-        Array.from(gruposSet).sort().forEach(grp => selGrupo.innerHTML += `<option value="${grp}">${grp}</option>`);
-
-        const selProf = document.getElementById('filtroProfessor');
-        Array.from(professoresSet).sort().forEach(p => selProf.innerHTML += `<option value="${p}">${p}</option>`);
-
-        const dlBusca = document.getElementById('datalistBusca');
-        Array.from(buscaSet).sort().forEach(item => dlBusca.innerHTML += `<option value="${item}">`);
+        const dlAlunos = document.getElementById('datalistAlunosGrafico');
+        dlAlunos.innerHTML = Array.from(alunosSet)
+          .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+          .map(a => `<option value="${a}">`)
+          .join('');
 
         Swal.close();
         aplicarFiltros();
       } catch (err) {
         console.error(err);
-        Swal.fire('Erro', 'Não foi possível carregar os dados de ocorrências.', 'error');
+        Swal.close();
+        Swal.fire('Erro', 'Não foi possível carregar os dados analíticos.', 'error');
       }
-    };
+    }
+
+    function preencherSelectFiltro(idSelect, listaValores, textoPadrao) {
+      const sel = document.getElementById(idSelect);
+      if (!sel) return;
+      const valorAntigo = sel.value;
+      sel.innerHTML = `<option value="">${textoPadrao}</option>` +
+        listaValores.map(v => `<option value="${v}">${v}</option>`).join('');
+      if (valorAntigo && listaValores.includes(valorAntigo)) {
+        sel.value = valorAntigo;
+      }
+    }
 
     function limparFiltros() {
-      document.getElementById('filtroSerie').value = "";
+      document.getElementById('filtroSemestre').value = "";
       document.getElementById('filtroBimestre').value = "";
-      document.getElementById('filtroGravidade').value = "";
+      document.getElementById('filtroDataInicio').value = "";
+      document.getElementById('filtroDataFim').value = "";
+      document.getElementById('filtroSerie').value = "";
       document.getElementById('filtroGrupo').value = "";
+      document.getElementById('filtroGravidade').value = "";
       document.getElementById('filtroProfessor').value = "";
+      document.getElementById('filtroOcorrenciaSelect').value = "";
       document.getElementById('filtroBuscaTexto').value = "";
+
+      professorClicadoFiltro = "";
       ocorrenciaClicadaFiltro = "";
+      alunoClicadoFiltro = "";
       aplicarFiltros();
     }
 
-    function filtrarPorCliqueOcorrencia(nomeOcorrencia) {
-      ocorrenciaClicadaFiltro = (ocorrenciaClicadaFiltro === nomeOcorrencia) ? "" : nomeOcorrencia;
+    function alternarFiltroProfessorClicado(nomeProf) {
+      professorClicadoFiltro = (professorClicadoFiltro === nomeProf) ? "" : nomeProf;
+      document.getElementById('filtroProfessor').value = professorClicadoFiltro;
       aplicarFiltros();
+    }
+
+    function alternarFiltroOcorrenciaClicada(nomeOco) {
+      ocorrenciaClicadaFiltro = (ocorrenciaClicadaFiltro === nomeOco) ? "" : nomeOco;
+      document.getElementById('filtroOcorrenciaSelect').value = ocorrenciaClicadaFiltro;
+      aplicarFiltros();
+    }
+
+    function alternarFiltroAlunoClicado(nomeAluno) {
+      alunoClicadoFiltro = (alunoClicadoFiltro === nomeAluno) ? "" : nomeAluno;
+      document.getElementById('filtroBuscaTexto').value = alunoClicadoFiltro;
+      aplicarFiltros();
+    }
+
+    function renderizarChipsDeFiltrosAtivos() {
+      const container = document.getElementById('containerChipsFiltrosAtivos');
+      const chips = [];
+
+      if (professorClicadoFiltro) {
+        chips.push(`<span class="chip-filtro-ativo" onclick="alternarFiltroProfessorClicado('${professorClicadoFiltro.replace(/'/g, "\\'")}')">Prof: ${professorClicadoFiltro} <i class="bi bi-x-circle-fill"></i></span>`);
+      }
+      if (ocorrenciaClicadaFiltro) {
+        chips.push(`<span class="chip-filtro-ativo" onclick="alternarFiltroOcorrenciaClicada('${ocorrenciaClicadaFiltro.replace(/'/g, "\\'")}')">CRO: ${ocorrenciaClicadaFiltro} <i class="bi bi-x-circle-fill"></i></span>`);
+      }
+      if (alunoClicadoFiltro) {
+        chips.push(`<span class="chip-filtro-ativo" onclick="alternarFiltroAlunoClicado('${alunoClicadoFiltro.replace(/'/g, "\\'")}')">Aluno: ${alunoClicadoFiltro} <i class="bi bi-x-circle-fill"></i></span>`);
+      }
+      container.innerHTML = chips.join('');
     }
 
     function aplicarFiltros() {
-      const serieSel = document.getElementById('filtroSerie').value.toUpperCase();
+      const semSel = document.getElementById('filtroSemestre').value;
       const bimSel = document.getElementById('filtroBimestre').value;
-      const gravSel = document.getElementById('filtroGravidade').value.toUpperCase();
+      const dtIniIso = document.getElementById('filtroDataInicio').value;
+      const dtFimIso = document.getElementById('filtroDataFim').value;
+      const serieSel = document.getElementById('filtroSerie').value.toUpperCase();
       const grupoSel = document.getElementById('filtroGrupo').value.toUpperCase();
+      const gravSel = document.getElementById('filtroGravidade').value;
       const profSel = document.getElementById('filtroProfessor').value.toUpperCase();
+      const ocoSel = document.getElementById('filtroOcorrenciaSelect').value.toUpperCase();
       const buscaTxt = document.getElementById('filtroBuscaTexto').value.toUpperCase().trim();
 
+      professorClicadoFiltro = profSel;
+      ocorrenciaClicadaFiltro = ocoSel;
+
+      const tsIniFiltro = dtIniIso ? new Date(dtIniIso + 'T00:00:00').getTime() : 0;
+      const tsFimFiltro = dtFimIso ? new Date(dtFimIso + 'T23:59:59').getTime() : 0;
+
       ocorrenciasFiltradas = todasOcorrencias.filter(o => {
+        if (semSel && String(o.numSemestre) !== String(semSel)) return false;
+        if (bimSel && String(o.numBimestre) !== String(bimSel)) return false;
+        if (tsIniFiltro > 0 && (!o.infoData.ts || o.infoData.ts < tsIniFiltro)) return false;
+        if (tsFimFiltro > 0 && (!o.infoData.ts || o.infoData.ts > tsFimFiltro)) return false;
         if (serieSel && o.serieLimpa !== serieSel) return false;
-        if (bimSel && o.bimestreNome !== bimSel) return false;
-        if (gravSel && o.gravidadeLimpa !== gravSel) return false;
         if (grupoSel && o.grupoLimpo !== grupoSel) return false;
+        if (gravSel && o.tipoCro !== gravSel) return false;
         if (profSel && o.professorLimpo !== profSel) return false;
-        if (ocorrenciaClicadaFiltro && o.ocorrenciaLimpa !== ocorrenciaClicadaFiltro) return false;
+        if (ocoSel && o.ocorrenciaLimpa !== ocoSel) return false;
 
         if (buscaTxt) {
-          let textoAlvo = `${o.alunoLimpo} ${o.ocorrenciaLimpa} ${o.obsLimpa} ${o.grupoLimpo} ${o.professorLimpo}`.toUpperCase();
-          if (!textoAlvo.includes(buscaTxt)) return false;
+          let alvo = `${o.alunoLimpo} ${o.ocorrenciaLimpa} ${o.obsLimpa} ${o.professorLimpo} ${o.serieLimpa}`.toUpperCase();
+          if (!alvo.includes(buscaTxt)) return false;
         }
         return true;
       });
 
-      // Atualiza os KPIs do topo
+      renderizarChipsDeFiltrosAtivos();
+
+      // Atualiza Indicadores Superiores
       const alunosUnicos = new Set(ocorrenciasFiltradas.map(o => o.alunoLimpo));
-      const tiposUnicos = new Set(ocorrenciasFiltradas.map(o => o.ocorrenciaLimpa));
-      const qtdGraves = ocorrenciasFiltradas.filter(o => o.gravidadeLimpa.includes("GRAV")).length;
+      const profsUnicos = new Set(ocorrenciasFiltradas.map(o => o.professorLimpo));
+      const qtdAtrasos = ocorrenciasFiltradas.filter(o => o.tipoCro === "TIPO_ATRASO").length;
+      const qtdGraves = ocorrenciasFiltradas.filter(o => o.tipoCro === "TIPO_GRAVE").length;
 
-      document.getElementById('kpiTotalOcorrencias').innerText = ocorrenciasFiltradas.length;
-      document.getElementById('kpiTotalAlunos').innerText = alunosUnicos.size;
-      document.getElementById('kpiTotalGraves').innerText = qtdGraves;
-      document.getElementById('kpiTotalTipos').innerText = tiposUnicos.size;
+      document.getElementById('kpiTotalOcorrencias').innerText = ocorrenciasFiltradas.length.toLocaleString('pt-BR');
+      document.getElementById('kpiTotalAlunos').innerText = alunosUnicos.size.toLocaleString('pt-BR');
+      document.getElementById('kpiTotalProfessores').innerText = profsUnicos.size.toLocaleString('pt-BR');
+      document.getElementById('kpiTotalAtrasos').innerText = qtdAtrasos.toLocaleString('pt-BR');
+      document.getElementById('kpiTotalGraves').innerText = qtdGraves.toLocaleString('pt-BR');
 
-      renderizarRankingOcorrencias();
-      renderizarTabelaAlunos();
+      renderizarTresRankingsModelo();
       renderizarGraficoPorSerie();
       renderizarGraficoPorBimestre();
-      renderizarGraficoGravidadeGruposETop5();
+      renderizarGraficoGravidadeEGrupos();
+      renderizarTabelaDetalhadaAlunos();
     }
 
-    // 1. Quadro Esquerdo: Ranking de Tipos de Ocorrências
-    function renderizarRankingOcorrencias() {
-      const contagem = {};
-      ocorrenciasFiltradas.forEach(o => {
-        contagem[o.ocorrenciaLimpa] = (contagem[o.ocorrenciaLimpa] || 0) + 1;
-      });
-
-      const ordenado = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
-      const container = document.getElementById('containerRankingOcorrencias');
-
-      if (ordenado.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted py-5">Nenhuma ocorrência encontrada para os filtros selecionados.</div>';
-        return;
-      }
-
-      const maxVal = ordenado[0][1] || 1;
-      let html = '';
-
-      ordenado.forEach(([nome, qtd]) => {
-        let pct = Math.round((qtd / maxVal) * 100);
-        let classeAtiva = (ocorrenciaClicadaFiltro === nome) ? 'selecionado' : '';
-        let nomeEscapado = nome.replace(/'/g, "\\'");
-        let grp = mapaGrupoPorOcorrencia[nome.toUpperCase()] || "GERAL";
-
-        html += `
-          <div class="item-ocorrencia-barra mb-2 ${classeAtiva}" onclick="filtrarPorCliqueOcorrencia('${nomeEscapado}')" title="Clique para filtrar por esta ocorrência">
-            <div class="d-flex justify-content-between align-items-center small mb-1">
-              <span class="fw-semibold text-dark text-truncate" style="max-width: 82%;">
-                ${nome} <small class="text-muted fw-normal">(${grp})</small>
-              </span>
-              <span class="badge rounded-pill" style="background-color: #0f766e;">${qtd}</span>
-            </div>
-            <div class="progress" style="height: 6px; background-color: #e2e8f0;">
-              <div class="progress-bar" role="progressbar" style="width: ${pct}%; background-color: #0f766e;"></div>
-            </div>
-          </div>`;
-      });
-
-      container.innerHTML = html;
-    }
-
-    // 2. Quadro Direito: Tabela de Alunos, Série, Observação e Quantidade
-    function renderizarTabelaAlunos() {
-      const mapaAlunos = {};
+    // 1. Renderiza as 3 Tabelas de Ranking Lado a Lado idênticas à foto enviada!
+    function renderizarTresRankingsModelo() {
+      const mapProfs = {};
+      const mapOcos = {};
+      const mapAlunos = {};
 
       ocorrenciasFiltradas.forEach(o => {
-        const chave = `${o.alunoLimpo}|${o.serieLimpa}`;
-        if (!mapaAlunos[chave]) {
-          mapaAlunos[chave] = {
-            aluno: o.alunoLimpo,
-            serie: o.serieLimpa,
-            qtd: 0,
-            detalhes: []
-          };
+        if (o.professorLimpo && o.professorLimpo !== "NÃO IDENTIFICADO") {
+          mapProfs[o.professorLimpo] = (mapProfs[o.professorLimpo] || 0) + 1;
         }
-        mapaAlunos[chave].qtd++;
-        let itemTxt = `<b>${o.infoData.br} (${o.bimestreNome})</b>: ${o.ocorrenciaLimpa} <span class="badge bg-light text-secondary border">${o.grupoLimpo}</span>`;
-        if (o.obsLimpa && o.obsLimpa !== "-") itemTxt += ` — <i>${o.obsLimpa}</i>`;
-        mapaAlunos[chave].detalhes.push(itemTxt);
+        if (o.ocorrenciaLimpa) {
+          mapOcos[o.ocorrenciaLimpa] = (mapOcos[o.ocorrenciaLimpa] || 0) + 1;
+        }
+        if (o.alunoLimpo) {
+          mapAlunos[o.alunoLimpo] = (mapAlunos[o.alunoLimpo] || 0) + 1;
+        }
       });
 
-      const listaAgrupada = Object.values(mapaAlunos).sort((a, b) => b.qtd - a.qtd || a.aluno.localeCompare(b.aluno));
-      document.getElementById('badgeAlunosCount').innerText = `${listaAgrupada.length} alunos`;
-
-      const tbody = document.getElementById('tbodyAlunosOcorrencias');
-      if (listaAgrupada.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-5">Nenhum registro encontrado.</td></tr>';
-        return;
+      // Tabela 1: Funcionário / Professor
+      const ordProfs = Object.entries(mapProfs).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+      const tbodyP = document.getElementById('tbodyRankingProfessores');
+      document.getElementById('contadorRodapeProfs').innerText = `1 - ${ordProfs.length} / ${ordProfs.length}`;
+      if (ordProfs.length === 0) {
+        tbodyP.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Nenhum registro no filtro.</td></tr>';
+      } else {
+        tbodyP.innerHTML = ordProfs.map(([nome, qtd], idx) => {
+          const ativo = professorClicadoFiltro === nome ? 'linha-ativa-filtro' : '';
+          const esc = nome.replace(/'/g, "\\'");
+          return `
+            <tr class="${ativo}" onclick="alternarFiltroProfessorClicado('${esc}')">
+              <td class="col-pos">${idx + 1}.</td>
+              <td>${nome}</td>
+              <td class="col-qtd">${qtd.toLocaleString('pt-BR')}</td>
+            </tr>
+          `;
+        }).join('');
       }
 
-      let html = '';
-      listaAgrupada.forEach(item => {
-        let corBadge = item.qtd >= 5 ? 'bg-danger' : (item.qtd >= 3 ? 'bg-warning text-dark' : 'bg-secondary');
-        html += `
-          <tr>
-            <td class="fw-bold text-dark">${item.aluno}</td>
-            <td class="text-center"><span class="badge bg-light text-dark border">${item.serie}</span></td>
-            <td class="text-muted small">${item.detalhes.slice(0, 3).join('<br>')}${item.detalhes.length > 3 ? `<br><b class="text-success">+ ${item.detalhes.length - 3} registro(s)...</b>` : ''}</td>
-            <td class="text-center"><span class="badge ${corBadge} fs-6 px-3">${item.qtd}</span></td>
-          </tr>`;
-      });
+      // Tabela 2: Ocorrências
+      const ordOcos = Object.entries(mapOcos).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+      const tbodyO = document.getElementById('tbodyRankingOcorrencias');
+      document.getElementById('contadorRodapeOcos').innerText = `1 - ${ordOcos.length} / ${ordOcos.length}`;
+      if (ordOcos.length === 0) {
+        tbodyO.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Nenhuma ocorrência no filtro.</td></tr>';
+      } else {
+        tbodyO.innerHTML = ordOcos.map(([nome, qtd], idx) => {
+          const ativo = ocorrenciaClicadaFiltro === nome ? 'linha-ativa-filtro' : '';
+          const esc = nome.replace(/'/g, "\\'");
+          return `
+            <tr class="${ativo}" onclick="alternarFiltroOcorrenciaClicada('${esc}')">
+              <td class="col-pos">${idx + 1}.</td>
+              <td>${nome}</td>
+              <td class="col-qtd">${qtd.toLocaleString('pt-BR')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
 
-      tbody.innerHTML = html;
+      // Tabela 3: Ranking Alunos por Qtd de Ocorrências
+      const ordAlunos = Object.entries(mapAlunos).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+      const tbodyA = document.getElementById('tbodyRankingAlunos');
+      document.getElementById('contadorRodapeAlunos').innerText = `1 - ${ordAlunos.length} / ${ordAlunos.length}`;
+      if (ordAlunos.length === 0) {
+        tbodyA.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Nenhum aluno no filtro.</td></tr>';
+      } else {
+        tbodyA.innerHTML = ordAlunos.map(([nome, qtd], idx) => {
+          const ativo = alunoClicadoFiltro === nome ? 'linha-ativa-filtro' : '';
+          const esc = nome.replace(/'/g, "\\'");
+          return `
+            <tr class="${ativo}" onclick="alternarFiltroAlunoClicado('${esc}')">
+              <td class="col-pos">${idx + 1}.</td>
+              <td>${nome}</td>
+              <td class="col-qtd">${qtd.toLocaleString('pt-BR')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
     }
 
-    // 3. Gráfico: Total de Ocorrências por Série
+    // 2. Gráfico: Total de Ocorrências por Série (Ordenado do maior para o menor, com números nas barras igual à imagem!)
     function renderizarGraficoPorSerie() {
       const contagemSerie = {};
+      SERIES_OFICIAIS_8.forEach(s => { contagemSerie[s] = 0; });
+
       ocorrenciasFiltradas.forEach(o => {
-        contagemSerie[o.serieLimpa] = (contagemSerie[o.serieLimpa] || 0) + 1;
+        if (o.serieLimpa && o.serieLimpa !== "SEM SÉRIE") {
+          contagemSerie[o.serieLimpa] = (contagemSerie[o.serieLimpa] || 0) + 1;
+        }
       });
 
-      const seriesOrdenadas = Object.keys(contagemSerie).sort();
-      const valores = seriesOrdenadas.map(s => contagemSerie[s]);
+      // Ordena da série com mais ocorrências para a menor (igual ao modelo da imagem: 2ª B, 3ª B, 2ª C, 1ª B...)
+      const paresOrdenados = Object.entries(contagemSerie)
+        .filter(([s, qtd]) => SERIES_OFICIAIS_8.includes(s) || qtd > 0)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+
+      const labelsSeries = paresOrdenados.map(p => p[0]);
+      const valoresSeries = paresOrdenados.map(p => p[1]);
 
       const ctx = document.getElementById('chartPorSerie').getContext('2d');
       if (chartSerieInstance) chartSerieInstance.destroy();
 
       chartSerieInstance = new Chart(ctx, {
         type: 'bar',
+        plugins: [pluginRotulosNasBarras],
         data: {
-          labels: seriesOrdenadas,
+          labels: labelsSeries,
           datasets: [{
-            label: 'Ocorrências na Série',
-            data: valores,
-            backgroundColor: '#0f766e',
-            borderColor: '#115e59',
-            borderWidth: 1,
-            borderRadius: 6
+            label: 'OCORRÊNCIA',
+            data: valoresSeries,
+            backgroundColor: 'rgba(203, 213, 225, 0.85)',
+            borderColor: '#15438c',
+            borderWidth: 2,
+            borderRadius: 4,
+            barPercentage: 0.45
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          onClick: (evt, elements) => {
+            if (elements && elements.length > 0) {
+              const idx = elements[0].index;
+              const serieClicada = labelsSeries[idx];
+              const sel = document.getElementById('filtroSerie');
+              sel.value = (sel.value === serieClicada) ? "" : serieClicada;
+              aplicarFiltros();
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'start',
+              labels: { boxWidth: 16, font: { weight: 'bold', size: 11 } }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grace: '12%',
+              ticks: { precision: 0, font: { weight: '600' } }
+            },
+            x: {
+              ticks: { font: { weight: '700', size: 11 }, color: '#0f172a' }
+            }
+          }
         }
       });
     }
 
-    // 4. Gráfico: Evolução das Ocorrências POR BIMESTRE
+    // 3. Gráfico: Evolução por Bimestre Letivo
     function renderizarGraficoPorBimestre() {
-      const contagemBimestre = {};
-
-      // Inicializa na ordem exata dos Bimestres cadastrados na aba BIMESTRE
-      if (listaBimestres.length > 0) {
-        listaBimestres.forEach(b => { contagemBimestre[b.nome] = 0; });
-      } else {
-        ["1º BIMESTRE", "2º BIMESTRE", "3º BIMESTRE", "4º BIMESTRE"].forEach(n => { contagemBimestre[n] = 0; });
-      }
+      const mapBim = {
+        "1º Bimestre": 0,
+        "2º Bimestre": 0,
+        "3º Bimestre": 0,
+        "4º Bimestre": 0
+      };
 
       ocorrenciasFiltradas.forEach(o => {
-        let nomeBim = o.bimestreNome || "Outros Períodos";
-        contagemBimestre[nomeBim] = (contagemBimestre[nomeBim] || 0) + 1;
+        if (o.numBimestre >= 1 && o.numBimestre <= 4) {
+          mapBim[`${o.numBimestre}º Bimestre`]++;
+        }
       });
 
-      // Remove "Outros Períodos" se estiver zerado para manter o gráfico limpo nos 4 bimestres
-      if (contagemBimestre["Outros Períodos"] === 0) delete contagemBimestre["Outros Períodos"];
-      if (contagemBimestre["Fora do Bimestre"] === 0) delete contagemBimestre["Fora do Bimestre"];
-
-      const labelsBim = Object.keys(contagemBimestre);
-      const valoresBim = labelsBim.map(k => contagemBimestre[k]);
+      const labelsBim = Object.keys(mapBim);
+      const valoresBim = labelsBim.map(k => mapBim[k]);
 
       const ctx = document.getElementById('chartPorBimestre').getContext('2d');
       if (chartBimestreInstance) chartBimestreInstance.destroy();
 
       chartBimestreInstance = new Chart(ctx, {
         type: 'bar',
+        plugins: [pluginRotulosNasBarras],
         data: {
           labels: labelsBim,
           datasets: [
@@ -821,17 +1250,17 @@
               backgroundColor: '#d97706',
               borderWidth: 2.5,
               tension: 0.3,
-              pointRadius: 5
+              pointRadius: 4
             },
             {
               type: 'bar',
-              label: 'Total no Bimestre',
+              label: 'Ocorrências no Bimestre',
               data: valoresBim,
-              backgroundColor: 'rgba(15, 118, 110, 0.75)',
-              borderColor: '#0f766e',
-              borderWidth: 1,
-              borderRadius: 8,
-              barPercentage: 0.55
+              backgroundColor: 'rgba(21, 67, 140, 0.78)',
+              borderColor: '#15438c',
+              borderWidth: 1.5,
+              borderRadius: 6,
+              barPercentage: 0.5
             }
           ]
         },
@@ -839,36 +1268,34 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
           },
           scales: {
-            y: { beginAtZero: true, ticks: { precision: 0 } }
+            y: { beginAtZero: true, grace: '15%', ticks: { precision: 0 } }
           }
         }
       });
     }
 
-    // 5. Gráfico Lateral Direito: Gravidade + Resumo por Grupo + Top 5 Alunos
-    function renderizarGraficoGravidadeGruposETop5() {
-      const contagemGrav = {};
-      const contagemGrupos = {};
-      const contagemAlunos = {};
+    // 4. Gráfico: Distribuição por Gravidade e Grupo
+    function renderizarGraficoGravidadeEGrupos() {
+      const mapGrav = {
+        "Leves (Grau I)": 0,
+        "Atrasos Início (Grau 0)": 0,
+        "Graves (Grau II)": 0
+      };
+      const mapGrupos = {};
 
       ocorrenciasFiltradas.forEach(o => {
-        contagemGrav[o.gravidadeLimpa] = (contagemGrav[o.gravidadeLimpa] || 0) + 1;
-        contagemGrupos[o.grupoLimpo] = (contagemGrupos[o.grupoLimpo] || 0) + 1;
-        let chAluno = `${o.alunoLimpo} (${o.serieLimpa})`;
-        contagemAlunos[chAluno] = (contagemAlunos[chAluno] || 0) + 1;
+        if (o.tipoCro === "TIPO_GRAVE") mapGrav["Graves (Grau II)"]++;
+        else if (o.tipoCro === "TIPO_ATRASO") mapGrav["Atrasos Início (Grau 0)"]++;
+        else mapGrav["Leves (Grau I)"]++;
+
+        mapGrupos[o.grupoLimpo] = (mapGrupos[o.grupoLimpo] || 0) + 1;
       });
 
-      const labelsGrav = Object.keys(contagemGrav);
-      const valoresGrav = labelsGrav.map(g => contagemGrav[g]);
-      const coresGrav = labelsGrav.map(g => {
-        if (g.includes('GRAVÍSSIMA') || g.includes('GRAVISSIMA')) return '#991b1b';
-        if (g.includes('GRAVE')) return '#ef4444';
-        if (g.includes('MÉDIA') || g.includes('MEDIA')) return '#f59e0b';
-        return '#0f766e';
-      });
+      const labelsG = Object.keys(mapGrav);
+      const valoresG = labelsG.map(k => mapGrav[k]);
 
       const ctx = document.getElementById('chartGravidade').getContext('2d');
       if (chartGravidadeInstance) chartGravidadeInstance.destroy();
@@ -876,10 +1303,10 @@
       chartGravidadeInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: labelsGrav,
+          labels: labelsG,
           datasets: [{
-            data: valoresGrav,
-            backgroundColor: coresGrav,
+            data: valoresG,
+            backgroundColor: ['#15438c', '#0284c7', '#dc2626'],
             borderWidth: 2
           }]
         },
@@ -887,49 +1314,79 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            legend: { position: 'bottom', labels: { boxWidth: 11, font: { size: 10, weight: 'bold' } } }
           }
         }
       });
 
-      // Resumo por Grupo
-      const gruposOrd = Object.entries(contagemGrupos).sort((a, b) => b[1] - a[1]);
+      const gruposOrd = Object.entries(mapGrupos).sort((a, b) => b[1] - a[1]);
       const divGrupos = document.getElementById('listaResumoGrupos');
       if (gruposOrd.length === 0) {
-        divGrupos.innerHTML = '<div class="text-muted">Sem dados de grupo.</div>';
+        divGrupos.innerHTML = '<div class="text-muted">Sem registros no filtro.</div>';
       } else {
-        divGrupos.innerHTML = gruposOrd.map(([grp, qtd]) => `
-          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-            <span class="fw-semibold text-secondary text-truncate" style="max-width: 80%;">${grp}</span>
-            <span class="badge bg-warning text-dark rounded-pill">${qtd}</span>
-          </div>
-        `).join('');
-      }
-
-      // Top 5 Alunos
-      const top5 = Object.entries(contagemAlunos).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      const divTop5 = document.getElementById('listaTop5Alunos');
-      if (top5.length === 0) {
-        divTop5.innerHTML = '<div class="text-muted">Sem dados para exibir.</div>';
-      } else {
-        divTop5.innerHTML = top5.map(([nome, qtd], i) => `
-          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-            <span class="text-truncate" style="max-width: 80%;"><b>${i + 1}.</b> ${nome}</span>
-            <span class="badge bg-danger rounded-pill">${qtd}</span>
-          </div>
-        `).join('');
+        divGrupos.innerHTML = gruposOrd.map(([grp, qtd]) => {
+          const pct = ocorrenciasFiltradas.length > 0 ? Math.round((qtd / ocorrenciasFiltradas.length) * 100) : 0;
+          return `
+            <div class="mb-2">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-dark" style="font-size:0.74rem;">${grp}</span>
+                <span class="badge bg-primary">${qtd.toLocaleString('pt-BR')} (${pct}%)</span>
+              </div>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-primary" style="width: ${pct}%;"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
       }
     }
 
-    // 6. Exportar PDF Completo do Painel com os Gráficos e Filtros Aplicados
+    // 5. Tabela Detalhada de Alunos e Observações
+    function renderizarTabelaDetalhadaAlunos() {
+      const mapaAlunos = {};
+      ocorrenciasFiltradas.forEach(o => {
+        const ch = `${o.alunoLimpo}|${o.serieLimpa}`;
+        if (!mapaAlunos[ch]) {
+          mapaAlunos[ch] = { aluno: o.alunoLimpo, serie: o.serieLimpa, qtd: 0, detalhes: [] };
+        }
+        mapaAlunos[ch].qtd++;
+        let itemTxt = `<b>${o.infoData.br} (${o.bimestreNome})</b>: ${o.ocorrenciaLimpa}`;
+        if (o.obsLimpa && o.obsLimpa !== "-") itemTxt += ` — <i class="text-dark">${o.obsLimpa}</i>`;
+        mapaAlunos[ch].detalhes.push(itemTxt);
+      });
+
+      const listaAgrupada = Object.values(mapaAlunos).sort((a, b) => b.qtd - a.qtd || a.aluno.localeCompare(b.aluno, 'pt-BR'));
+      document.getElementById('badgeAlunosDetalheCount').innerText = `${listaAgrupada.length} alunos listados`;
+
+      const tbody = document.getElementById('tbodyAlunosOcorrencias');
+      if (listaAgrupada.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Nenhum registro encontrado para os filtros selecionados.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = listaAgrupada.slice(0, 120).map((item, idx) => {
+        let corBadge = item.qtd >= 6 ? 'bg-danger' : (item.qtd >= 4 ? 'bg-warning text-dark' : 'bg-primary');
+        return `
+          <tr>
+            <td class="text-center fw-bold text-secondary">${idx + 1}</td>
+            <td class="fw-bold text-dark">${item.aluno}</td>
+            <td class="text-center"><span class="badge bg-light text-dark border fw-bold">${item.serie}</span></td>
+            <td class="text-muted small">${item.detalhes.slice(0, 3).join('<br>')}${item.detalhes.length > 3 ? `<br><b class="text-primary">+ ${item.detalhes.length - 3} ocorrência(s)...</b>` : ''}</td>
+            <td class="text-center"><span class="badge ${corBadge} fs-6 px-3">${item.qtd}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 6. Exportar PDF Oficial com os 3 Rankings + Gráficos + Filtros Aplicados
     async function gerarPdfPainelGrafico() {
       if (ocorrenciasFiltradas.length === 0) {
         return Swal.fire('Aviso', 'Não há ocorrências filtradas na tela para gerar o PDF.', 'info');
       }
 
       Swal.fire({
-        title: 'Gerando PDF Analítico...',
-        text: 'Montando gráficos por série, por bimestre e relação de alunos...',
+        title: 'Gerando Relatório PDF...',
+        text: 'Montando rankings de professores, ocorrências, alunos e gráficos...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -938,98 +1395,81 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape', 'mm', 'a4');
 
-        try {
-          const imgEl = document.querySelector('.logo-escola');
-          if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
-            const canvas = document.createElement('canvas');
-            canvas.width = imgEl.naturalWidth;
-            canvas.height = imgEl.naturalHeight;
-            canvas.getContext('2d').drawImage(imgEl, 0, 0);
-            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 22, 22);
-          }
-        } catch (e) {}
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
-        doc.setTextColor(15, 118, 110);
-        doc.text("ANÁLISE GRÁFICA DETALHADA DAS OCORRÊNCIAS DISCIPLINARES (RAC)", 40, 16);
-
-        doc.setFontSize(11);
-        doc.setTextColor(30, 41, 59);
-        doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 22);
-
+        const semFiltro = document.getElementById('filtroSemestre').selectedOptions[0].text;
+        const bimFiltro = document.getElementById('filtroBimestre').value ? `${document.getElementById('filtroBimestre').value}º Bimestre` : "Todos";
         const serieFiltro = document.getElementById('filtroSerie').value || "Todas";
-        const bimFiltro = document.getElementById('filtroBimestre').value || "Todos";
-        const gravFiltro = document.getElementById('filtroGravidade').value || "Todas";
-        const grupoFiltro = document.getElementById('filtroGrupo').value || "Todos";
         const profFiltro = document.getElementById('filtroProfessor').value || "Todos";
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Série: ${serieFiltro} | Bimestre: ${bimFiltro} | Gravidade: ${gravFiltro} | Grupo: ${grupoFiltro} | Prof: ${profFiltro} | Total: ${ocorrenciasFiltradas.length}`, 40, 28);
-        doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 283, 22, { align: 'right' });
+        let y = 36;
+        if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+          y = await window.desenharCabecalhoPadraoEEMTI(doc, {
+            tituloDocumento: 'GRÁFICO E RELATÓRIO QUANTITATIVO DE OCORRÊNCIAS DISCIPLINARES (CRO)',
+            subtitulo1: `Período: ${semFiltro} | Bimestre: ${bimFiltro} | Série: ${serieFiltro} | Professor: ${profFiltro}`,
+            subtitulo2: `TOTAL DE OCORRÊNCIAS NO FILTRO: ${ocorrenciasFiltradas.length.toLocaleString('pt-BR')} registro(s)`
+          });
+        }
 
-        doc.setDrawColor(15, 118, 110);
-        doc.setLineWidth(0.5);
-        doc.line(14, 33, 283, 33);
-
+        // Captura o Gráfico Principal de Séries e o de Bimestres
         const imgSerie = document.getElementById('chartPorSerie').toDataURL('image/png', 1.0);
         const imgBimestre = document.getElementById('chartPorBimestre').toDataURL('image/png', 1.0);
-        const imgGravidade = document.getElementById('chartGravidade').toDataURL('image/png', 1.0);
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9.5);
-        doc.setTextColor(15, 118, 110);
-        doc.text("TOTAL DE OCORRÊNCIAS POR SÉRIE", 14, 40);
-        doc.addImage(imgSerie, 'PNG', 14, 42, 175, 65);
+        doc.setTextColor(21, 67, 140);
+        doc.text("TOTAL DE OCORRÊNCIAS POR SÉRIE", 14, y + 4);
+        doc.addImage(imgSerie, 'PNG', 14, y + 6, 165, 68);
 
-        doc.text("POR GRAVIDADE", 198, 40);
-        doc.addImage(imgGravidade, 'PNG', 198, 42, 80, 65);
+        doc.text("EVOLUÇÃO POR BIMESTRE", 185, y + 4);
+        doc.addImage(imgBimestre, 'PNG', 185, y + 6, 98, 68);
 
-        doc.text("EVOLUÇÃO DAS OCORRÊNCIAS POR BIMESTRE", 14, 115);
-        doc.addImage(imgBimestre, 'PNG', 14, 117, 269, 68);
-
-        doc.addPage();
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(15, 118, 110);
-        doc.text("DETALHAMENTO DE OCORRÊNCIAS POR ALUNO (FILTRO APLICADO)", 14, 16);
-
-        const mapaAlunos = {};
+        // Tabelas de Resumo: Top 15 Professores, Top 15 Ocorrências e Top 15 Alunos
+        const mapProfs = {}, mapOcos = {}, mapAlunos = {};
         ocorrenciasFiltradas.forEach(o => {
-          const ch = `${o.alunoLimpo}|${o.serieLimpa}`;
-          if (!mapaAlunos[ch]) mapaAlunos[ch] = { aluno: o.alunoLimpo, serie: o.serieLimpa, qtd: 0, obs: [] };
-          mapaAlunos[ch].qtd++;
-          mapaAlunos[ch].obs.push(`${o.infoData.br} (${o.bimestreNome}) [${o.grupoLimpo}]: ${o.ocorrenciaLimpa}${o.obsLimpa && o.obsLimpa !== '-' ? ' - ' + o.obsLimpa : ''}`);
+          if (o.professorLimpo && o.professorLimpo !== "NÃO IDENTIFICADO") mapProfs[o.professorLimpo] = (mapProfs[o.professorLimpo] || 0) + 1;
+          mapOcos[o.ocorrenciaLimpa] = (mapOcos[o.ocorrenciaLimpa] || 0) + 1;
+          mapAlunos[`${o.alunoLimpo} (${o.serieLimpa})`] = (mapAlunos[`${o.alunoLimpo} (${o.serieLimpa})`] || 0) + 1;
         });
 
-        const linhasPdf = Object.values(mapaAlunos)
-          .sort((a, b) => b.qtd - a.qtd || a.aluno.localeCompare(b.aluno))
-          .map(it => [it.aluno, it.serie, it.obs.join(' | '), String(it.qtd)]);
+        const topProfs = Object.entries(mapProfs).sort((a, b) => b[1] - a[1]).slice(0, 15);
+        const topOcos = Object.entries(mapOcos).sort((a, b) => b[1] - a[1]).slice(0, 15);
+        const topAlunos = Object.entries(mapAlunos).sort((a, b) => b[1] - a[1]).slice(0, 15);
+
+        const maxLinhas = Math.max(topProfs.length, topOcos.length, topAlunos.length);
+        const linhasCombinadas = [];
+        for (let i = 0; i < maxLinhas; i++) {
+          const p = topProfs[i] || ["-", ""];
+          const oc = topOcos[i] || ["-", ""];
+          const al = topAlunos[i] || ["-", ""];
+          linhasCombinadas.push([
+            `${i + 1}. ${p[0]}`, String(p[1]),
+            `${i + 1}. ${oc[0]}`, String(oc[1]),
+            `${i + 1}. ${al[0]}`, String(al[1])
+          ]);
+        }
 
         doc.autoTable({
-          startY: 20,
-          head: [['ALUNO', 'SÉRIE', 'HISTÓRICO FILTRADO (DATA / BIMESTRE / GRUPO / OCORRÊNCIA)', 'QTD.']],
-          body: linhasPdf,
+          startY: y + 78,
+          head: [['FUNCIONÁRIO / PROFESSOR', 'QTD', 'OCORRÊNCIAS APLICADAS', 'QTD', 'RANKING DE ALUNOS', 'QTD']],
+          body: linhasCombinadas,
           theme: 'grid',
-          headStyles: { fillColor: [15, 118, 110], fontSize: 8.5 },
-          styles: { fontSize: 7.5, cellPadding: 2, valign: 'middle' },
+          styles: { fontSize: 6.8, cellPadding: 1.5, valign: 'middle' },
+          headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold', halign: 'center' },
           columnStyles: {
-            0: { cellWidth: 62, fontStyle: 'bold' },
-            1: { cellWidth: 22, halign: 'center' },
-            2: { cellWidth: 166 },
-            3: { cellWidth: 19, halign: 'center', fontStyle: 'bold' }
-          },
-          margin: { left: 14, right: 14 }
+            0: { cellWidth: 72 },
+            1: { cellWidth: 14, halign: 'center', fontStyle: 'bold' },
+            2: { cellWidth: 82 },
+            3: { cellWidth: 14, halign: 'center', fontStyle: 'bold' },
+            4: { cellWidth: 73 },
+            5: { cellWidth: 14, halign: 'center', fontStyle: 'bold' }
+          }
         });
 
         Swal.close();
-        doc.save(`Analise_Grafica_Ocorrencias_${serieFiltro.replace(/\s+/g, '_')}.pdf`);
+        doc.save(`Grafico_Relatorio_CRO_${serieFiltro.replace(/\s+/g, '_')}.pdf`);
       } catch (e) {
         console.error(e);
         Swal.close();
-        Swal.fire('Erro', 'Ocorreu um erro ao gerar o PDF dos gráficos.', 'error');
+        Swal.fire('Erro', 'Ocorreu um erro ao gerar o PDF: ' + e.message, 'error');
       }
     }
   </script>
