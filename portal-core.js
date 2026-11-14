@@ -2,10 +2,12 @@
 // MOTOR CENTRAL UNIFICADO (PORTAL-CORE.JS) - VERSÃO DEFINITIVA EEMTI
 // 1. SINCRONIZAÇÃO OFFLINE UNIFICADA NO INDEXEDDB + SW.JS:
 //    ENVIA OCORRÊNCIAS, FREQUÊNCIAS E ATIVIDADES MESMO COM O APP FECHADO
-//    E EXIBE APENAS O AVISO DE CIÊNCIA QUANDO O PROFESSOR ABRIR O APP!
-// 2. MAPEAMENTO DE SALA: SEM DESTAQUE AMARELO/LARANJA NA FILA 1, ORDEM INVERTIDA
-//    PARA O LADO CONTRÁRIO (ESQUERDO) E AJUSTADO ATÉ 8x8 NA TELA DO CELULAR!
-// 3. HISTÓRICO ELETIVAS (5 COLUNAS), AEE, GERENCIAR ALUNOS, SUSPENSÕES E PDF RESERVAS
+//    E EXIBE AVISO RÁPIDO AUTOMÁTICO QUANDO O PROFESSOR ABRIR O APP!
+// 2. RESERVAS DE LIVROS (reservas-livros.html): CADA BOTÃO DE PDF BAIXA SEU
+//    PRÓPRIO RELATÓRIO DIRETO (SEM INTERCEPTAR A ABA DE RELATÓRIOS E RANKING!)
+// 3. RESERVAS DE AMBIENTES (reservas.html): PDF COM LIMITE DE 7 DIAS LETIVOS
+//    E 1 TABELA POR AMBIENTE RESERVADO (COLUNA 1 = 1ª A 9ª AULA | COLUNAS = DATAS)
+// 4. MAPEAMENTO DE SALA: MUDA POSIÇÃO DA FILA 1 + REMOVE DESTAQUE AMARELO + CABE 8x8
 // =========================================================================
 (function() {
   const FILA_GLOBAL_KEY = 'fila_offline_eemti_v1';
@@ -100,7 +102,8 @@
 
   // =========================================================================
   // 0. INTERCEPTADOR IMEDIATO DE QUALQUER FILA OFFLINE NO LOCALSTORAGE
-  // Garante que Ocorrências, Atividades e Frequências vão na mesma hora para o IndexedDB!
+  // Garante que Ocorrências, Atividades, Frequências e Mapas vão na mesma hora
+  // para o IndexedDB e acionem o Background Sync do Service Worker!
   // =========================================================================
   const _setItemNativo = Storage.prototype.setItem;
   Storage.prototype.setItem = function(chave, valor) {
@@ -230,76 +233,70 @@
         }
 
         /* =================================================================== */
-        /* MAPEAMENTO DE SALA: ATÉ 8x8 NA TELA E SEM DESTAQUE AMARELO NA FILA 1 */
+        /* MAPEAMENTO DE SALA (CLASSES REAIS DO mapeamento-sala.html):         */
+        /* ATÉ 8x8 NA TELA, SEM DESTAQUE AMARELO NA FILA 1 E ORDEM INVERTIDA!  */
         /* =================================================================== */
-        .room-grid-scroll {
-          overflow-x: hidden !important;
-          width: 100% !important;
-          max-width: 100% !important;
-          padding: 2px 0 !important;
-        }
-        .room-columns-wrapper,
-        #containerColunasSala,
-        #containerColunasVisualizacao {
+        .grid-sala-container,
+        #containerGridCarteiras,
+        #containerGridVisualizadorAba2 {
           display: grid !important;
           grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
-          gap: 5px !important;
+          gap: 6px !important;
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
         }
-        .fila-coluna,
-        .fila-coluna.fila-porta-destaque {
+        .coluna-fila,
+        .coluna-fila.coluna-fila-porta {
           min-width: 0 !important;
           max-width: 100% !important;
           width: 100% !important;
-          background: #f8fafc !important;
-          border: 1px solid #cbd5e1 !important;
-          border-radius: 10px !important;
-          padding: 4px !important;
+          background: transparent !important;
+          border: none !important;
+          border-radius: 0 !important;
+          padding: 0 !important;
+          gap: 6px !important;
           box-shadow: none !important;
         }
-        .fila-header,
-        .fila-coluna.fila-porta-destaque .fila-header {
+        .header-fila,
+        .header-fila.fila-1-porta {
           background: #15438c !important;
           background-image: none !important;
           color: #ffffff !important;
-          font-size: 0.66rem !important;
-          padding: 5px 2px !important;
-          border-radius: 6px !important;
+          border: none !important;
+          font-size: 0.68rem !important;
+          padding: 6px 3px !important;
+          border-radius: 7px !important;
           text-align: center !important;
           font-weight: 800 !important;
-          border: none !important;
+          box-shadow: 0 2px 5px rgba(21, 67, 140, 0.18) !important;
         }
-        .fila-header small,
-        .fila-header .sub-porta {
+        .subbadge-porta-fila1 {
           display: none !important;
         }
-        .seat-card,
-        .fila-coluna.fila-porta-destaque .seat-card {
-          padding: 4px 2px !important;
-          border-radius: 7px !important;
-          background: #ffffff !important;
-          border: 1px solid #e2e8f0 !important;
+        .card-carteira {
+          padding: 5px 4px !important;
+          border-radius: 8px !important;
           min-width: 0 !important;
+          width: 100% !important;
         }
-        .seat-card .seat-badge,
-        .fila-coluna.fila-porta-destaque .seat-badge {
-          background: #15438c !important;
+        .tag-posicao-carteira {
+          background-color: #15438c !important;
           color: #ffffff !important;
-          font-size: 0.54rem !important;
+          font-size: 0.55rem !important;
           padding: 2px 4px !important;
           border-radius: 4px !important;
+          white-space: nowrap !important;
         }
-        .seat-photo-box {
-          width: 44px !important;
-          height: 58px !important;
+        .foto-carteira-3x4 {
+          width: 54px !important;
+          height: 72px !important;
           max-width: 100% !important;
-          margin: 2px auto !important;
+          margin: 2px auto 4px auto !important;
         }
-        .seat-select {
-          font-size: 0.58rem !important;
-          padding: 2px 10px 2px 2px !important;
+        .select-aluno-carteira {
+          font-size: 0.6rem !important;
+          padding: 2px 4px !important;
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
@@ -493,63 +490,74 @@
             min-width: 58px !important;
           }
 
-          /* Mapeamento de Sala 8x8 no celular cabendo 100% na tela sem rolar para o lado */
-          .room-front-bar {
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
+          /* Mapeamento de Sala 8x8 no celular cabendo 100% na tela sem rolagem lateral */
+          .barra-orientacao-sala {
+            padding: 6px 8px !important;
             gap: 4px !important;
-            padding: 5px !important;
+            margin-bottom: 8px !important;
           }
-          .room-front-bar > div {
-            font-size: 0.52rem !important;
-            padding: 3px 5px !important;
+          .selo-porta-entrada {
+            font-size: 0.54rem !important;
+            padding: 4px 6px !important;
+            gap: 4px !important;
           }
-          .room-columns-wrapper,
-          #containerColunasSala,
-          #containerColunasVisualizacao {
+          .quadro-professor-frente {
+            font-size: 0.56rem !important;
+            padding: 5px 8px !important;
+          }
+          .grid-sala-container,
+          #containerGridCarteiras,
+          #containerGridVisualizadorAba2 {
             gap: 2px !important;
           }
-          .fila-coluna,
-          .fila-coluna.fila-porta-destaque {
-            padding: 2px 1px !important;
-            border-radius: 5px !important;
+          .coluna-fila,
+          .coluna-fila.coluna-fila-porta {
+            gap: 3px !important;
           }
-          .fila-header,
-          .fila-coluna.fila-porta-destaque .fila-header {
-            font-size: 0.46rem !important;
-            padding: 2px 1px !important;
-            border-radius: 3px !important;
-          }
-          .seat-card {
-            padding: 2px 1px !important;
-            margin-bottom: 2px !important;
+          .header-fila,
+          .header-fila.fila-1-porta {
+            font-size: 0.44rem !important;
+            padding: 3px 1px !important;
             border-radius: 4px !important;
           }
-          .seat-card .seat-badge,
-          .fila-coluna.fila-porta-destaque .seat-badge {
-            font-size: 0.36rem !important;
+          .card-carteira {
+            padding: 2px 1px !important;
+            border-radius: 4px !important;
+          }
+          .topo-carteira {
+            margin-bottom: 2px !important;
+          }
+          .tag-posicao-carteira {
+            font-size: 0.35rem !important;
             padding: 1px 2px !important;
           }
-          .seat-photo-box {
-            width: 24px !important;
-            height: 32px !important;
-            margin: 1px auto !important;
+          .btn-limpar-carteira {
+            width: 13px !important;
+            height: 13px !important;
+            font-size: 0.5rem !important;
           }
-          .seat-photo-box i {
-            font-size: 0.65rem !important;
+          .foto-carteira-3x4 {
+            width: 26px !important;
+            height: 34px !important;
+            margin: 1px auto 2px auto !important;
+            border-radius: 4px !important;
           }
-          .seat-photo-box span {
+          .foto-carteira-3x4 i {
+            font-size: 0.7rem !important;
+          }
+          .foto-carteira-3x4 span {
             font-size: 0.34rem !important;
           }
-          .seat-select {
-            font-size: 0.4rem !important;
-            padding: 0 1px !important;
+          .select-aluno-carteira {
+            font-size: 0.38rem !important;
+            padding: 1px !important;
             height: 16px !important;
             background-image: none !important;
           }
-          .seat-student-name {
+          .nome-aluno-leitura {
             font-size: 0.38rem !important;
             line-height: 1.02 !important;
+            min-height: 14px !important;
           }
           .col-oculta-mobile-eemti {
             display: none !important;
@@ -579,7 +587,7 @@
     const b64BrasaoTopo = localStorage.getItem('cache_brasao_estado_topo_b64');
     const b64LogoMarcaDagua = localStorage.getItem('cache_logo_escola_marcadagua_b64');
 
-    document.querySelectorAll('.brand-escola img, header img#logoEscola').forEach(img => {
+    document.querySelectorAll('.brand-escola img, header img#logoEscola, nav img.logo-escola').forEach(img => {
       img.onerror = function() {
         if (this.src.endsWith('brasaoestado.png') && !this.src.endsWith('brasaoestado.png.png')) {
           this.src = 'brasaoestado.png.png';
@@ -595,7 +603,7 @@
       }
     });
 
-    document.querySelectorAll('img.watermark-brasao-fundo').forEach(img => {
+    document.querySelectorAll('img.watermark-brasao-fundo, img.watermark-bg').forEach(img => {
       img.onerror = function() {
         if (b64LogoMarcaDagua && this.src !== b64LogoMarcaDagua) {
           this.src = b64LogoMarcaDagua;
@@ -652,7 +660,11 @@
   }
 
   // =========================================================================
-  // 2. RELATÓRIO PDF DE RESERVAS COM SELEÇÃO DE PERÍODO (DATA INICIAL E FINAL)
+  // 2. RELATÓRIO PDF EXCLUSIVO DE RESERVAS DE AMBIENTES (reservas.html):
+  // - Limite máximo de 7 dias letivos (segunda a sexta) entre Data Inicial e Final
+  // - Gera 1 tabela para cada Ambiente que tiver reserva no período:
+  //   Coluna 1 = Aulas (1ª Aula a 9ª Aula) | Demais Colunas = Datas do período
+  //   Dentro de cada célula: nome ajustado do(a) professor(a) que reservou!
   // =========================================================================
   function converterDataBrOuIsoParaTimestamp(strData) {
     if (!strData) return 0;
@@ -664,10 +676,35 @@
     return 0;
   }
 
+  function gerarListaDiasLetivosNoIntervalo(inicioIso, fimIso) {
+    const pI = inicioIso.split('-').map(Number);
+    const pF = fimIso.split('-').map(Number);
+    const dtAtual = new Date(pI[0], pI[1] - 1, pI[2], 12, 0, 0);
+    const dtLimite = new Date(pF[0], pF[1] - 1, pF[2], 12, 0, 0);
+    const nomesDiasCurto = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const datasLetivas = [];
+
+    while (dtAtual.getTime() <= dtLimite.getTime()) {
+      const diaSem = dtAtual.getDay();
+      // Considera dias letivos (Segunda = 1 a Sexta = 5)
+      if (diaSem >= 1 && diaSem <= 5) {
+        const dd = String(dtAtual.getDate()).padStart(2, '0');
+        const mm = String(dtAtual.getMonth() + 1).padStart(2, '0');
+        const yyyy = dtAtual.getFullYear();
+        datasLetivas.push({
+          dataBr: `${dd}/${mm}/${yyyy}`,
+          rotuloColuna: `${dd}/${mm}\n(${nomesDiasCurto[diaSem]})`,
+          ts: dtAtual.getTime()
+        });
+      }
+      dtAtual.setDate(dtAtual.getDate() + 1);
+    }
+    return datasLetivas;
+  }
+
   window.abrirModalPdfReservasPorPeriodoEEMTI = async function() {
     if (typeof Swal === 'undefined') return;
     const hojeIso = new Date().toISOString().slice(0, 10);
-    const inicioMesIso = hojeIso.slice(0, 8) + '01';
 
     garantirBibliotecasPdfCarregadas().catch(() => {});
 
@@ -675,13 +712,13 @@
       title: '<span style="font-size:1.05rem;font-weight:800;color:#15438c;"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Relatório de Reservas por Período</span>',
       html: `
         <div class="text-start mt-2" style="font-size:0.85rem;">
-          <p class="text-muted small mb-3">Selecione a data inicial e a data final para gerar o relatório em PDF:</p>
+          <p class="text-muted small mb-3">Selecione a data inicial e a data final (máximo de <b>7 dias letivos</b> por relatório):</p>
           <div class="mb-3">
             <label class="form-label fw-bold text-dark small mb-1">Data Inicial *</label>
-            <input type="date" id="swalDataIniReservaPdf" class="form-control fw-bold" value="${inicioMesIso}">
+            <input type="date" id="swalDataIniReservaPdf" class="form-control fw-bold" value="${hojeIso}">
           </div>
           <div class="mb-1">
-            <label class="form-label fw-bold text-dark small mb-1">Data Final *</label>
+            <label class="form-label fw-bold text-dark small mb-1">Data Final * <span class="text-muted fw-normal">(Máx. 7 dias letivos)</span></label>
             <input type="date" id="swalDataFimReservaPdf" class="form-control fw-bold" value="${hojeIso}">
           </div>
         </div>
@@ -702,123 +739,206 @@
           Swal.showValidationMessage('A Data Inicial não pode ser maior que a Data Final!');
           return false;
         }
-        return { inicioIso: dIni, fimIso: dFim };
+        const diasLetivos = gerarListaDiasLetivosNoIntervalo(dIni, dFim);
+        if (diasLetivos.length === 0) {
+          Swal.showValidationMessage('O período selecionado não possui dias letivos (segunda a sexta-feira).');
+          return false;
+        }
+        if (diasLetivos.length > 7) {
+          Swal.showValidationMessage(`O intervalo selecionado possui ${diasLetivos.length} dias letivos! O limite máximo permitido é de 7 dias letivos.`);
+          return false;
+        }
+        return { inicioIso: dIni, fimIso: dFim, diasLetivos: diasLetivos };
       }
     });
 
     if (!resultadoModal || !resultadoModal.isConfirmed || !resultadoModal.value) return;
-    const datasEscolhidas = resultadoModal.value;
+    const { inicioIso, fimIso, diasLetivos } = resultadoModal.value;
 
-    const pIni = datasEscolhidas.inicioIso.split('-');
-    const pFim = datasEscolhidas.fimIso.split('-');
+    const pIni = inicioIso.split('-');
+    const pFim = fimIso.split('-');
     const tsIni = new Date(Number(pIni[0]), Number(pIni[1]) - 1, Number(pIni[2]), 0, 0, 0).getTime();
     const tsFim = new Date(Number(pFim[0]), Number(pFim[1]) - 1, Number(pFim[2]), 23, 59, 59).getTime();
     const dtIniBr = `${pIni[2]}/${pIni[1]}/${pIni[0]}`;
     const dtFimBr = `${pFim[2]}/${pFim[1]}/${pFim[0]}`;
 
-    Swal.fire({ title: 'Gerando Relatório PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Gerando Relatório PDF por Ambiente...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
       await garantirBibliotecasPdfCarregadas();
 
-      const pathLower = window.location.pathname.toLowerCase();
-      const ehReservaLivros = pathLower.includes('reservas-livros');
-
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('l', 'mm', 'a4');
-
-      if (ehReservaLivros) {
-        const resEmp = await _fetchNativo(API_PADRAO_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'listarDadosEmprestimosBiblioteca' }),
-          redirect: 'follow'
-        }).then(r => r.json()).catch(() => ({ emprestimos: [] }));
-
-        const listaEmp = (resEmp && Array.isArray(resEmp.emprestimos)) ? resEmp.emprestimos : [];
-        const filtrados = listaEmp.filter(item => {
-          const ts = converterDataBrOuIsoParaTimestamp(item.dataEmprestimo);
-          return ts >= tsIni && ts <= tsFim;
-        });
-
-        const yStart = await window.desenharCabecalhoPadraoEEMTI(doc, {
-          tituloDocumento: 'RELATÓRIO DE EMPRÉSTIMOS E RESERVAS DA BIBLIOTECA',
-          subtitulo1: `Período Selecionado: ${dtIniBr} a ${dtFimBr}`,
-          subtitulo2: `Total de Registros no Período: ${filtrados.length}`
-        });
-
-        const rowsPdf = filtrados.map((it, i) => [
-          i + 1,
-          it.dataEmprestimo || '-',
-          it.aluno || '-',
-          window.abreviarSerieParaExibicao(it.serie || '-'),
-          it.titulo || '-',
-          it.dataPrevista || '-',
-          it.status || '-'
-        ]);
-
-        doc.autoTable({
-          startY: yStart,
-          head: [['#', 'DATA EMPRÉSTIMO', 'ALUNO(A)', 'SÉRIE', 'LIVRO / OBRA', 'DEVOLUÇÃO PREV.', 'STATUS']],
-          body: rowsPdf.length > 0 ? rowsPdf : [['-', '-', 'Nenhum empréstimo registrado no período selecionado', '-', '-', '-', '-']],
-          theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 2.2 },
-          headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
-        });
-
-        Swal.close();
-        doc.save(`Relatorio_Biblioteca_${datasEscolhidas.inicioIso}_a_${datasEscolhidas.fimIso}.pdf`);
-        return;
-      }
-
-      let listaRes = cacheUltimasReservasCarregadas;
-      if (!Array.isArray(listaRes) || listaRes.length === 0) {
+      let listaRes = [];
+      try {
         const rApi = await _fetchNativo(API_PADRAO_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'listarReservas' }),
           redirect: 'follow'
-        }).then(r => r.json()).catch(() => ({ lista: [] }));
-        listaRes = (rApi && Array.isArray(rApi.lista)) ? rApi.lista : [];
+        }).then(r => r.json());
+        if (rApi && Array.isArray(rApi.lista)) {
+          listaRes = rApi.lista;
+          cacheUltimasReservasCarregadas = listaRes;
+        }
+      } catch (e) {
+        listaRes = cacheUltimasReservasCarregadas || [];
       }
 
-      const reservasNoPeriodo = listaRes
-        .filter(item => {
-          const ts = converterDataBrOuIsoParaTimestamp(item.data);
-          return ts >= tsIni && ts <= tsFim;
-        })
-        .sort((a, b) => converterDataBrOuIsoParaTimestamp(a.data) - converterDataBrOuIsoParaTimestamp(b.data));
+      // Normaliza e filtra apenas as reservas dentro do período escolhido
+      const reservasNoPeriodo = [];
+      listaRes.forEach(item => {
+        let dataStr = String(item.data || '').trim();
+        let profStr = String(item.professor || '').trim().toUpperCase();
+        let ambStr = String(item.ambiente || '').trim().toUpperCase();
+        let aulasArr = Array.isArray(item.aulas) ? item.aulas : (Array.isArray(item.aulasLista) ? item.aulasLista : []);
 
-      const yStart = await window.desenharCabecalhoPadraoEEMTI(doc, {
-        tituloDocumento: 'RELATÓRIO DE RESERVAS DE AMBIENTES E EQUIPAMENTOS',
-        subtitulo1: `Período Selecionado: ${dtIniBr} até ${dtFimBr}`,
-        subtitulo2: `Total de Reservas no Período: ${reservasNoPeriodo.length}`
+        const dataDentroDeAulas = aulasArr.find(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x || '').trim()));
+        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataStr) && dataDentroDeAulas) {
+          profStr = String(item.id || '').trim().toUpperCase();
+          ambStr = String(item.professor || '').trim().toUpperCase();
+          dataStr = String(dataDentroDeAulas).trim();
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr)) {
+          const p = dataStr.split('-');
+          dataStr = `${p[2]}/${p[1]}/${p[0]}`;
+        }
+
+        const ts = converterDataBrOuIsoParaTimestamp(dataStr);
+        if (ts >= tsIni && ts <= tsFim && ambStr) {
+          reservasNoPeriodo.push({
+            data: dataStr,
+            ambiente: ambStr,
+            professor: profStr,
+            aulas: aulasArr
+          });
+        }
       });
 
-      const corpoTabela = reservasNoPeriodo.map((r, idx) => {
-        const aulasFormatadas = Array.isArray(r.aulas)
-          ? r.aulas.map((val, i) => val ? `${i + 1}ª Aula (${val})` : '').filter(Boolean).join(', ')
-          : '-';
-        return [
-          idx + 1,
-          r.data || '-',
-          r.ambiente || '-',
-          r.professor || '-',
-          aulasFormatadas || 'Reservado'
-        ];
+      // Agrupa apenas os Ambientes que possuem pelo menos 1 aula reservada no período
+      const mapaPorAmbiente = {};
+      reservasNoPeriodo.forEach(r => {
+        if (!mapaPorAmbiente[r.ambiente]) {
+          mapaPorAmbiente[r.ambiente] = {};
+        }
+        r.aulas.forEach((itemAula, idxPos) => {
+          const txtAula = String(itemAula || '').trim().toUpperCase();
+          if (!txtAula || /^\d{2}\/\d{2}\/\d{4}$/.test(txtAula)) return;
+          const mNum = txtAula.match(/([1-9])/);
+          const numAula = mNum ? parseInt(mNum[1], 10) : (idxPos + 1);
+          if (numAula >= 1 && numAula <= 9) {
+            const chaveSlot = `${numAula}_${r.data}`;
+            if (!mapaPorAmbiente[r.ambiente][chaveSlot]) {
+              mapaPorAmbiente[r.ambiente][chaveSlot] = r.professor;
+            } else if (!mapaPorAmbiente[r.ambiente][chaveSlot].includes(r.professor)) {
+              mapaPorAmbiente[r.ambiente][chaveSlot] += ` / ${r.professor}`;
+            }
+          }
+        });
       });
 
-      doc.autoTable({
-        startY: yStart,
-        head: [['#', 'DATA', 'AMBIENTE / EQUIPAMENTO', 'PROFESSOR(A) SOLICITANTE', 'AULAS / HORÁRIOS RESERVADOS']],
-        body: corpoTabela.length > 0 ? corpoTabela : [['-', '-', 'Nenhuma reserva encontrada no período selecionado', '-', '-']],
-        theme: 'grid',
-        styles: { fontSize: 8.5, cellPadding: 2.5 },
-        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' }
+      const ambientesComReserva = Object.keys(mapaPorAmbiente)
+        .filter(amb => Object.keys(mapaPorAmbiente[amb]).length > 0)
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      if (ambientesComReserva.length === 0) {
+        Swal.close();
+        return Swal.fire('Sem Reservas no Período', `Nenhum ambiente possui reserva entre ${dtIniBr} e ${dtFimBr}.`, 'info');
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      let currentY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+        tituloDocumento: 'MAPA DE RESERVAS POR AMBIENTE / EQUIPAMENTO (1ª À 9ª AULA)',
+        subtitulo1: `Período: ${dtIniBr} até ${dtFimBr} (${diasLetivos.length} dia(s) letivo(s))`,
+        subtitulo2: `Ambientes com Reserva no Período: ${ambientesComReserva.length}`
       });
+
+      const largTotalUtil = 269; // 297mm - 28mm margens
+      const largColAula = 25;
+      const largColData = (largTotalUtil - largColAula) / diasLetivos.length;
+
+      const estilosColunas = {
+        0: { cellWidth: largColAula, halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [15, 23, 42] }
+      };
+      diasLetivos.forEach((_, idx) => {
+        estilosColunas[idx + 1] = { cellWidth: largColData, halign: 'center' };
+      });
+
+      for (let aIdx = 0; aIdx < ambientesComReserva.length; aIdx++) {
+        const nomeAmbiente = ambientesComReserva[aIdx];
+        const ocupacaoAmb = mapaPorAmbiente[nomeAmbiente];
+
+        // Se não couber a próxima tabela na página atual, cria nova página com cabeçalho
+        if (currentY > pageHeight - 62) {
+          doc.addPage();
+          currentY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+            tituloDocumento: 'MAPA DE RESERVAS POR AMBIENTE / EQUIPAMENTO (CONTINUAÇÃO)',
+            subtitulo1: `Período: ${dtIniBr} até ${dtFimBr} (${diasLetivos.length} dia(s) letivo(s))`
+          });
+        }
+
+        // Faixa de Título do Ambiente
+        doc.setFillColor(15, 41, 82);
+        doc.roundedRect(14, currentY, largTotalUtil, 7, 1.2, 1.2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.8);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`AMBIENTE / EQUIPAMENTO: ${nomeAmbiente}`, 18, currentY + 4.8);
+
+        const cabecalhoTabela = ['AULA'].concat(diasLetivos.map(d => d.rotuloColuna));
+        const linhasTabela = [];
+
+        for (let numAula = 1; numAula <= 9; numAula++) {
+          const linha = [`${numAula}ª Aula`];
+          diasLetivos.forEach(d => {
+            const profReservado = ocupacaoAmb[`${numAula}_${d.dataBr}`] || '-';
+            linha.push(profReservado);
+          });
+          linhasTabela.push(linha);
+        }
+
+        doc.autoTable({
+          startY: currentY + 7.8,
+          head: [cabecalhoTabela],
+          body: linhasTabela,
+          theme: 'grid',
+          styles: {
+            fontSize: 7.2,
+            cellPadding: 1.8,
+            valign: 'middle',
+            halign: 'center',
+            overflow: 'linebreak',
+            lineColor: [203, 213, 225],
+            lineWidth: 0.25
+          },
+          headStyles: {
+            fillColor: [21, 67, 140],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 7.5,
+            halign: 'center'
+          },
+          columnStyles: estilosColunas,
+          didParseCell: function(data) {
+            if (data.section === 'body' && data.column.index >= 1) {
+              const txt = String(data.cell.raw || '').trim();
+              if (txt && txt !== '-') {
+                data.cell.styles.fillColor = [239, 246, 255];
+                data.cell.styles.textColor = [21, 67, 140];
+                data.cell.styles.fontStyle = 'bold';
+              } else {
+                data.cell.styles.textColor = [185, 195, 205];
+              }
+            }
+          }
+        });
+
+        currentY = doc.lastAutoTable.finalY + 8;
+      }
 
       Swal.close();
-      doc.save(`Relatorio_Reservas_${datasEscolhidas.inicioIso}_a_${datasEscolhidas.fimIso}.pdf`);
+      doc.save(`Relatorio_Reservas_Ambientes_${inicioIso}_a_${fimIso}.pdf`);
     } catch (errPdf) {
       Swal.fire('Erro', 'Não foi possível gerar o PDF: ' + errPdf.message, 'error');
     }
@@ -826,12 +946,18 @@
 
   function vincularBotaoPdfReservasComSeletorDePeriodo() {
     const pathLower = window.location.pathname.toLowerCase();
-    if (!pathLower.includes('reservas')) return;
+    // IMPORTANTE: Atua SOMENTE em reservas.html (Ambientes) e NUNCA em reservas-livros.html (Biblioteca)!
+    if (!pathLower.includes('reservas') || pathLower.includes('reservas-livros')) return;
 
     garantirBibliotecasPdfCarregadas().catch(() => {});
 
+    window.gerarRelatorioPdfReservas = window.abrirModalPdfReservasPorPeriodoEEMTI;
+
     const botoesPdf = Array.from(document.querySelectorAll('button, a.btn')).filter(b => {
       if (b.closest('.swal2-container') || b.classList.contains('swal2-confirm') || b.classList.contains('swal2-cancel')) {
+        return false;
+      }
+      if (b.getAttribute('data-bs-toggle') === 'tab' || b.getAttribute('role') === 'tab' || b.classList.contains('nav-link')) {
         return false;
       }
       const txt = (b.textContent || '').toUpperCase();
@@ -850,24 +976,14 @@
           window.abrirModalPdfReservasPorPeriodoEEMTI();
         }, true);
       });
-    } else {
-      const cabecalhoCard = document.querySelector('.card-header-custom, .card h5, .card h4');
-      if (cabecalhoCard && !document.getElementById('btnPdfReservasPorPeriodoEEMTI')) {
-        const btnNovo = document.createElement('button');
-        btnNovo.type = 'button';
-        btnNovo.id = 'btnPdfReservasPorPeriodoEEMTI';
-        btnNovo.className = 'btn btn-danger btn-sm fw-bold rounded-pill px-3 ms-auto';
-        btnNovo.innerHTML = `<i class="bi bi-file-earmark-pdf-fill me-1"></i>Relatório PDF (Período)`;
-        btnNovo.onclick = () => window.abrirModalPdfReservasPorPeriodoEEMTI();
-        cabecalhoCard.appendChild(btnNovo);
-      }
     }
   }
 
   // =========================================================================
-  // 2.1 AJUSTE DIRECIONADO DO MAPEAMENTO DE SALA:
-  // - Remove 100% do destaque amarelo/laranja da Fila 1 usando estilo inline !important
-  // - Deixa apenas o aviso da Porta acima no lado esquerdo e ajusta até 8x8 na tela!
+  // 2.1 AJUSTE DIRECIONADO DO MAPEAMENTO DE SALA (mapeamento-sala.html):
+  // - Muda a posição da Fila 1 e do aviso da Porta para o lado contrário (Direita: Fila N ... Fila 1)
+  // - Remove 100% do destaque amarelo/laranja da Fila 1 na tela e no PDF!
+  // - Mantém apenas o aviso da Porta acima da Fila 1 e enquadra até 8x8 na tela!
   // =========================================================================
   function ajustarPaginaMapeamentoDeSala() {
     const pathLower = window.location.pathname.toLowerCase();
@@ -875,64 +991,202 @@
 
     injetarResponsividadeGlobalEEMTI();
 
-    // 1. Garante que a barra frontal tenha o aviso da Porta no lado esquerdo
-    document.querySelectorAll('.room-front-bar').forEach(barra => {
+    // 1. Na barra superior (.barra-orientacao-sala), coloca o aviso da Porta no lado direito (acima da Fila 1) e Janelas no lado esquerdo
+    document.querySelectorAll('.barra-orientacao-sala').forEach(barra => {
+      barra.style.setProperty('border-left', '1px solid #cbd5e1', 'important');
+      barra.style.setProperty('border-right', '5px solid #15438c', 'important');
+      barra.style.setProperty('background', '#f8fafc', 'important');
+
       const filhos = Array.from(barra.children);
       if (filhos.length >= 3) {
-        const idxPorta = filhos.findIndex(el => (el.textContent || '').toUpperCase().includes('PORTA'));
-        if (idxPorta > 0) {
-          barra.insertBefore(filhos[idxPorta], barra.firstChild);
+        const elPorta = filhos.find(el => el.classList.contains('selo-porta-entrada') || (el.textContent || '').toUpperCase().includes('PORTA'));
+        const elJanelas = filhos.find(el => (el.textContent || '').toUpperCase().includes('JANELAS') || (el.textContent || '').toUpperCase().includes('OPOSTO'));
+        if (elPorta && barra.lastElementChild !== elPorta) {
+          barra.appendChild(elPorta);
+        }
+        if (elJanelas && barra.firstElementChild !== elJanelas) {
+          barra.insertBefore(elJanelas, barra.firstElementChild);
         }
       }
     });
 
-    // 2. Garante que a Fila 1 fique do lado esquerdo (abaixo do aviso da Porta)
-    ['containerColunasSala', 'containerColunasVisualizacao'].forEach(idCont => {
+    // 2. Nos containers reais do mapeamento (#containerGridCarteiras e #containerGridVisualizadorAba2),
+    // inverte a ordem das colunas para a Fila 1 ficar na direita (abaixo do aviso da Porta) e caber 8x8 na tela!
+    ['containerGridCarteiras', 'containerGridVisualizadorAba2'].forEach(idCont => {
       const cont = document.getElementById(idCont);
       if (!cont) return;
-      cont.style.setProperty('display', 'grid', 'important');
-      cont.style.setProperty('grid-template-columns', 'repeat(auto-fit, minmax(0, 1fr))', 'important');
-      cont.style.setProperty('width', '100%', 'important');
-      cont.style.setProperty('min-width', '0', 'important');
 
-      const cols = Array.from(cont.querySelectorAll('.fila-coluna'));
-      if (cols.length > 1) {
-        const txtPrim = (cols[0].querySelector('.fila-header')?.textContent || '').toUpperCase();
-        const txtUlt = (cols[cols.length - 1].querySelector('.fila-header')?.textContent || '').toUpperCase();
-        if (!txtPrim.includes('FILA 1') && txtUlt.includes('FILA 1')) {
-          cols.reverse().forEach(c => cont.appendChild(c));
+      const cols = Array.from(cont.querySelectorAll('.coluna-fila'));
+      if (cols.length > 0) {
+        cont.style.setProperty('display', 'grid', 'important');
+        cont.style.setProperty('grid-template-columns', `repeat(${cols.length}, minmax(0, 1fr))`, 'important');
+        cont.style.setProperty('width', '100%', 'important');
+        cont.style.setProperty('min-width', '0', 'important');
+
+        if (cols.length > 1) {
+          const txtPrim = (cols[0].querySelector('.header-fila')?.textContent || '').toUpperCase();
+          const txtUlt = (cols[cols.length - 1].querySelector('.header-fila')?.textContent || '').toUpperCase();
+          // Se a Fila 1 ainda estiver na primeira coluna (esquerda), inverte para a Fila 1 ficar na direita!
+          if (txtPrim.includes('FILA 1') && !txtUlt.includes('FILA 1')) {
+            cols.reverse().forEach(c => cont.appendChild(c));
+          }
         }
       }
     });
 
-    // 3. Remove completamente o destaque amarelo/marrom da Fila 1 (força azul padrão em todas as filas!)
-    document.querySelectorAll('.fila-coluna').forEach(col => {
-      col.classList.remove('fila-porta-destaque');
-      col.style.setProperty('background', '#f8fafc', 'important');
-      col.style.setProperty('border', '1px solid #cbd5e1', 'important');
-      col.style.setProperty('box-shadow', 'none', 'important');
+    // 3. Remove 100% do destaque amarelo/laranja da Fila 1 (.coluna-fila-porta, .fila-1-porta, .subbadge-porta-fila1 e .tag-posicao-carteira)
+    document.querySelectorAll('.coluna-fila').forEach(col => {
+      col.classList.remove('coluna-fila-porta');
+      col.style.setProperty('background', 'transparent', 'important');
+      col.style.setProperty('border', 'none', 'important');
+      col.style.setProperty('padding', '0', 'important');
       col.style.setProperty('min-width', '0', 'important');
 
-      const header = col.querySelector('.fila-header');
+      const header = col.querySelector('.header-fila');
       if (header) {
+        header.classList.remove('fila-1-porta');
         header.style.setProperty('background', '#15438c', 'important');
         header.style.setProperty('background-image', 'none', 'important');
         header.style.setProperty('color', '#ffffff', 'important');
         header.style.setProperty('border', 'none', 'important');
 
         const mNum = (header.textContent || '').match(/FILA\s*(\d+)/i);
-        if (mNum && (header.innerHTML.includes('PORTA') || header.querySelector('small') || header.innerHTML.includes('door'))) {
-          header.innerHTML = `<i class="bi bi-list-ul me-1"></i>FILA ${mNum[1]}`;
+        if (mNum && (header.querySelector('.subbadge-porta-fila1') || header.innerHTML.includes('bi-door-open-fill'))) {
+          header.innerHTML = `<i class="bi bi-distribute-vertical me-1"></i>FILA ${mNum[1]}`;
         }
       }
 
-      col.querySelectorAll('.seat-badge').forEach(badge => {
-        badge.style.setProperty('background', '#15438c', 'important');
-        badge.style.setProperty('color', '#ffffff', 'important');
-        const limpo = (badge.textContent || '').replace(/🚪/g, '').trim();
-        if (badge.textContent !== limpo) badge.textContent = limpo;
+      col.querySelectorAll('.tag-posicao-carteira').forEach(tag => {
+        tag.style.setProperty('background-color', '#15438c', 'important');
+        tag.style.setProperty('color', '#ffffff', 'important');
       });
     });
+
+    // 4. Sobrescreve a função baixarPdfMapeamento3x4 da página para que o PDF também tenha a Fila 1 na direita e sem cor amarela/laranja!
+    if (typeof window.baixarPdfMapeamento3x4 === 'function' && !window.baixarPdfMapeamento3x4._eemtiCustomPdf) {
+      const fnPdfCustom = async function(origem = 'EDICAO') {
+        await garantirBibliotecasPdfCarregadas();
+        let serie = "";
+        let pdt = "";
+        let numColunas = 6;
+        let numLinhas = 7;
+        let mapaPosicoesPdf = {};
+
+        if (origem === 'CONSULTA' && typeof mapaAbertoNaConsultaAba2 !== 'undefined' && mapaAbertoNaConsultaAba2) {
+          serie = mapaAbertoNaConsultaAba2.serie;
+          pdt = (typeof mapaPdtPorSerie !== 'undefined' && mapaPdtPorSerie[serie]) || mapaAbertoNaConsultaAba2.pdt || "-";
+          numColunas = Math.min(8, Math.max(4, parseInt(mapaAbertoNaConsultaAba2.colunas, 10) || 6));
+          numLinhas = Math.min(8, Math.max(4, parseInt(mapaAbertoNaConsultaAba2.linhas, 10) || 7));
+          mapaPosicoesPdf = mapaAbertoNaConsultaAba2.posicoes || {};
+        } else {
+          serie = document.getElementById('mapSerieSelect').value;
+          pdt = document.getElementById('mapPdtInput').value;
+          numColunas = Math.min(8, Math.max(4, parseInt(document.getElementById('mapColunasSelect').value, 10) || 6));
+          numLinhas = Math.min(8, Math.max(4, parseInt(document.getElementById('mapLinhasSelect').value, 10) || 7));
+          mapaPosicoesPdf = (typeof posicoesAlocadas !== 'undefined' ? posicoesAlocadas : {}) || {};
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape', 'mm', 'a4');
+
+        const b64LogoEscola = localStorage.getItem('cache_logo_escola_marcadagua_b64') || await window.converterImagemParaDataUrlPdf('LOGO-removebg-preview.png', 200, 200);
+        if (b64LogoEscola) {
+          try { doc.addImage(b64LogoEscola, 'JPEG', 14, 7, 13, 13); } catch (e) {}
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12.5);
+        doc.setTextColor(21, 67, 140);
+        doc.text(`EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR — MAPEAMENTO DE SALA (3x4) — ${serie}`, 30, 12);
+        doc.setFontSize(8.5);
+        doc.setTextColor(60, 60, 60);
+        doc.text(`PDT: ${pdt} | Orientação Oficial: A FILA 1 inicia ao lado da PORTA DA SALA | Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 30, 17);
+
+        // Barra superior do PDF: Lado Oposto/Janelas na esquerda | Quadro no centro | Porta da Sala (Fila 1) na direita!
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(14, 20, 56, 7, 1.5, 1.5, 'FD');
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(7);
+        doc.text("Lado Oposto / Janelas", 42, 24.5, { align: "center" });
+
+        doc.setFillColor(30, 41, 59);
+        doc.roundedRect(88, 20, 120, 7, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.text("QUADRO BRANCO / MESA DO PROFESSOR (FRENTE)", 148, 24.5, { align: "center" });
+
+        doc.setFillColor(254, 243, 199);
+        doc.setDrawColor(217, 119, 6);
+        doc.roundedRect(215, 20, 68, 7, 1.5, 1.5, 'FD');
+        doc.setTextColor(146, 64, 14);
+        doc.setFontSize(7.5);
+        doc.text("PORTA DA SALA (INÍCIO NA FILA 1)", 249, 24.5, { align: "center" });
+
+        const margemX = 14;
+        const startY = 30;
+        const larguraUtil = 269;
+        const alturaUtil = 168;
+        const gapX = numColunas >= 8 ? 1.8 : 2.5;
+        const gapY = numLinhas >= 8 ? 1.5 : 2;
+        const largCol = (larguraUtil - (gapX * (numColunas - 1))) / numColunas;
+        const altHeaderFila = 5.5;
+        const altCarteira = (alturaUtil - altHeaderFila - (gapY * numLinhas)) / numLinhas;
+
+        // Desenha da esquerda para a direita: Fila N na esquerda ... até Fila 1 na direita (abaixo da Porta), todas em azul padrão!
+        for (let idxPos = 0; idxPos < numColunas; idxPos++) {
+          const f = numColunas - idxPos;
+          const xCol = margemX + idxPos * (largCol + gapX);
+
+          doc.setFillColor(21, 67, 140);
+          doc.roundedRect(xCol, startY, largCol, altHeaderFila, 1, 1, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(numColunas >= 8 ? 6.2 : 7);
+          doc.text(`FILA ${f}`, xCol + largCol / 2, startY + 3.9, { align: "center" });
+
+          for (let c = 1; c <= numLinhas; c++) {
+            const yCart = startY + altHeaderFila + gapY + (c - 1) * (altCarteira + gapY);
+            const chave = `F${f}_C${c}`;
+            const nomeAl = mapaPosicoesPdf[chave] || "";
+            const fotoB64 = nomeAl ? ((typeof mapaFotosPorAluno !== 'undefined' && mapaFotosPorAluno[nomeAl]) || (obterDadosCadastraisAlunoCache(nomeAl).foto) || "") : "";
+
+            doc.setDrawColor(180, 190, 205);
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(xCol, yCart, largCol, altCarteira, 1, 1, 'FD');
+
+            doc.setFontSize(5);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`F${f}-${c}ªC`, xCol + 1.2, yCart + 2.8);
+
+            const altMaxFoto = Math.max(7, altCarteira - 7.5);
+            const largFoto = Math.min(largCol - 5, altMaxFoto * 0.75);
+            const xFoto = xCol + (largCol - largFoto) / 2;
+            const yFoto = yCart + 3.3;
+
+            if (fotoB64 && fotoB64.startsWith('data:image')) {
+              try {
+                const fmt = fotoB64.includes('image/png') ? 'PNG' : 'JPEG';
+                doc.addImage(fotoB64, fmt, xFoto, yFoto, largFoto, altMaxFoto);
+              } catch (e) {}
+            } else {
+              doc.setDrawColor(220, 225, 230);
+              doc.rect(xFoto, yFoto, largFoto, altMaxFoto);
+            }
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(numColunas >= 8 ? 4.8 : 5.3);
+            doc.setTextColor(15, 23, 42);
+            const maxChars = numColunas >= 8 ? 18 : 22;
+            const nomeCurto = nomeAl ? (nomeAl.length > maxChars ? nomeAl.slice(0, maxChars - 1) + '.' : nomeAl) : '---';
+            doc.text(nomeCurto, xCol + largCol / 2, yCart + altCarteira - 1.2, { align: "center" });
+          }
+        }
+
+        doc.save(`Mapeamento_3x4_${serie.replace(/\s+/g, '_')}.pdf`);
+      };
+      fnPdfCustom._eemtiCustomPdf = true;
+      window.baixarPdfMapeamento3x4 = fnPdfCustom;
+    }
   }
 
   // =========================================================================
@@ -3538,25 +3792,29 @@
     return unificarFilasOfflineNoStorage();
   };
 
+  // AVISO RÁPIDO AUTOMÁTICO AO ABRIR O APLICATIVO SOBRE OS DADOS QUE FORAM ENVIADOS!
   function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
     if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
     if (typeof Swal === 'undefined') return;
 
     Swal.fire({
-      title: 'Dados Enviados ao Banco de Dados!',
-      html: `
-        <p class="small text-muted mb-2">As seguintes informações salvas offline já foram sincronizadas com sucesso na planilha:</p>
-        <ul class="text-start small bg-light p-3 rounded border mb-0" style="max-height: 240px; overflow-y: auto;">
-          ${listaHtmlSincronizados.join('')}
-        </ul>
-      `,
+      toast: true,
+      position: 'top-end',
       icon: 'success',
-      confirmButtonColor: '#15438c',
-      confirmButtonText: 'OK, Ciente!'
+      title: 'Dados Offline Enviados ao Banco!',
+      html: `
+        <div class="text-start small mt-1" style="max-height: 150px; overflow-y: auto; font-size: 0.76rem;">
+          <ul class="ps-3 mb-0">
+            ${listaHtmlSincronizados.join('')}
+          </ul>
+        </div>
+      `,
+      showConfirmButton: false,
+      timer: 4200,
+      timerProgressBar: true
     });
   }
 
-  // O portal-core sincroniza em conjunto com o Service Worker através do IndexedDB!
   window.sincronizarFilaOfflineGlobal = async function() {
     if (sincronizacaoEmAndamento || !navigator.onLine) return;
     sincronizacaoEmAndamento = true;
@@ -3656,7 +3914,6 @@
   window.addEventListener('online', () => {
     atualizarSeloTopoSincronizacao();
     window.atualizarBadgeStatusConexaoGlobal();
-    // Aciona também o Service Worker imediatamente quando a rede volta
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
     }
