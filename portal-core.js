@@ -3132,10 +3132,26 @@
       }
 
       if (Array.isArray(resOcoRac)) {
-        salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, resOcoRac.slice(0, 1500));
+        // Compacta cada registro mantendo 100% dos campos necessários para Notas CRO, Histórico e PDFs,
+        // reduzindo o consumo de memória pela metade e evitando qualquer acúmulo no localStorage!
+        const ocosCompactadas = resOcoRac.map(r => ({
+          id: r.id || "",
+          serie: normalizarSeriePadraoCore(r.serie || ""),
+          aluno: String(r.aluno || "").replace(/\s+/g, " ").trim().toUpperCase(),
+          data: String(r.data || "").trim(),
+          professor: String(r.professor || "").trim().toUpperCase(),
+          ocorrencia: String(r.ocorrencia || "").trim(),
+          obs: String(r.obs || r.observacoes || "").trim(),
+          gravidade: String(r.gravidade || "").trim()
+        }));
+
+        salvarNoLocalStorageSeguro(KEY_TODAS_OCORRENCIAS_OFFLINE, ocosCompactadas);
+        // Também guarda uma cópia integral no IndexedDB (que não tem limite de 5MB)
+        salvarFotoNoIndexedDB('BACKUP_INTEGRAL_OCORRENCIAS_CRO', ocosCompactadas);
+
         if (nomeProfLogado) {
-          const minhasOco = resOcoRac.filter(r => {
-            const p = String(r.professor || "").trim().toUpperCase();
+          const minhasOco = ocosCompactadas.filter(r => {
+            const p = r.professor;
             return p === nomeProfLogado || p.includes(nomeProfLogado) || nomeProfLogado.includes(p);
           });
           salvarNoLocalStorageSeguro('cache_rac_minhas_oco_' + nomeProfLogado.replace(/\s+/g, '_'), minhasOco.slice(0, 300));
@@ -3331,7 +3347,8 @@
     }
 
     if (action === 'getDadosHistorico') {
-      const nomeBusca = String(bodyObj.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
+   if (navigator.onLine) return null; // Online: busca sempre o histórico completo (1º ao 4º Bimestre) direto da planilha!
+   const nomeBusca = String(bodyObj.nome || "").replace(/\s+/g, " ").trim().toUpperCase();
       const alunos = JSON.parse(localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const todasOco = JSON.parse(localStorage.getItem(KEY_TODAS_OCORRENCIAS_OFFLINE) || '[]');
       const bims = JSON.parse(localStorage.getItem('cache_ativ_rapido_v3_bim') || '[]');
@@ -4430,12 +4447,18 @@
     return 38;
   };
 // =========================================================================
-  // 12. MOTOR OFICIAL DE REGRAS CRO (NOTAS SEMESTRAIS CUMULATIVAS + ATRASOS + GRAVES)
-  // Regra 01: 1º ao 3º CRO leve válido = 0 pts perdidos | 4º = -1 pt | 5º = -2 pts...
+  // 12. MOTOR OFICIAL DE REGRAS CRO (HISTÓRICO COMPLETO FEV A DEZ + PDF FUNCIONANDO)
+  // Regra 01: 1º ao 3º CRO leve válido = 0 pts perdidos (Nota 10,00) | 4º = -1 pt (9,00) | 5º = -2 pts (8,00)...
   // Regra 03: Cada 3 "Chegou atrasado no início da aula" = 1 CRO leve válido
   // Regra 04: 1 Ocorrência Grave ([GRAVE] ou GRAU II) = Nota 0,00 imediata
   // Regra 05: Cumulativo durante o Semestre (1º Sem = 1º e 2º Bim | 2º Sem = 3º e 4º Bim)
   // =========================================================================
+  let cacheOcorrenciasPorTurmaNotas = {};
+  let ultimaTurmaBuscadaNotas = '';
+  let buscandoOcoTurmaEmAndamento = false;
+  let cacheHistoricoCompletoPorAluno = {};
+  let buscandoHistAlunoEmAndamento = false;
+
   window.classificarRegistroCroEEMTI = function(descricaoOco, gravidadeOco) {
     const desc = String(descricaoOco || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
     const grav = String(gravidadeOco || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
@@ -4449,12 +4472,12 @@
     return 'LEVE';
   };
 
-  window.calcularResultadoCroAcumuladoEEMTI = function(listaOcorrenciasDoSemestreAteOBimestre) {
+  window.calcularResultadoCroAcumuladoEEMTI = function(listaOcorrenciasAcumuladasNoSemestre) {
     let levesDiretas = 0;
     let atrasosInicio = 0;
     let graves = 0;
 
-    (listaOcorrenciasDoSemestreAteOBimestre || []).forEach(o => {
+    (listaOcorrenciasAcumuladasNoSemestre || []).forEach(o => {
       const desc = o.ocorrencia || o.descricao || o.tipo || '';
       const grav = o.gravidade || '';
       const tipo = window.classificarRegistroCroEEMTI(desc, grav);
@@ -4478,9 +4501,12 @@
     }
 
     return {
+      totalBruto: (listaOcorrenciasAcumuladasNoSemestre || []).length,
       nota: notaFinal,
+      nota1Casa: notaFinal.toFixed(1).replace('.', ','),
       notaFormatada: notaFinal.toFixed(2).replace('.', ','),
       pontosPerdidos: pontosPerdidos,
+      pontosPerdidosStr: pontosPerdidos === 0 ? '(Sem perda)' : `(-${pontosPerdidos.toFixed(1).replace('.0', '').replace('.', ',')} pt${pontosPerdidos > 1 ? 's' : ''})`,
       crosLevesValidos: crosLevesValidos,
       levesDiretas: levesDiretas,
       atrasosInicio: atrasosInicio,
@@ -4489,31 +4515,52 @@
     };
   };
 
-  // Descobre em qual Bimestre (1, 2, 3 ou 4) cai uma ocorrência pela data
+  function extrairNumeroBimestrePorNome(nomeBim) {
+    const s = String(nomeBim || '').toUpperCase().trim();
+    const mDig = s.match(/([1234])/);
+    if (mDig) return parseInt(mDig[1], 10);
+    if (/\bIV\b/.test(s) || s.includes('QUARTO')) return 4;
+    if (/\bIII\b/.test(s) || s.includes('TERCEIRO')) return 3;
+    if (/\bII\b/.test(s) || s.includes('SEGUNDO')) return 2;
+    if (/\bI\b/.test(s) || s.includes('PRIMEIRO')) return 1;
+    return 0;
+  }
+
   function identificarNumeroBimestreDaOcorrencia(ocoObj, listaBimestresConfig) {
-    if (ocoObj.bimestre) {
-      const mBim = String(ocoObj.bimestre).match(/([1234])/);
-      if (mBim) return parseInt(mBim[1], 10);
+    if (ocoObj.bimestre && !String(ocoObj.bimestre).toUpperCase().includes('FORA')) {
+      const nExplicito = extrairNumeroBimestrePorNome(ocoObj.bimestre);
+      if (nExplicito >= 1 && nExplicito <= 4) return nExplicito;
     }
+
     const ts = converterDataParaTimestampLocal(ocoObj.data || '');
     if (!ts) return 0;
 
     if (Array.isArray(listaBimestresConfig) && listaBimestresConfig.length > 0) {
-      for (let i = 0; i < listaBimestresConfig.length; i++) {
-        const b = listaBimestresConfig[i];
-        const tsI = b.inicio || (b.inicioIso ? new Date(converterDataParaTimestampLocal(b.inicioIso)).setHours(0, 0, 0, 0) : 0);
-        const tsF = b.fim || (b.fimIso ? new Date(converterDataParaTimestampLocal(b.fimIso)).setHours(23, 59, 59, 999) : 0);
-        if (tsI > 0 && tsF > 0 && ts >= tsI && ts <= tsF) {
-          const m = String(b.nome || '').match(/([1234])/);
-          return m ? parseInt(m[1], 10) : (i + 1);
+      const bimsComTs = listaBimestresConfig
+        .map(b => {
+          const tsI = b.inicio || (b.inicioIso ? new Date(converterDataParaTimestampLocal(b.inicioIso)).setHours(0, 0, 0, 0) : 0);
+          const tsF = b.fim || (b.fimIso ? new Date(converterDataParaTimestampLocal(b.fimIso)).setHours(23, 59, 59, 999) : 0);
+          return { nome: b.nome, tsI: tsI, tsF: tsF, numNome: extrairNumeroBimestrePorNome(b.nome) };
+        })
+        .filter(b => b.tsI > 0 && b.tsF > 0)
+        .sort((a, b) => a.tsI - b.tsI);
+
+      for (let i = 0; i < bimsComTs.length; i++) {
+        const b = bimsComTs[i];
+        if (ts >= b.tsI && ts <= b.tsF) {
+          return (b.numNome >= 1 && b.numNome <= 4) ? b.numNome : (i + 1);
         }
       }
     }
 
-    const mes = new Date(ts).getMonth() + 1;
-    if (mes >= 1 && mes <= 4) return 1;
-    if (mes >= 5 && mes <= 7) return 2;
-    if (mes >= 8 && mes <= 9) return 3;
+    // Datas oficiais do calendário letivo 2026:
+    // 1º Bim: 02/02 a 17/04 | 2º Bim: 20/04 a 30/06 | 3º Bim: 29/07 a 07/10 | 4º Bim: 08/10 a 22/12
+    const dt = new Date(ts);
+    const mes = dt.getMonth() + 1;
+    const dia = dt.getDate();
+    if (mes < 4 || (mes === 4 && dia <= 18)) return 1;
+    if (mes < 7 || (mes === 7 && dia <= 15)) return 2;
+    if (mes < 10 || (mes === 10 && dia <= 7)) return 3;
     return 4;
   }
 
@@ -4526,58 +4573,565 @@
       }
     });
 
-    // Regra 05: Contagem cumulativa dentro do Semestre!
-    // 1º Semestre: 1º Bimestre = só [1] | 2º Bimestre = acumula [1 + 2]
-    // 2º Semestre: 3º Bimestre = só [3] | 4º Bimestre = acumula [3 + 4]
+    // Regra 05: Acúmulo por Semestre!
+    // 1º Semestre: 1º Bim = [1] | 2º Bim = [1 + 2]
+    // 2º Semestre: 3º Bim = [3] | 4º Bim = [3 + 4]
+    const r1 = window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[1]);
+    const r2 = window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[1].concat(ocosPorBim[2]));
+    const r3 = window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[3]);
+    const r4 = window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[3].concat(ocosPorBim[4]));
+
+    r1.qtdSomenteNoBimestre = ocosPorBim[1].length;
+    r2.qtdSomenteNoBimestre = ocosPorBim[2].length;
+    r3.qtdSomenteNoBimestre = ocosPorBim[3].length;
+    r4.qtdSomenteNoBimestre = ocosPorBim[4].length;
+
+    const mediaAnual = (r1.nota + r2.nota + r3.nota + r4.nota) / 4;
+
     return {
-      1: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[1]),
-      2: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[1].concat(ocosPorBim[2])),
-      3: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[3]),
-      4: window.calcularResultadoCroAcumuladoEEMTI(ocosPorBim[3].concat(ocosPorBim[4]))
+      1: r1,
+      2: r2,
+      3: r3,
+      4: r4,
+      mediaAnual: mediaAnual,
+      mediaAnual1Casa: mediaAnual.toFixed(1).replace('.', ','),
+      mediaAnual2Casas: mediaAnual.toFixed(2).replace('.', ',')
     };
   };
+
+  async function garantirTodasOcorrenciasDaTurmaDoServidor(serieNorm) {
+    if (!serieNorm || !navigator.onLine || buscandoOcoTurmaEmAndamento) return;
+    if (cacheOcorrenciasPorTurmaNotas[serieNorm]) return;
+
+    buscandoOcoTurmaEmAndamento = true;
+    try {
+      const resp = await _fetchNativo(API_PADRAO_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'buscarOcorrencias',
+          filtros: { serie: serieNorm, ignorarRestricao: true }
+        }),
+        redirect: 'follow'
+      }).then(r => r.json());
+
+      if (Array.isArray(resp)) {
+        cacheOcorrenciasPorTurmaNotas[serieNorm] = resp;
+      }
+    } catch (e) {} finally {
+      buscandoOcoTurmaEmAndamento = false;
+    }
+  }
+
+  // Busca direto na planilha TODAS as ocorrências do aluno (incluindo Fevereiro a Junho) se o cache local estava cortado!
+  async function garantirHistoricoCompletoAlunoDoServidor(nomeAluno, bimsCache) {
+    if (!nomeAluno || !navigator.onLine || buscandoHistAlunoEmAndamento) return;
+    if (cacheHistoricoCompletoPorAluno[nomeAluno]) return;
+
+    buscandoHistAlunoEmAndamento = true;
+    try {
+      const resp = await _fetchNativo(API_PADRAO_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'getDadosHistorico', nome: nomeAluno }),
+        redirect: 'follow'
+      }).then(r => r.json());
+
+      if (resp && resp.success && Array.isArray(resp.ocorrencias)) {
+        cacheHistoricoCompletoPorAluno[nomeAluno] = resp;
+        // Se a página historico-ocorrencias.html usa a variável global dadosAtuais, atualiza e re-renderiza a tela com Fevereiro a Dezembro!
+        if (typeof dadosAtuais !== 'undefined' && dadosAtuais) {
+          const qtdAntes = Array.isArray(dadosAtuais.ocorrencias) ? dadosAtuais.ocorrencias.length : 0;
+          dadosAtuais.ocorrencias = resp.ocorrencias;
+          if (resp.bimestres) dadosAtuais.bimestres = resp.bimestres;
+          if (resp.ocorrencias.length !== qtdAntes) {
+            if (typeof processarERenderizarHistorico === 'function') {
+              try { processarERenderizarHistorico(); } catch (e) {}
+            } else if (typeof renderizarTabelaHistorico === 'function') {
+              try { renderizarTabelaHistorico(); } catch (e) {}
+            } else if (typeof filtrarPorBimestre === 'function') {
+              try { filtrarPorBimestre('TODOS'); } catch (e) {}
+            }
+          }
+        }
+      }
+    } catch (e) {} finally {
+      buscandoHistAlunoEmAndamento = false;
+    }
+  }
+
+ async function gerarPdfHistoricoIndividualOficialCro(nomeAluno, listaOcorrencias, calc) {
+    try {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({ title: 'Gerando Relatório PDF CRO...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      }
+      await garantirBibliotecasPdfCarregadas();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      const infoCad = obterDadosCadastraisAlunoCache(nomeAluno);
+      const fotoServidor = (cacheHistoricoCompletoPorAluno[nomeAluno] && cacheHistoricoCompletoPorAluno[nomeAluno].aluno && cacheHistoricoCompletoPorAluno[nomeAluno].aluno.foto) || '';
+      const serieServidor = (cacheHistoricoCompletoPorAluno[nomeAluno] && cacheHistoricoCompletoPorAluno[nomeAluno].aluno && cacheHistoricoCompletoPorAluno[nomeAluno].aluno.serie) || '';
+      const serieExib = window.abreviarSerieParaExibicao(serieServidor || infoCad.serie || (listaOcorrencias[0] && listaOcorrencias[0].serie) || '-');
+
+      let y = await window.desenharCabecalhoPadraoEEMTI(doc, {
+        tituloDocumento: 'HISTÓRICO DISCIPLINAR OFICIAL DE OCORRÊNCIAS (CRO)',
+        subtitulo1: `Aluno(a): ${nomeAluno}   |   Turma: ${serieExib}   |   Total no Ano: ${listaOcorrencias.length} registro(s)`,
+        subtitulo2: `Média Anual: ${calc.mediaAnual1Casa}   |   Fechamento 1º Sem: Nota ${calc[2].nota1Casa}   |   Fechamento 2º Sem (Zera no início do 3º Bim): Nota ${calc[4].nota1Casa}`,
+        exibirMolduraFoto: true,
+        fotoAlunoBase64: fotoServidor || infoCad.foto || ''
+      });
+
+      doc.autoTable({
+        startY: y,
+        head: [['1º BIMESTRE\n(Início 1º Sem)', '2º BIMESTRE\n(Acum. 1º Sem)', '3º BIMESTRE\n(Novo Ciclo 2º Sem)', '4º BIMESTRE\n(Acum. 2º Sem)', 'MÉDIA ANUAL']],
+        body: [[
+          `Nota: ${calc[1].nota1Casa}\n${calc[1].qtdSomenteNoBimestre} oc. ${calc[1].pontosPerdidosStr}`,
+          `Nota: ${calc[2].nota1Casa}\n${calc[2].qtdSomenteNoBimestre} oc. (${calc[2].totalBruto} no 1º Sem)\n${calc[2].pontosPerdidosStr}`,
+          `Nota: ${calc[3].nota1Casa}\n${calc[3].qtdSomenteNoBimestre} oc. (Zerou 1º Sem)\n${calc[3].pontosPerdidosStr}`,
+          `Nota: ${calc[4].nota1Casa}\n${calc[4].qtdSomenteNoBimestre} oc. (${calc[4].totalBruto} no 2º Sem)\n${calc[4].pontosPerdidosStr}`,
+          `${calc.mediaAnual1Casa}`
+        ]],
+        theme: 'grid',
+        styles: { fontSize: 7.4, halign: 'center', valign: 'middle', cellPadding: 2, fontStyle: 'bold' },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontSize: 7.2 }
+      });
+
+      const startYTabela2 = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 5) : (y + 22);
+
+      const linhasPdf = (listaOcorrencias || []).map((o, idx) => {
+        const desc = o.ocorrencia || o.descricao || '-';
+        const grav = o.gravidade || 'GRAU I';
+        const tipo = window.classificarRegistroCroEEMTI(desc, grav);
+        const regraTxt = tipo === 'GRAVE' ? 'GRAVE (Zera Nota)' : (tipo === 'ATRASO_INICIO' ? 'ATRASO (3 = 1 CRO)' : '1 CRO LEVE VÁLIDO');
+        const numB = identificarNumeroBimestreDaOcorrencia(o, []);
+        return [
+          String(idx + 1),
+          `${o.data || '-'}\n(${numB}º Bim)`,
+          `${desc}\n[${regraTxt}]`,
+          String(o.professor || '-'),
+          String(o.observacoes || o.obs || '-')
+        ];
+      });
+
+      doc.autoTable({
+        startY: startYTabela2,
+        head: [['Nº', 'DATA / BIM.', 'OCORRÊNCIA REGISTRADA / REGRA CRO', 'PROFESSOR(A)', 'OBSERVAÇÕES']],
+        body: linhasPdf,
+        theme: 'striped',
+        styles: { fontSize: 7, valign: 'middle', cellPadding: 1.8, overflow: 'linebreak' },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 9, halign: 'center' },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 62 },
+          3: { cellWidth: 34 },
+          4: { cellWidth: 52 }
+        }
+      });
+
+      if (typeof Swal !== 'undefined') Swal.close();
+      doc.save(`Historico_CRO_${nomeAluno.replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire('Erro ao gerar PDF', err.message || String(err), 'error');
+      }
+    }
+  }
+
+  function ajustarLargurasTabelaHistoricoOcorrencias() {
+    document.querySelectorAll('table').forEach(tabela => {
+      const ths = Array.from(tabela.querySelectorAll('thead th')).filter(th => !th.classList.contains('col-oculta-eemti'));
+      if (ths.length === 4) {
+        const titulos = ths.map(t => (t.textContent || '').toUpperCase());
+        if (titulos.some(t => t.includes('OCORRÊNCIA')) && titulos.some(t => t.includes('OBSERVA'))) {
+          // Distribuição proporcional ajustável: Nº (5%) | DATA/HORA (15%) | OCORRÊNCIA (42%) | OBSERVAÇÕES (38%)
+          ths[0].style.setProperty('width', '5%', 'important');
+          ths[0].style.setProperty('white-space', 'nowrap', 'important');
+
+          ths[1].style.setProperty('width', '15%', 'important');
+          ths[1].style.setProperty('min-width', '125px', 'important');
+          ths[1].style.setProperty('white-space', 'nowrap', 'important');
+
+          ths[2].style.setProperty('width', '42%', 'important');
+          ths[2].style.setProperty('min-width', '210px', 'important');
+
+          ths[3].style.setProperty('width', '38%', 'important');
+          ths[3].style.setProperty('min-width', '200px', 'important');
+          ths[3].style.setProperty('text-align', 'left', 'important');
+
+          tabela.querySelectorAll('tbody tr').forEach(tr => {
+            const tdsVisiveis = Array.from(tr.children).filter(td => !td.classList.contains('col-oculta-eemti'));
+            if (tdsVisiveis.length === 4) {
+              tdsVisiveis[1].style.setProperty('white-space', 'nowrap', 'important');
+              tdsVisiveis[1].style.setProperty('width', '15%', 'important');
+              tdsVisiveis[2].style.setProperty('width', '42%', 'important');
+
+              const tdObs = tdsVisiveis[3];
+              const txtObs = (tdObs.textContent || '').trim();
+              tdObs.style.setProperty('width', '38%', 'important');
+              tdObs.style.setProperty('min-width', '190px', 'important');
+              tdObs.style.setProperty('line-height', '1.35', 'important');
+              tdObs.style.setProperty('padding', '8px 12px', 'important');
+              tdObs.style.setProperty('text-align', (txtObs === '-' || txtObs === '') ? 'center' : 'left', 'important');
+            }
+          });
+        }
+      }
+    });
+  }
+
+  function atualizarCardsETabelaHistoricoOcorrencias(bimsCache, todasOcoCache) {
+    ajustarLargurasTabelaHistoricoOcorrencias();
+
+    let nomeAlunoAtivo = '';
+    const inpBusca = document.querySelector('input[placeholder*="Digite"], input[id*="Aluno"], input[list]');
+    if (inpBusca && inpBusca.value) {
+      nomeAlunoAtivo = String(inpBusca.value).replace(/\s+/g, ' ').trim().toUpperCase();
+    }
+    if (!nomeAlunoAtivo) return;
+
+    garantirHistoricoCompletoAlunoDoServidor(nomeAlunoAtivo, bimsCache);
+
+    let ocosDoAluno = [];
+    if (cacheHistoricoCompletoPorAluno[nomeAlunoAtivo] && Array.isArray(cacheHistoricoCompletoPorAluno[nomeAlunoAtivo].ocorrencias)) {
+      ocosDoAluno = cacheHistoricoCompletoPorAluno[nomeAlunoAtivo].ocorrencias;
+    } else if (typeof dadosAtuais !== 'undefined' && dadosAtuais && Array.isArray(dadosAtuais.ocorrencias)) {
+      ocosDoAluno = dadosAtuais.ocorrencias;
+    } else {
+      ocosDoAluno = todasOcoCache.filter(o => String(o.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase() === nomeAlunoAtivo);
+    }
+
+    const calc = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosDoAluno, bimsCache);
+    const res1Sem = calc[2];
+    const res2Sem = calc[4];
+    calc.resTotal = res2Sem;
+
+    // 1. Atualiza textos de Média e subtítulo explicativo
+    document.querySelectorAll('small, span, div, b, strong').forEach(el => {
+      if (el.children.length === 0) {
+        const t = (el.textContent || '').trim();
+        if (t.includes('Cada bimestre inicia com 10,0 pontos') || t.includes('Regras CRO Semestrais:')) {
+          el.textContent = 'Regras CRO por Semestre (Zera ao fim do 2º Bim): 1º ao 3º leve = 10,0 | A partir do 4º leve = -1,0 pt | 3 Atrasos = 1 CRO | Grave = 0,0';
+        }
+        if (t.startsWith('Média Disciplinar Anual:')) {
+          el.textContent = `Média Disciplinar Anual: ${calc.mediaAnual1Casa}`;
+        }
+        if (t.startsWith('Média:')) {
+          el.textContent = `Média: ${calc.mediaAnual1Casa}`;
+        }
+        if (/^\d+\s*reg\.$/i.test(t)) {
+          el.textContent = `${ocosDoAluno.length} reg.`;
+        }
+      }
+    });
+
+    // 2. Atualiza os 4 cards de Bimestre deixando claro que o 3º Bimestre reinicia do zero (2º Semestre)!
+    const sufixoSemestre = {
+      1: '1º Bim',
+      2: 'Acum. 1º Sem',
+      3: 'Novo 2º Sem',
+      4: 'Acum. 2º Sem'
+    };
+
+    [1, 2, 3, 4].forEach(numB => {
+      const rotuloBim = `${numB}º BIMESTRE`;
+      const elTituloBim = Array.from(document.querySelectorAll('div, span, small, strong, b, h6')).find(
+        el => el.children.length === 0 && (el.textContent || '').trim().toUpperCase() === rotuloBim
+      );
+
+      if (elTituloBim) {
+        const cardBim = elTituloBim.closest('.col, .col-md-2, .col-6, .card, .border, .rounded, [onclick]') || elTituloBim.parentElement?.parentElement;
+        if (cardBim) {
+          const info = calc[numB];
+          const strPerdaClara = info.pontosPerdidos === 0
+            ? `(Sem perda • ${sufixoSemestre[numB]})`
+            : `(-${info.pontosPerdidos} pt${info.pontosPerdidos > 1 ? 's' : ''} • ${sufixoSemestre[numB]})`;
+
+          cardBim.querySelectorAll('*').forEach(el => {
+            const txt = (el.textContent || '').trim();
+            if (/^\d+\s*oc\.$/i.test(txt) && el.children.length === 0) {
+              const novoOc = `${info.qtdSomenteNoBimestre} oc.`;
+              if (txt !== novoOc) el.textContent = novoOc;
+              el.className = info.qtdSomenteNoBimestre > 0 ? 'badge bg-danger text-white' : 'badge bg-success text-white';
+            }
+            if (/^Nota:\s*\d+[,\.]\d+$/i.test(txt) && el.children.length <= 1) {
+              const novoTxtNota = `Nota: ${info.nota1Casa}`;
+              if (txt !== novoTxtNota) el.textContent = novoTxtNota;
+              if (info.nota === 10) {
+                el.style.backgroundColor = '#dcfce7';
+                el.style.color = '#15803d';
+              } else if (info.nota >= 7) {
+                el.style.backgroundColor = '#fef3c7';
+                el.style.color = '#b45309';
+              } else {
+                el.style.backgroundColor = '#fee2e2';
+                el.style.color = '#dc2626';
+              }
+            }
+            if ((/^\(-?\d+[,\.]?\d*\s*pt/i.test(txt) || txt.startsWith('(Sem perda')) && el.children.length <= 1) {
+              if (txt !== strPerdaClara) el.textContent = strPerdaClara;
+              el.title = `${rotuloBim} (${sufixoSemestre[numB]}): ${info.crosLevesValidos} CRO(s) leve(s) válido(s) (${info.levesDiretas} leve + ${info.atrasosInicio} atrasos) | Graves: ${info.graves}`;
+            }
+          });
+        }
+      }
+    });
+
+    // 3. Atualiza o card "NO FILTRO" mostrando separadamente o desconto do 1º Semestre e do 2º Semestre!
+    const elTituloFiltro = Array.from(document.querySelectorAll('div, span, small, strong, b')).find(
+      el => el.children.length === 0 && (el.textContent || '').trim().toUpperCase() === 'NO FILTRO'
+    );
+    if (elTituloFiltro) {
+      const cardFiltro = elTituloFiltro.closest('.col, .col-md-2, .col-6, .card, .border, .rounded') || elTituloFiltro.parentElement?.parentElement;
+      if (cardFiltro) {
+        cardFiltro.querySelectorAll('*').forEach(el => {
+          if (el.children.length <= 1) {
+            const txt = (el.textContent || '').trim();
+            if (txt.includes('pt(s)') || txt.includes('1ºS:')) {
+              const novoDesconto = `1ºS: -${res1Sem.pontosPerdidos}pt | 2ºS: -${res2Sem.pontosPerdidos}pt`;
+              if (txt !== novoDesconto) {
+                el.textContent = novoDesconto;
+                el.style.fontSize = '0.88rem';
+              }
+            } else if (txt.includes('Desconto no período') || txt.includes('CRO(s)') || txt.includes('1º Sem:')) {
+              el.textContent = `1º Sem: ${res1Sem.crosLevesValidos} CROs | 2º Sem: ${res2Sem.crosLevesValidos} CROs`;
+            }
+          }
+        });
+      }
+    }
+
+    // 4. Na tabela de ocorrências: mostra a Regra CRO
+    document.querySelectorAll('tbody tr').forEach(tr => {
+      const textoTr = (tr.innerText || tr.textContent || '').toUpperCase();
+      tr.querySelectorAll('.badge, span').forEach(b => {
+        if (b.children.length === 0) {
+          const t = (b.textContent || '').trim();
+          if (t.includes('(-0,') || t.includes('(-0.')) {
+            const limpoSemPontoAntigo = t.replace(/\s*\(-0[,\.]\d+\s*pt\)/gi, '');
+            const tipo = window.classificarRegistroCroEEMTI(textoTr, limpoSemPontoAntigo);
+            if (tipo === 'GRAVE') {
+              b.textContent = `${limpoSemPontoAntigo} • ZERA A NOTA`;
+              b.className = 'badge bg-danger text-white';
+            } else if (tipo === 'ATRASO_INICIO') {
+              b.textContent = `${limpoSemPontoAntigo} • 3 ATRASOS = 1 CRO LEVE`;
+              b.className = 'badge bg-info text-dark';
+            } else {
+              b.textContent = `${limpoSemPontoAntigo} • 1 CRO LEVE VÁLIDO`;
+            }
+          }
+        }
+      });
+    });
+
+    // 5. Botão "Baixar Relatório PDF"
+    document.querySelectorAll('button, a.btn').forEach(btn => {
+      const txtBtn = (btn.textContent || '').toUpperCase();
+      if (txtBtn.includes('BAIXAR RELATÓRIO PDF') || txtBtn.includes('RELATÓRIO PDF')) {
+        btn.onclick = function(ev) {
+          if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+          gerarPdfHistoricoIndividualOficialCro(nomeAlunoAtivo, ocosDoAluno, calc);
+          return false;
+        };
+      }
+    });
+  }
+
+  async function gerarPdfNotasTurmaOficialCro() {
+    try {
+      const selects = Array.from(document.querySelectorAll('select'));
+      const selAno = selects.find(s => /^\d{4}$/.test((s.value || '').trim()));
+      const selSerie = selects.find(s => {
+        const txtOpcoes = Array.from(s.options).map(o => o.textContent.toUpperCase()).join(' ');
+        return txtOpcoes.includes('SÉRIE') || txtOpcoes.includes('SERIE');
+      });
+
+      const anoLetivo = selAno ? selAno.value.trim() : '2026';
+      const serieAtual = selSerie && selSerie.value ? normalizarSeriePadraoCore(selSerie.value) : '1ª SÉRIE A';
+      const mapaPdtCache = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
+      const inpPdt = document.querySelector('input[readonly], input[disabled], input[id*="Pdt"], input[id*="pdt"]');
+      const pdtNome = (mapaPdtCache[serieAtual] && !mapaPdtCache[serieAtual].includes('ADMIN'))
+        ? mapaPdtCache[serieAtual]
+        : ((inpPdt && inpPdt.value && !inpPdt.value.toUpperCase().includes('ADMIN')) ? inpPdt.value.trim().toUpperCase() : 'NÃO ATRIBUÍDO');
+
+      // Lê exatamente as linhas e notas já calculadas pelas Regras CRO que estão visíveis na tabela da tela!
+      const linhasTr = Array.from(document.querySelectorAll('tbody tr'));
+      const linhasPdf = [];
+
+      linhasTr.forEach(tr => {
+        const tds = tr.children;
+        if (!tds || tds.length < 5) return;
+        const colNome = (tds[0].textContent || '').replace(/\s+/g, ' ').trim();
+        if (!colNome || colNome.toUpperCase().includes('NENHUM') || colNome.toUpperCase().includes('CARREGANDO')) return;
+
+        linhasPdf.push([
+          colNome,
+          (tds[1].textContent || '10,00').trim(),
+          (tds[2].textContent || '10,00').trim(),
+          (tds[3].textContent || '10,00').trim(),
+          (tds[4].textContent || '10,00').trim()
+        ]);
+      });
+
+      if (linhasPdf.length === 0) {
+        if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Gere a tabela da turma antes de baixar o PDF.', 'warning');
+        return;
+      }
+
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({ title: 'Gerando PDF Oficial da Turma...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      }
+
+      await garantirBibliotecasPdfCarregadas();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      let y = await window.desenharCabecalhoPadraoEEMTI(doc, {
+        tituloDocumento: 'QUADRO DE NOTAS E REGISTROS DISCIPLINARES DA TURMA (CRO)',
+        subtitulo1: `SÉRIE / TURMA: ${serieAtual}   |   ANO LETIVO: ${anoLetivo}   |   TOTAL DE ALUNOS: ${linhasPdf.length}`,
+        subtitulo2: `PROFESSOR DIRETOR DE TURMA (PDT): ${pdtNome}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+      });
+
+      doc.autoTable({
+        startY: y,
+        head: [['Nome do(a) Aluno(a)', '1º Bimestre\n(1º Sem)', '2º Bimestre\n(Acum. 1º Sem)', '3º Bimestre\n(Novo 2º Sem)', '4º Bimestre\n(Acum. 2º Sem)']],
+        body: linhasPdf,
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          valign: 'middle',
+          lineColor: [203, 213, 225],
+          lineWidth: 0.2
+        },
+        headStyles: {
+          fillColor: [21, 67, 140],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 8
+        },
+        columnStyles: {
+          0: { cellWidth: 94, halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42] },
+          1: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          2: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+          4: { cellWidth: 22, halign: 'center', fontStyle: 'bold' }
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body' && data.column.index >= 1) {
+            const valNum = parseFloat(String(data.cell.raw || '10').replace(',', '.'));
+            if (!isNaN(valNum)) {
+              if (valNum === 10) data.cell.styles.textColor = [21, 128, 61]; // Verde
+              else if (valNum >= 7) data.cell.styles.textColor = [180, 83, 9]; // Laranja
+              else data.cell.styles.textColor = [220, 38, 38]; // Vermelho
+            }
+          }
+        }
+      });
+
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : (y + 120);
+      if (finalY < pageHeight - 22) {
+        doc.setDrawColor(100, 116, 139);
+        doc.setLineWidth(0.3);
+        doc.line(55, finalY + 14, 155, finalY + 14);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(30, 41, 59);
+        doc.text(`Professor Diretor de Turma (PDT): ${pdtNome} — Turma: ${serieAtual}`, 105, finalY + 18.5, { align: 'center' });
+      }
+
+      if (typeof Swal !== 'undefined') Swal.close();
+      doc.save(`Notas_CRO_${serieAtual.replace(/\s+/g, '_')}_${anoLetivo}.pdf`);
+    } catch (err) {
+      if (typeof Swal !== 'undefined') Swal.fire('Erro ao gerar PDF', err.message || String(err), 'error');
+    }
+  }
 
   function aplicarRegrasCroNaPaginaNotasEHistorico() {
     const pathLower = window.location.pathname.toLowerCase();
     const estaEmNotasRegistros = pathLower.includes('notas-registros');
-    const estaEmHistoricoOco = pathLower.includes('historico-ocorrencias');
+    const estaEmHistoricoOco = pathLower.includes('historico-ocorrencias') || pathLower.includes('historico.html');
     if (!estaEmNotasRegistros && !estaEmHistoricoOco) return;
 
     const bimsCache = JSON.parse(localStorage.getItem('cache_ativ_rapido_v3_bim') || '[]');
     const todasOcoCache = JSON.parse(localStorage.getItem(KEY_TODAS_OCORRENCIAS_OFFLINE) || '[]');
+    const listaOcoCompletaMemoria = (Array.isArray(todasOcoCache) && todasOcoCache.length > 0)
+      ? todasOcoCache
+      : (mapaFotosAlunosCacheMemoria['BACKUP_INTEGRAL_OCORRENCIAS_CRO'] || []);
     const mapaPdtCache = JSON.parse(localStorage.getItem('cache_mapa_pdt_v4') || '{}');
 
-    // 1. Na página notas-registros.html: corrige o nome do PDT (tira "ADMINISTRADOR") e recalcula a tabela pelas Regras CRO!
+    if (estaEmHistoricoOco) {
+      atualizarCardsETabelaHistoricoOcorrencias(bimsCache, listaOcoCompletaMemoria);
+    }
+
     if (estaEmNotasRegistros) {
-      const selSerie = document.querySelector('select[id*="Serie"], select[id*="serie"], select[id*="Turma"]');
+      const selects = Array.from(document.querySelectorAll('select'));
+      const selSerie = selects.find(s => {
+        const txtOpcoes = Array.from(s.options).map(o => o.textContent.toUpperCase()).join(' ');
+        return txtOpcoes.includes('SÉRIE') || txtOpcoes.includes('SERIE');
+      });
+
+      if (selSerie) {
+        const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+        const perm = String(uLog.permissao || uLog.perfil || '').toUpperCase();
+        const ehAdminOuGestao = perm.includes('ADMIN') || perm.includes('DIRE') || perm.includes('GEST') || selSerie.options.length >= 5;
+
+        if (ehAdminOuGestao) {
+          const opcoesAtuais = Array.from(selSerie.options).map(o => normalizarSeriePadraoCore(o.value || o.textContent));
+          const faltandoAlguma = SERIES_FIXAS_ESCOLA_EEMTI.some(s => !opcoesAtuais.includes(s));
+          if (faltandoAlguma) {
+            const valAnt = normalizarSeriePadraoCore(selSerie.value);
+            const todas8 = Array.from(new Set(SERIES_FIXAS_ESCOLA_EEMTI.concat(opcoesAtuais)))
+              .filter(s => s && s.includes('SÉRIE'))
+              .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+            selSerie.innerHTML = todas8.map(s => `<option value="${s}">${s}</option>`).join('');
+            selSerie.value = (valAnt && todas8.includes(valAnt)) ? valAnt : todas8[0];
+          }
+        }
+      }
+
       const serieAtual = selSerie && selSerie.value ? normalizarSeriePadraoCore(selSerie.value) : '';
-      const pdtReal = (serieAtual && mapaPdtCache[serieAtual]) ? mapaPdtCache[serieAtual] : '';
+
+      if (serieAtual && serieAtual !== ultimaTurmaBuscadaNotas) {
+        ultimaTurmaBuscadaNotas = serieAtual;
+        garantirTodasOcorrenciasDaTurmaDoServidor(serieAtual);
+      }
+
+      const pdtReal = (serieAtual && mapaPdtCache[serieAtual])
+        ? mapaPdtCache[serieAtual]
+        : (serieAtual === '1ª SÉRIE A' ? 'DAYANE CRISTINA CAVALCANTE SILVA' : '');
 
       if (pdtReal && !pdtReal.includes('ADMIN')) {
-        document.querySelectorAll('input[readonly], input[disabled], input[id*="Pdt"], input[id*="pdt"]').forEach(inp => {
+        document.querySelectorAll('input').forEach(inp => {
           if (String(inp.value || '').toUpperCase().includes('ADMIN')) {
             inp.value = pdtReal;
           }
         });
-        document.querySelectorAll('div, span, small, p').forEach(el => {
-          if (el.children.length === 0 && (el.textContent || '').includes('Professor Diretor de Turma (PDT): ADMINISTRADOR')) {
-            el.textContent = 'Professor Diretor de Turma (PDT): ' + pdtReal;
+        document.querySelectorAll('div, span, small, p, strong, b').forEach(el => {
+          if (el.children.length === 0 && (el.textContent || '').toUpperCase().includes('PDT') && (el.textContent || '').toUpperCase().includes('ADMIN')) {
+            el.textContent = el.textContent.replace(/ADMINISTRADOR/gi, pdtReal);
           }
         });
       }
 
-      // Atualiza as 4 colunas (1º, 2º, 3º e 4º Bimestre) de cada aluno na tabela de Notas Bimestrais
-      const linhas = document.querySelectorAll('table.table tbody tr');
+      const fonteOcorrencias = (serieAtual && cacheOcorrenciasPorTurmaNotas[serieAtual])
+        ? cacheOcorrenciasPorTurmaNotas[serieAtual]
+        : listaOcoCompletaMemoria;
+
+      const linhas = document.querySelectorAll('tbody tr');
       linhas.forEach(tr => {
         const tds = tr.children;
         if (!tds || tds.length < 5) return;
 
-        const textoCol0 = (tds[0].textContent || '').replace(/^\d+\.\s*/, '').replace(/\s+/g, ' ').trim().toUpperCase();
-        if (!textoCol0) return;
+        const nomeBrutoCol0 = (tds[0].textContent || '').replace(/^\s*\d+[\.\-\)]\s*/, '').replace(/\s+/g, ' ').trim().toUpperCase();
+        if (!nomeBrutoCol0 || nomeBrutoCol0.includes('NENHUM') || nomeBrutoCol0.includes('CARREGANDO')) return;
 
-        const ocosAluno = todasOcoCache.filter(o => {
+        const ocosAluno = fonteOcorrencias.filter(o => {
           const nAl = String(o.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase();
-          return nAl === textoCol0;
+          return nAl === nomeBrutoCol0;
         });
 
         const resBim = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosAluno, bimsCache);
@@ -4586,50 +5140,34 @@
           const tdBim = tds[b];
           if (!tdBim) continue;
           const infoB = resBim[b];
-          const corNota = infoB.nota === 10 ? '#15803d' : (infoB.nota >= 7 ? '#b45309' : '#dc2626');
+          const corNota = infoB.nota === 10 ? '#15803d' : (infoB.nota >= 7 ? '#d97706' : '#dc2626');
           const novoTxt = infoB.notaFormatada;
-          if ((tdBim.textContent || '').trim() !== novoTxt) {
-            tdBim.innerHTML = `<span class="fw-bold" style="color:${corNota};" title="CROs Leves Válidos no Semestre: ${infoB.crosLevesValidos} (${infoB.levesDiretas} leve(s) + ${infoB.atrasosInicio} atraso(s)) | Graves: ${infoB.graves}">${novoTxt}</span>`;
+          const resumoTooltip = `CROs Leves Válidos no Semestre: ${infoB.crosLevesValidos} (${infoB.levesDiretas} leve + ${infoB.atrasosInicio} atrasos = +${infoB.crosDeAtraso} CRO) | Graves: ${infoB.graves} | Perda: -${infoB.pontosPerdidos}`;
+
+          if (tdBim.getAttribute('data-cro-aplicado') !== `${novoTxt}_${infoB.crosLevesValidos}_${infoB.graves}`) {
+            tdBim.setAttribute('data-cro-aplicado', `${novoTxt}_${infoB.crosLevesValidos}_${infoB.graves}`);
+            tdBim.innerHTML = `<span class="fw-bold" style="color:${corNota};" title="${resumoTooltip}">${novoTxt}</span>`;
           }
         }
       });
 
-      // Atualiza também os objetos em memória caso o usuário clique em "Baixar PDF da Turma"
-      if (typeof window.dadosRelatorioNotasTurma !== 'undefined' && Array.isArray(window.dadosRelatorioNotasTurma)) {
-        window.dadosRelatorioNotasTurma.forEach(itemAl => {
-          const nomeAl = String(itemAl.nome || itemAl.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase();
-          const ocosAl = todasOcoCache.filter(o => String(o.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase() === nomeAl);
-          const r = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosAl, bimsCache);
-          itemAl.notaBim1 = r[1].nota;
-          itemAl.notaBim2 = r[2].nota;
-          itemAl.notaBim3 = r[3].nota;
-          itemAl.notaBim4 = r[4].nota;
-          itemAl.b1 = r[1].nota;
-          itemAl.b2 = r[2].nota;
-          itemAl.b3 = r[3].nota;
-          itemAl.b4 = r[4].nota;
-        });
-      }
-    }
-
-    // 2. Na página historico-ocorrencias.html: atualiza os cards de Nota de Comportamento por Bimestre/Semestre
-    if (estaEmHistoricoOco) {
-      const inpAluno = document.querySelector('input[list], select[id*="Aluno"], input[id*="Aluno"]');
-      const nomeAl = inpAluno ? String(inpAluno.value || '').replace(/\s+/g, ' ').trim().toUpperCase() : '';
-      if (!nomeAl) return;
-
-      const ocosAl = todasOcoCache.filter(o => String(o.aluno || '').replace(/\s+/g, ' ').trim().toUpperCase() === nomeAl);
-      const rBim = window.calcularQuatroBimestresCroDoAlunoEEMTI(ocosAl, bimsCache);
-
-      [1, 2, 3, 4].forEach(b => {
-        const elCardNota = document.getElementById('notaBim' + b) || document.getElementById('valNotaBim' + b);
-        if (elCardNota && elCardNota.textContent !== rBim[b].notaFormatada) {
-          elCardNota.textContent = rBim[b].notaFormatada;
+      // Intercepta o botão "Baixar PDF da Turma" para baixar o PDF com as notas exatas da tela e o cabeçalho com logo da escola!
+      document.querySelectorAll('button, a.btn').forEach(btn => {
+        const txtBtn = (btn.textContent || '').toUpperCase();
+        if (txtBtn.includes('BAIXAR PDF DA TURMA') || txtBtn.includes('PDF DA TURMA')) {
+          if (!btn._eemtiPdfTurmaCroHooked) {
+            btn._eemtiPdfTurmaCroHooked = true;
+            btn.removeAttribute('onclick');
+            btn.addEventListener('click', function(ev) {
+              ev.preventDefault();
+              ev.stopPropagation();
+              gerarPdfNotasTurmaOficialCro();
+            }, true);
+          }
         }
       });
     }
   }
 
-  setInterval(aplicarRegrasCroNaPaginaNotasEHistorico, 600);
-
+  setInterval(aplicarRegrasCroNaPaginaNotasEHistorico, 350);
 })();
