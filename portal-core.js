@@ -3456,267 +3456,678 @@
     return null;
   }
 
-  const CACHE_NAME = 'sistema-jose-euclides-v15';
-const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
-const IDB_VERSION = 2;
-
-const URLS_TO_CACHE = [
-  './',
-  './index.html',
-  './login.html',
-  './manifest.json',
-  './portal-core.js',
-  './LOGO-removebg-preview.png',
-  './brasaoestado.png',
-  './brasaoestado.png.png',
-  './icon-192.png',
-  './icon-512.png',
-  './acompanhamento.html',
-  './aee.html',
-  './atendimento-alunos.html',
-  './atividade-disciplinas.html',
-  './atividade-eletivas.html',
-  './auditoria.html',
-  './busca-ativa.html',
-  './cadastro-alunos.html',
-  './cadastro-disciplinas.html',
-  './cadastro-eletivas.html',
-  './cadastro-livros.html',
-  './consulta-ocorrencias-aluno.html',
-  './controle-frequencia-ranking.html',
-  './frequencia-eletivas.html',
-  './frequencia-secretaria.html',
-  './gestao-ambiente.html',
-  './gestao-bimestre.html',
-  './gestao-funcionarios.html',
-  './gestao-notas.html',
-  './gestao-pdt.html',
-  './gestao-pontuacao.html',
-  './gestao-serie.html',
-  './graficos-ocorrencias.html',
-  './historico-eletivas.html',
-  './historico-ocorrencias.html',
-  './mapeamento-sala.html',
-  './matricula-eletivas.html',
-  './monitoramento-eletivas.html',
-  './notas-registros.html',
-  './registro-ocorrencias.html',
-  './relatorio-turma-ocorrencias.html',
-  './reservas-livros.html',
-  './reservas.html',
-  './simulados.html',
-  './situacao-aluno.html',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
-  'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
-  'https://cdn.jsdelivr.net/npm/sweetalert2@11',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'
-];
-
-self.addEventListener('install', event => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(async cache => {
-      for (const url of URLS_TO_CACHE) {
-        try { await cache.add(new Request(url, { cache: 'reload' })); } catch (err) {}
-      }
-    })
-  );
-});
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
-     .then(() => processarFilaEmSegundoPlanoSW())
-  );
-});
-
-self.addEventListener('fetch', event => {
-  // Sempre que o navegador fizer qualquer requisição com internet ativa, aproveita para esvaziar a fila pendente em background!
-  if (self.navigator && self.navigator.onLine !== false) {
-    processarFilaEmSegundoPlanoSW();
-  }
-
-  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
-    return;
-  }
-
-  let reqUrl = event.request.url;
-  const lower = reqUrl.toLowerCase();
-
-  if (lower.includes('2941658.png')) {
-    reqUrl = new URL('./brasaoestado.png', self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/')).href;
-  }
-
-  const requestFinal = reqUrl !== event.request.url ? new Request(reqUrl) : event.request;
-
-  event.respondWith(
-    caches.match(requestFinal, { ignoreSearch: true }).then(cachedResponse => {
-      const fetchPromise = fetch(new Request(reqUrl, { cache: 'no-store' }))
-        .then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(requestFinal, clone));
-          }
-          return networkResponse;
-        })
-        .catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
-    })
-  );
-});
-
-// =========================================================================
-// MOTOR BACKGROUND SYNC: ENVIA OCORRÊNCIAS, FREQUÊNCIAS E ATIVIDADES
-// MESMO COM O APLICATIVO FECHADO OU MINIMIZADO!
-// =========================================================================
-let envioSwEmAndamento = false;
-
-function abrirBancoNoServiceWorker() {
-  return new Promise(resolve => {
-    const req = indexedDB.open(IDB_SYNC_NAME, IDB_VERSION);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
-      if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
-      if (!db.objectStoreNames.contains('fotos_offline')) db.createObjectStore('fotos_offline', { keyPath: 'chave' });
-    };
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = () => resolve(null);
-  });
-}
-
-async function retirarProximoItemDaFilaIDB(db) {
-  return new Promise(resolve => {
-    try {
-      const tx = db.transaction('fila_pendente', 'readwrite');
-      const store = tx.objectStore('fila_pendente');
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const todos = req.result || [];
-        if (todos.length === 0) {
-          resolve(null);
-          return;
-        }
-        const primeiro = todos[0];
-        store.delete(primeiro.idFila);
-        tx.oncomplete = () => resolve(primeiro);
-        tx.onerror = () => resolve(null);
-      };
-      req.onerror = () => resolve(null);
-    } catch (e) {
-      resolve(null);
-    }
-  });
-}
-
-async function devolverItemParaFilaIDB(db, item) {
-  return new Promise(resolve => {
-    try {
-      const tx = db.transaction('fila_pendente', 'readwrite');
-      tx.objectStore('fila_pendente').put(item);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    } catch (e) {
-      resolve();
-    }
-  });
-}
-
-async function registrarConcluidoNoIDB(db, item) {
-  return new Promise(resolve => {
-    try {
-      const tx = db.transaction('relatorio_concluido', 'readwrite');
-      tx.objectStore('relatorio_concluido').add({
-        idFila: item.idFila,
-        assinatura: item.assinatura || '',
-        dataHoraSync: new Date().toLocaleString('pt-BR'),
-        resumoHtml: item.resumoHtml
-      });
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    } catch (e) {
-      resolve();
-    }
-  });
-}
-
-async function processarFilaEmSegundoPlanoSW() {
-  if (envioSwEmAndamento) return;
-  if (self.navigator && self.navigator.onLine === false) return;
-  envioSwEmAndamento = true;
-
-  try {
-    const db = await abrirBancoNoServiceWorker();
+  // =========================================================================
+  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
+  // =========================================================================
+  async function espelharFilaParaIndexedDB(filaArray) {
+    const db = await abrirBancoSyncIDB();
     if (!db) return;
+    try {
+      await new Promise(resolve => {
+        const tx = db.transaction('fila_pendente', 'readwrite');
+        const store = tx.objectStore('fila_pendente');
+        store.clear();
+        (filaArray || []).forEach(item => store.put(item));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {}
 
-    let enviouAlgum = false;
+    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        if ('SyncManager' in window) {
+          await reg.sync.register('sync-fila-eemti');
+        }
+        if ('periodicSync' in reg) {
+          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
+        }
+      } catch (e) {}
+    }
+  }
 
-    while (true) {
-      const item = await retirarProximoItemDaFilaIDB(db);
-      if (!item) break;
+  async function verificarSincronizacoesFeitasComAppFechado() {
+    const db = await abrirBancoSyncIDB();
+    let itensDoBackground = [];
+
+    if (db) {
+      await new Promise(resolve => {
+        try {
+          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
+          const storeRel = tx.objectStore('relatorio_concluido');
+          const storeFila = tx.objectStore('fila_pendente');
+
+          const reqRel = storeRel.getAll();
+          const reqFila = storeFila.getAll();
+
+          tx.oncomplete = () => {
+            if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
+              reqRel.result.forEach(r => {
+                itensDoBackground.push(r.resumoHtml || r);
+                if (r.assinatura) assinaturasRecentementeEnviadas.add(r.assinatura);
+              });
+              const txClear = db.transaction('relatorio_concluido', 'readwrite');
+              txClear.objectStore('relatorio_concluido').clear();
+
+              const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
+              _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
+              FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
+            }
+            resolve();
+          };
+          tx.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+
+    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+    if (logLocal.length > 0) {
+      itensDoBackground = itensDoBackground.concat(logLocal);
+      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
+    }
+
+    if (itensDoBackground.length > 0) {
+      sincronizacaoEmAndamento = false;
+      window.atualizarBadgeStatusConexaoGlobal();
+      registrarDataHoraAtualizacaoBanco();
+      const resumosUnicos = Array.from(new Set(itensDoBackground));
+      exibirAvisoFinalDeDadosSincronizados(resumosUnicos);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
+      return true;
+    }
+    return false;
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        setInterval(() => reg.update(), 60000);
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+              window.location.reload();
+            }
+          });
+        });
+      }).catch(() => {});
+
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'SYNC_BACKGROUND_CONCLUIDO') {
+          verificarSincronizacoesFeitasComAppFechado();
+        }
+      });
+    });
+  }// =========================================================================
+  // 9. PONTE INDEXEDDB E BACKGROUND SYNC (GARANTE ENVIO COM APP FECHADO!)
+  // =========================================================================
+  // Adiciona ou atualiza itens no IndexedDB SEM usar store.clear() a cada 35ms,
+  // para nunca apagar os itens enquanto o Service Worker está enviando com o app fechado!
+  async function adicionarItensNaFilaIndexedDB(filaArray) {
+    const db = await abrirBancoSyncIDB();
+    if (!db) return;
+    try {
+      await new Promise(resolve => {
+        const tx = db.transaction('fila_pendente', 'readwrite');
+        const store = tx.objectStore('fila_pendente');
+        (filaArray || []).forEach(item => store.put(item));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {}
+
+    if ('serviceWorker' in navigator && filaArray && filaArray.length > 0) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        if ('SyncManager' in window) {
+          await reg.sync.register('sync-fila-eemti');
+        }
+        if ('periodicSync' in reg) {
+          try { await reg.periodicSync.register('periodic-sync-fila-eemti', { minInterval: 60000 }); } catch (e) {}
+        }
+        if (navigator.serviceWorker.controller && navigator.onLine) {
+          navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+        }
+      } catch (e) {}
+    }
+  }
+
+  async function removerItemDaFilaIndexedDB(idFila) {
+    if (!idFila) return;
+    const db = await abrirBancoSyncIDB();
+    if (!db) return;
+    try {
+      await new Promise(resolve => {
+        const tx = db.transaction('fila_pendente', 'readwrite');
+        tx.objectStore('fila_pendente').delete(idFila);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {}
+  }
+
+  async function verificarSincronizacoesFeitasComAppFechado() {
+    const db = await abrirBancoSyncIDB();
+    let itensDoBackground = [];
+
+    if (db) {
+      await new Promise(resolve => {
+        try {
+          const tx = db.transaction(['relatorio_concluido', 'fila_pendente'], 'readwrite');
+          const storeRel = tx.objectStore('relatorio_concluido');
+          const storeFila = tx.objectStore('fila_pendente');
+
+          const reqRel = storeRel.getAll();
+          const reqFila = storeFila.getAll();
+
+          tx.oncomplete = () => {
+            if (Array.isArray(reqRel.result) && reqRel.result.length > 0) {
+              reqRel.result.forEach(r => {
+                itensDoBackground.push(r.resumoHtml || r);
+                if (r.assinatura) assinaturasRecentementeEnviadas.add(r.assinatura);
+              });
+              const txClear = db.transaction('relatorio_concluido', 'readwrite');
+              txClear.objectStore('relatorio_concluido').clear();
+
+              const filaRestanteNoIDB = Array.isArray(reqFila.result) ? reqFila.result : [];
+              _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaRestanteNoIDB));
+              FILAS_LEGADAS.forEach(ch => localStorage.removeItem(ch));
+            }
+            resolve();
+          };
+          tx.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+
+    const logLocal = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+    if (logLocal.length > 0) {
+      itensDoBackground = itensDoBackground.concat(logLocal);
+      localStorage.removeItem(LOG_SINCRONIZADOS_KEY);
+    }
+
+    if (itensDoBackground.length > 0) {
+      sincronizacaoEmAndamento = false;
+      window.atualizarBadgeStatusConexaoGlobal();
+      registrarDataHoraAtualizacaoBanco();
+      const resumosUnicos = Array.from(new Set(itensDoBackground));
+      exibirAvisoFinalDeDadosSincronizados(resumosUnicos);
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 500);
+      return true;
+    }
+    return false;
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        setInterval(() => reg.update(), 60000);
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+              window.location.reload();
+            }
+          });
+        });
+      }).catch(() => {});
+
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'SYNC_BACKGROUND_CONCLUIDO') {
+          verificarSincronizacoesFeitasComAppFechado();
+        }
+      });
+    });
+  }
+
+  // =========================================================================
+  // 10. FILA OFFLINE COM ASSINATURA ÚNICA (ZERO DUPLICIDADE NO ENVIO!)
+  // =========================================================================
+  function gerarAssinaturaUnicaPayload(payload) {
+    try {
+      const copia = JSON.parse(JSON.stringify(payload || {}));
+      if (copia.dados && copia.dados.data) {
+        copia.dados.data = String(copia.dados.data).split(' ')[0];
+      }
+      return JSON.stringify(copia);
+    } catch (e) {
+      return String(Date.now());
+    }
+  }
+
+  function unificarFilasOfflineNoStorage() {
+    let filaGlobal = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
+    let alterou = false;
+
+    // Varre todas as chaves do localStorage que contenham 'fila_offline' (para capturar Ocorrências, Atividades, Frequências e Mapas!)
+    const todasChavesStorage = Object.keys(localStorage).filter(
+      k => (FILAS_LEGADAS.includes(k) || k.includes('fila_offline')) && k !== FILA_GLOBAL_KEY
+    );
+
+    todasChavesStorage.forEach(chaveAntiga => {
+      let itensAntigos = [];
+      try { itensAntigos = JSON.parse(localStorage.getItem(chaveAntiga) || '[]'); } catch (e) {}
+      if (Array.isArray(itensAntigos) && itensAntigos.length > 0) {
+        itensAntigos.forEach(item => {
+          let payloadUnificado = item.payload;
+          if (!payloadUnificado) {
+            const dadosItem = item.dados || item.dadosFrequencia || item;
+            let acaoInferida = item.action || 'salvarOcorrencia';
+            if (chaveAntiga.includes('atividades')) acaoInferida = 'salvarAtividadeDisciplinas';
+            else if (chaveAntiga.includes('mapeamento')) acaoInferida = 'salvarMapeamentoSala';
+            else if (chaveAntiga.includes('secretaria')) acaoInferida = 'salvarFrequenciaSecretaria';
+            else if (chaveAntiga.includes('eletivas') || chaveAntiga.includes('freq')) acaoInferida = 'salvarFrequencia';
+
+            if (acaoInferida === 'salvarFrequencia') {
+              payloadUnificado = { action: 'salvarFrequencia', dadosFrequencia: dadosItem };
+            } else {
+              payloadUnificado = { action: acaoInferida, dados: dadosItem };
+            }
+          }
+          if (payloadUnificado) {
+            const nomeAutor = obterNomeUsuarioLogadoCore();
+            if (nomeAutor && !payloadUnificado.usuarioLogado) payloadUnificado.usuarioLogado = nomeAutor;
+
+            const assinatura = gerarAssinaturaUnicaPayload(payloadUnificado);
+            const jaNaFila = filaGlobal.some(f => gerarAssinaturaUnicaPayload(f.payload) === assinatura);
+            if (!jaNaFila && !assinaturasRecentementeEnviadas.has(assinatura)) {
+              filaGlobal.push({
+                idFila: item.idFila || item.idTemp || item.idLocal || (Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+                assinatura: assinatura,
+                dataHora: item.dataHora || new Date().toLocaleString('pt-BR'),
+                url: item.url || API_PADRAO_URL,
+                payload: payloadUnificado,
+                resumoHtml: item.resumoHtml || (item.resumo ? `<li>${item.resumo}</li>` : resumirItemSincronizado(payloadUnificado))
+              });
+              alterou = true;
+            }
+          }
+        });
+        localStorage.removeItem(chaveAntiga);
+      }
+    });
+
+    const vistas = new Set();
+    const filaSemDuplicatas = [];
+    filaGlobal.forEach(item => {
+      const ass = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
+      if (!vistas.has(ass) && !assinaturasRecentementeEnviadas.has(ass)) {
+        vistas.add(ass);
+        item.assinatura = ass;
+        filaSemDuplicatas.push(item);
+      } else {
+        alterou = true;
+      }
+    });
+
+    if (alterou) {
+      _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(filaSemDuplicatas));
+      adicionarItensNaFilaIndexedDB(filaSemDuplicatas);
+    }
+    return filaSemDuplicatas;
+  }
+
+  function resumirItemSincronizado(payload) {
+    const act = payload.action;
+    const d = payload.dados || payload.dadosFrequencia || payload;
+    const serieCurta = window.abreviarSerieParaExibicao(d.serie || d.semestre || '-');
+    if (act === 'salvarOcorrencia') {
+      return `<li><b>Ocorrência RAC:</b> ${d.aluno || '-'} (${serieCurta}) — <i>${d.ocorrencia || '-'}</i></li>`;
+    }
+    if (act === 'salvarAtividadeDisciplinas' || act === 'salvarAtividadeEletivas') {
+      return `<li><b>Atividade (${d.disciplina || d.eletiva || '-'}):</b> Turma ${serieCurta} (${d.data || '-'})</li>`;
+    }
+    if (act === 'salvarFrequenciaSecretaria') {
+      return `<li><b>Frequência Secretaria:</b> Turma ${serieCurta} • Turno ${d.turno || '-'} (${d.data || '-'})</li>`;
+    }
+    if (act === 'salvarFrequencia') {
+      return `<li><b>Frequência Eletiva:</b> ${d.eletiva || '-'} (${d.data || '-'} • ${d.semestre || '-'})</li>`;
+    }
+    if (act === 'salvarMapeamentoSala') {
+      return `<li><b>Mapeamento de Sala:</b> Turma ${serieCurta} (PDT: ${d.pdt || '-'})</li>`;
+    }
+    return `<li><b>${ACOES_GRAVACAO_OFFLINE[act] || act}:</b> Sincronizado com sucesso</li>`;
+  }
+
+  const _fetchNativo = window.fetch;
+  window.fetch = async function(url, options) {
+    if (options && options.method === 'POST' && typeof options.body === 'string' && String(url).includes('script.google.com')) {
+      let bodyObj = {};
+      try {
+        bodyObj = JSON.parse(options.body);
+        const nomeAutor = obterNomeUsuarioLogadoCore();
+        if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+        options.body = JSON.stringify(bodyObj);
+      } catch (e) {}
+
+      const action = bodyObj.action || '';
+      const ehReservaDeAmbiente = ACOES_EXCLUSIVAS_ONLINE_RESERVAS.includes(action);
+
+      if (!navigator.onLine) {
+        if (ehReservaDeAmbiente) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'O módulo de Reservas de Ambientes exige conexão com a internet em tempo real.'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        if (ACOES_GRAVACAO_OFFLINE[action]) {
+          window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
+          return new Response(JSON.stringify({
+            success: true,
+            offline: true,
+            msg: 'Salvo no Modo Offline! O envio para o banco de dados ocorrerá automaticamente em segundo plano assim que houver internet.'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        const respostaCache = obterRespostaDoCacheInstantaneo(action, bodyObj);
+        if (respostaCache) {
+          return new Response(respostaCache, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
+
+      if (ACOES_GRAVACAO_OFFLINE[action]) {
+        const assReq = gerarAssinaturaUnicaPayload(bodyObj);
+        if (assinaturasRecentementeEnviadas.has(assReq)) {
+          return new Response(JSON.stringify({
+            success: true,
+            jaExiste: true,
+            msg: 'Registro já sincronizado anteriormente!'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
+
+      if (!ehReservaDeAmbiente && (ACOES_LEITURA_CACHE_PURO.includes(action) || action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive')) {
+        const cacheImediato = obterRespostaDoCacheInstantaneo(action, bodyObj);
+        if (cacheImediato) {
+          return new Response(cacheImediato, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
 
       try {
-        const res = await fetch(item.url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(item.payload),
-          redirect: 'follow',
-          credentials: 'omit',
-          keepalive: true
-        });
-
-        const texto = await res.text();
-        let json = null;
-        try { json = JSON.parse(texto); } catch (e) {}
-
-        if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
-          enviouAlgum = true;
-          await registrarConcluidoNoIDB(db, item);
-        } else {
-          await devolverItemParaFilaIDB(db, item);
-          break;
+        if (ACOES_GRAVACAO_OFFLINE[action]) {
+          const assEnvioDireto = gerarAssinaturaUnicaPayload(bodyObj);
+          assinaturasRecentementeEnviadas.add(assEnvioDireto);
+          setTimeout(() => assinaturasRecentementeEnviadas.delete(assEnvioDireto), 45000);
         }
+
+        const response = await fetchComTimeoutSeguranca(url, options, 18000);
+        const clone = response.clone();
+
+        clone.text().then(textoResp => {
+          if (textoResp && (textoResp.startsWith('{') || textoResp.startsWith('['))) {
+            salvarRespostaNoCacheInstantaneo(action, bodyObj, textoResp);
+
+            try {
+              const resJson = JSON.parse(textoResp);
+              if (action === 'listarReservas' && resJson && Array.isArray(resJson.lista)) {
+                cacheUltimasReservasCarregadas = resJson.lista;
+              }
+              if (action === 'fazerLogin' || ACOES_MUTACAO_CADASTROS.includes(action)) {
+                if (resJson && (resJson.success || resJson.msg)) {
+                  setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 300);
+                }
+              }
+            } catch (e) {}
+          }
+        }).catch(() => {});
+
+        const textoOrdenado = await response.text();
+        return new Response(ordenarRespostaEmOrdemAlfabetica(action, textoOrdenado), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
       } catch (errRede) {
-        await devolverItemParaFilaIDB(db, item);
-        break;
+        if (!ehReservaDeAmbiente && ACOES_GRAVACAO_OFFLINE[action]) {
+          const assFalha = gerarAssinaturaUnicaPayload(bodyObj);
+          assinaturasRecentementeEnviadas.delete(assFalha);
+          window.enfileirarOperacaoOfflineGlobal(url, bodyObj);
+          return new Response(JSON.stringify({
+            success: true,
+            offline: true,
+            msg: 'Conexão instável! Salvo na fila e será enviado automaticamente em segundo plano.'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        const fallbackPreCarregado = obterRespostaDoCacheInstantaneo(action, bodyObj);
+        if (fallbackPreCarregado) {
+          return new Response(fallbackPreCarregado, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        throw errRede;
       }
     }
+    return _fetchNativo(url, options);
+  };
 
-    if (enviouAlgum) {
-      const todosClientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      todosClientes.forEach(cliente => {
-        cliente.postMessage({ type: 'SYNC_BACKGROUND_CONCLUIDO' });
-      });
+  window.enfileirarOperacaoOfflineGlobal = function(url, payload, resumoCustomizado) {
+    const fila = unificarFilasOfflineNoStorage();
+    const assinatura = gerarAssinaturaUnicaPayload(payload);
+
+    if (fila.some(f => (f.assinatura || gerarAssinaturaUnicaPayload(f.payload)) === assinatura) || assinaturasRecentementeEnviadas.has(assinatura)) {
+      window.atualizarBadgeStatusConexaoGlobal();
+      return;
     }
-  } finally {
-    envioSwEmAndamento = false;
-  }
-}
 
-self.addEventListener('sync', event => {
-  if (event.tag === 'sync-fila-eemti') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
-  }
-});
+    const novoItem = {
+      idFila: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      assinatura: assinatura,
+      dataHora: new Date().toLocaleString('pt-BR'),
+      url: url || API_PADRAO_URL,
+      payload: payload,
+      resumoHtml: resumoCustomizado ? `<li>${resumoCustomizado}</li>` : resumirItemSincronizado(payload)
+    };
+    fila.push(novoItem);
+    _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
+    adicionarItensNaFilaIndexedDB([novoItem]);
+    window.atualizarBadgeStatusConexaoGlobal();
+  };
 
-self.addEventListener('periodicsync', event => {
-  if (event.tag === 'periodic-sync-fila-eemti') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
-  }
-});
+  window.obterFilaOfflineGlobal = function() {
+    return unificarFilasOfflineNoStorage();
+  };
 
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'DISPARAR_SYNC_AGORA') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
+  function exibirAvisoFinalDeDadosSincronizados(listaHtmlSincronizados) {
+    if (!listaHtmlSincronizados || listaHtmlSincronizados.length === 0) return;
+    if (typeof Swal === 'undefined') return;
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Dados Offline Enviados ao Banco!',
+      html: `
+        <div class="text-start small mt-1" style="max-height: 150px; overflow-y: auto; font-size: 0.76rem;">
+          <ul class="ps-3 mb-0">
+            ${listaHtmlSincronizados.join('')}
+          </ul>
+        </div>
+      `,
+      showConfirmButton: false,
+      timer: 4500,
+      timerProgressBar: true
+    });
   }
-});
+
+  window.sincronizarFilaOfflineGlobal = async function() {
+    if (sincronizacaoEmAndamento || !navigator.onLine) return;
+    sincronizacaoEmAndamento = true;
+
+    const sincronizadosHtml = [];
+
+    try {
+      const jaFoiEnviadoPeloSW = await verificarSincronizacoesFeitasComAppFechado();
+      if (jaFoiEnviadoPeloSW) return;
+
+      let fila = unificarFilasOfflineNoStorage();
+      if (fila.length === 0) {
+        window.atualizarBadgeStatusConexaoGlobal();
+        return;
+      }
+
+      while (fila.length > 0 && navigator.onLine) {
+        const item = fila.shift();
+        _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
+        await removerItemDaFilaIndexedDB(item.idFila);
+
+        const assItem = item.assinatura || gerarAssinaturaUnicaPayload(item.payload);
+        if (assinaturasRecentementeEnviadas.has(assItem)) {
+          continue;
+        }
+        assinaturasRecentementeEnviadas.add(assItem);
+
+        try {
+          const res = await fetchComTimeoutSeguranca(item.url || API_PADRAO_URL, {
+            method: 'POST',
+            body: JSON.stringify(item.payload),
+            keepalive: true
+          }, 15000);
+
+          const texto = await res.text();
+          let json = null;
+          try { json = JSON.parse(texto); } catch (e) {}
+
+          if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
+            sincronizadosHtml.push(item.resumoHtml);
+          } else {
+            assinaturasRecentementeEnviadas.delete(assItem);
+            fila.unshift(item);
+            _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
+            await adicionarItensNaFilaIndexedDB([item]);
+            break;
+          }
+        } catch (errEnvio) {
+          assinaturasRecentementeEnviadas.delete(assItem);
+          fila.unshift(item);
+          _setItemNativo.call(localStorage, FILA_GLOBAL_KEY, JSON.stringify(fila));
+          await adicionarItensNaFilaIndexedDB([item]);
+          break;
+        }
+      }
+    } finally {
+      sincronizacaoEmAndamento = false;
+      window.atualizarBadgeStatusConexaoGlobal();
+    }
+
+    if (sincronizadosHtml.length > 0) {
+      registrarDataHoraAtualizacaoBanco();
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(true), 400);
+
+      const unicosHtml = Array.from(new Set(sincronizadosHtml));
+      window.dispatchEvent(new CustomEvent('eemti-fila-sincronizada'));
+      if (document.visibilityState === 'visible' && typeof Swal !== 'undefined') {
+        exibirAvisoFinalDeDadosSincronizados(unicosHtml);
+      } else {
+        const logAnt = JSON.parse(localStorage.getItem(LOG_SINCRONIZADOS_KEY) || '[]');
+        _setItemNativo.call(localStorage, LOG_SINCRONIZADOS_KEY, JSON.stringify(logAnt.concat(unicosHtml)));
+      }
+    }
+  };
+
+  window.atualizarBadgeStatusConexaoGlobal = function() {
+    let badge = document.getElementById('badgeStatusOfflineGlobal');
+    const fila = unificarFilasOfflineNoStorage();
+    if (!badge && document.body) {
+      badge = document.createElement('div');
+      badge.id = 'badgeStatusOfflineGlobal';
+      badge.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99999;padding:9px 15px;border-radius:30px;font-weight:800;font-size:0.78rem;box-shadow:0 6px 18px rgba(0,0,0,0.2);cursor:pointer;transition:all 0.2s;pointer-events:auto;display:none;';
+      badge.onclick = () => window.sincronizarFilaOfflineGlobal();
+      document.body.appendChild(badge);
+    }
+    if (!badge) return;
+
+    if (!navigator.onLine) {
+      badge.style.display = 'block';
+      badge.style.backgroundColor = '#dc2626';
+      badge.style.color = '#ffffff';
+      badge.innerHTML = `<i class="bi bi-wifi-off me-2"></i>Modo Offline (${fila.length} pendente${fila.length === 1 ? '' : 's'})`;
+    } else {
+      badge.style.display = 'none';
+    }
+  };
+
+  // Dispara o envio em segundo plano (com keepalive:true) no instante em que o app é minimizado ou fechado!
+  function dispararEnvioAoMinimizarOuFechar() {
+    const filaRestante = unificarFilasOfflineNoStorage();
+    if (filaRestante.length > 0) {
+      adicionarItensNaFilaIndexedDB(filaRestante).then(() => {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+        }
+      });
+      if (navigator.onLine) {
+        window.sincronizarFilaOfflineGlobal();
+      }
+    }
+  }
+
+  // Verifica e exibe o aviso IMEDIATAMENTE assim que o usuário abre/foca no aplicativo (sem precisar clicar em nada!)
+  async function aoAcessarOuVoltarParaOApp() {
+    const exibiuDoSW = await verificarSincronizacoesFeitasComAppFechado();
+    if (!exibiuDoSW && navigator.onLine) {
+      window.sincronizarFilaOfflineGlobal();
+    }
+  }
+
+  window.addEventListener('online', () => {
+    atualizarSeloTopoSincronizacao();
+    window.atualizarBadgeStatusConexaoGlobal();
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'DISPARAR_SYNC_AGORA' });
+    }
+    window.sincronizarFilaOfflineGlobal();
+  });
+
+  window.addEventListener('offline', () => {
+    atualizarSeloTopoSincronizacao('OFFLINE');
+    window.atualizarBadgeStatusConexaoGlobal();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      dispararEnvioAoMinimizarOuFechar();
+    } else if (document.visibilityState === 'visible') {
+      aoAcessarOuVoltarParaOApp();
+    }
+  });
+
+  window.addEventListener('pagehide', dispararEnvioAoMinimizarOuFechar);
+  window.addEventListener('focus', aoAcessarOuVoltarParaOApp);
+  window.addEventListener('pageshow', aoAcessarOuVoltarParaOApp);
+
+  // Verificador automático a cada 4 segundos enquanto houver itens pendentes ou recém-enviados pelo SW
+  setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      verificarSincronizacoesFeitasComAppFechado();
+    }
+    if (navigator.onLine) {
+      const f = JSON.parse(localStorage.getItem(FILA_GLOBAL_KEY) || '[]');
+      if (f.length > 0 && !sincronizacaoEmAndamento) {
+        window.sincronizarFilaOfflineGlobal();
+      }
+    }
+  }, 4000);
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    injetarResponsividadeGlobalEEMTI();
+    configurarImagensENavegacaoTopo();
+    iniciarObservadorVisualDOM();
+
+    await carregarTodasFotosDoIndexedDBParaMemoria();
+    const jaEnviouFechado = await verificarSincronizacoesFeitasComAppFechado();
+    unificarFilasOfflineNoStorage();
+    window.atualizarBadgeStatusConexaoGlobal();
+
+    if (navigator.onLine) {
+      if (!jaEnviouFechado) {
+        setTimeout(window.sincronizarFilaOfflineGlobal, 150);
+      }
+      setTimeout(() => window.executarPreCarregamentoTotalOffline(false), 500);
+    }
+  });
 
   // =========================================================================
   // 11. GERADOR UNIVERSAL DE CABEÇALHO PDF (USA SEMPRE "LOGO-removebg-preview.png"!)
