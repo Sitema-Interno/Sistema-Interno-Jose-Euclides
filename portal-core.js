@@ -2849,7 +2849,7 @@
       try { _setItemNativo.call(localStorage, chave, strJson); } catch (e2) {}
     }
   }
-
+  window.salvarNoLocalStorageSeguro = salvarNoLocalStorageSeguro;
   // Restaura todas as tabelas completas do IndexedDB assim que o app abre (mesmo em aparelhos simples)
   async function restaurarCacheGrandeDoIndexedDB() {
     const db = await abrirBancoSyncIDB();
@@ -3060,13 +3060,12 @@
       }
     } catch (e) {}
 
-    if (textoJson.length > 450000) return;
     try {
-      const ch = gerarChaveCacheRequisicao(action, bodyObj);
-      _setItemNativo.call(localStorage, ch, textoJson);
-    } catch (e) {
-      liberarEspacoStorageAntigo();
-    }
+    const ch = gerarChaveCacheRequisicao(action, bodyObj);
+    salvarNoLocalStorageSeguro(ch, textoJson);
+  } catch (e) {
+    liberarEspacoStorageAntigo();
+  }
   }
 
   function obterRespostaDoCacheInstantaneo(action, bodyObj) {
@@ -3214,8 +3213,8 @@
           salvarNoLocalStorageSeguro('cache_freq_sec_dias_letivos_v4', resFreqSec.diasLetivosMes);
         }
         if (Array.isArray(resFreqSec.frequencias)) {
-          salvarNoLocalStorageSeguro('cache_freq_sec_lancamentos_v4', resFreqSec.frequencias.slice(-2000));
-        }
+  salvarNoLocalStorageSeguro('cache_freq_sec_lancamentos_v4', resFreqSec.frequencias);
+}
       }
 
       if (resFiltrosRac && resFiltrosRac.success) {
@@ -3720,6 +3719,7 @@
     }
 
     if (action === 'listarFrequenciaSecretaria') {
+      if (navigator.onLine) return null; // Online: busca sempre 100% dos meses (Fevereiro a Dezembro) direto da planilha!
       const series = JSON.parse(localStorage.getItem(window.KEY_SERIES_UNIVERSAL_EEMTI) || '[]');
       const alunos = JSON.parse(localStorage.getItem('cache_freq_sec_alunos_det_v4') || localStorage.getItem(window.KEY_ALUNOS_UNIVERSAL_EEMTI) || '[]');
       const frequencias = JSON.parse(localStorage.getItem('cache_freq_sec_lancamentos_v4') || '[]');
