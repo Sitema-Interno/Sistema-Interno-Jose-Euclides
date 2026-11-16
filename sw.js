@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v22';
+const CACHE_NAME = 'sistema-jose-euclides-v23';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 const IDB_VERSION = 2;
 
@@ -135,6 +135,7 @@ self.addEventListener('fetch', event => {
       return cachedResponse || fetchPromise;
     })
   );
+}); // <-- ESTE FECHAMENTO ESTAVA FALTANDO NO SEU PDF!
 
 let envioSwEmAndamento = false;
 
@@ -214,13 +215,11 @@ async function processarFilaEmSegundoPlanoSW() {
 
     let enviouAlgum = false;
 
-    // Envia TODOS os itens da fila em sequência antes de avisar o aplicativo!
     while (true) {
       const item = await retirarProximoItemDaFilaIDB(db);
       if (!item) break;
 
       try {
-        // IMPORTANTE: Sem keepalive:true aqui dentro do SW para o Android permitir o redirect 302 do Google Apps Script em background!
         const res = await fetch(item.url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -242,13 +241,11 @@ async function processarFilaEmSegundoPlanoSW() {
           break;
         }
       } catch (errRede) {
-        // Devolve para a fila e lança erro para o Android reagendar o Background Sync automaticamente!
         await devolverItemParaFilaIDB(db, item);
         throw errRede;
       }
     }
 
-    // Só envia 1 única mensagem depois que TODOS os registros terminarem de subir!
     if (enviouAlgum) {
       const todosClientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       todosClientes.forEach(cliente => {
