@@ -1,56 +1,215 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#15438c">
   <link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestão de PDT -  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
-  
+  <title>Gestão de PDT - EEMTI Dr. José Euclides</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="portal-core.js"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    
-    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
-    
-    /* MARCA D'ÁGUA PADRONIZADA */
-    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
-    
-    /* CABEÇALHO PADRONIZADO */
-    .navbar-custom { background-color: rgba(255, 255, 255, 0.95); padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
-    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
-    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
 
-    .main-container { max-width: 1050px; margin: 35px auto; padding: 0 15px; width: 100%; flex: 1; }
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 25px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(5px); }
-    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
 
-    .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 10px 15px; }
-    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.15); }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
 
-    .btn { border-radius: 8px; font-weight: 600; }
-    .btn-tema { background-color: #0f766e; color: white; border: none; }
-    .btn-tema:hover { background-color: #0d645e; color: white; }
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
 
-    .table th { background-color: #f8fafc; font-weight: 700; color: #475569; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; font-size: 0.85rem; }
-    .table td { vertical-align: middle; font-size: 0.92rem; }
-    
-    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0,0,0,0.05); background: rgba(255,255,255,0.6); }
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 80px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.75rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.65rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.3rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 16px 15px 40px 15px;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 13px;
+      font-size: 0.88rem;
+      background-color: #f8fafc;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+      background-color: #ffffff;
+    }
+
+    .btn {
+      border-radius: 9px;
+      font-weight: 700;
+    }
+
+    .btn-tema {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn-tema:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .table th {
+      background-color: #f8fafc;
+      font-weight: 800;
+      color: #475569;
+      border-bottom: 2px solid #e2e8f0;
+      text-transform: uppercase;
+      font-size: 0.76rem;
+      padding: 11px 10px;
+    }
+
+    .table td {
+      vertical-align: middle;
+      font-size: 0.86rem;
+      padding: 11px 10px;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.88);
+      position: relative;
+      z-index: 5;
+    }
   </style>
-
   <script>
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!usuarioLogado) window.location.href = 'login.html';
-
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
@@ -59,36 +218,35 @@
   </script>
 </head>
 <body>
-
-  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
 
   <!-- CABEÇALHO PADRONIZADO -->
-  <nav class="navbar navbar-custom">
-    <div class="container-fluid max-w-1050 mx-auto">
-      <span class="navbar-brand">
-        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
-        <div>
-          Gestão de PDT
-          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR Portela</div>
-        </div>
-      </span>
-      <div class="d-flex align-items-center gap-3">
-        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
-          <i class="bi bi-person-circle me-1"></i>A carregar...
-        </span>
-        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
-          <i class="bi bi-house-door-fill me-1"></i> Início
-        </a>
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="brasaoestado.png" id="logoEscola" alt="Brasão" onerror="this.src='LOGO-removebg-preview.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
       </div>
+    </a>
+    <div class="user-bar">
+      <span class="fw-bold small text-dark" id="nomeUsuarioUi">
+        <i class="bi bi-person-circle text-primary me-1"></i>Carregando...
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;">Gestão</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
     </div>
-  </nav>
+  </header>
 
   <div class="main-container">
     <!-- Formulário de Cadastro / Edição -->
-    <div class="card p-4">
-      <div class="card-header-custom d-flex justify-content-between align-items-center">
-        <h5 class="m-0 fw-bold text-dark" id="tituloForm">
-          <i class="bi bi-person-badge-fill text-primary me-2"></i>Cadastrar / Atribuir Professor Diretor de Turma (PDT)
+    <div class="card p-3 p-md-4">
+      <div class="card-header-custom">
+        <h5 class="m-0 fw-bold" style="color: var(--azul-primario);" id="tituloForm">
+          <i class="bi bi-person-badge-fill me-2"></i>Cadastrar / Atribuir Professor Diretor de Turma (PDT)
         </h5>
         <div class="d-flex align-items-center gap-2">
           <span id="badgeEdicaoPdt" class="badge bg-warning text-dark d-none">Modo Edição</span>
@@ -97,24 +255,22 @@
           </button>
         </div>
       </div>
-
       <input type="hidden" id="editLinha" value="">
-
       <div class="row g-3 align-items-end">
-        <div class="col-md-5">
-          <label class="form-label small fw-bold">Série / Turma</label>
-          <select id="selectSerie" class="form-select" disabled>
-            <option value="">A carregar séries...</option>
+        <div class="col-12 col-md-5">
+          <label class="form-label">Série / Turma *</label>
+          <select id="selectSerie" class="form-select fw-bold" disabled>
+            <option value="">Carregando séries...</option>
           </select>
         </div>
-        <div class="col-md-5">
-          <label class="form-label small fw-bold">Professor(a) PDT <span class="text-muted fw-normal">(Aba Usuários - Col B)</span></label>
-          <select id="selectProfessor" class="form-select" disabled>
-            <option value="">A carregar professores...</option>
+        <div class="col-12 col-md-5">
+          <label class="form-label">Professor(a) PDT * <span class="text-muted fw-normal">(Aba Usuários - Col B)</span></label>
+          <select id="selectProfessor" class="form-select fw-bold" disabled>
+            <option value="">Carregando professores...</option>
           </select>
         </div>
-        <div class="col-md-2">
-          <button id="btnSalvar" type="button" class="btn btn-tema w-100 py-2 shadow-sm" onclick="salvarPdt()" disabled>
+        <div class="col-12 col-md-2 d-grid">
+          <button id="btnSalvar" type="button" class="btn btn-tema py-2 shadow-sm" onclick="salvarPdt()" disabled>
             <i class="bi bi-save-fill me-1"></i>Salvar
           </button>
         </div>
@@ -122,32 +278,31 @@
     </div>
 
     <!-- Tabela de PDTs Cadastrados -->
-    <div class="card p-4">
-      <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <h5 class="fw-bold text-dark m-0">
-          <i class="bi bi-table text-success me-2"></i>PDTs Registados no Banco de Dados
+    <div class="card p-3 p-md-4">
+      <div class="card-header-custom">
+        <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+          <i class="bi bi-table me-2"></i>PDTs Registrados no Banco de Dados
         </h5>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" onclick="carregarDropdowns()">
+          <button class="btn btn-outline-primary btn-sm" onclick="carregarDropdowns()">
             <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="gerarPdfPdt()">
+          <button class="btn btn-danger btn-sm" onclick="gerarPdfPdt()">
             <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF
           </button>
         </div>
       </div>
-
       <div class="table-responsive">
-        <table class="table table-hover border" id="tabelaPdt">
+        <table class="table table-hover border align-middle mb-0" id="tabelaPdt">
           <thead class="table-light">
             <tr>
-              <th>Série / Turma (Coluna A)</th>
-              <th>Professor(a) PDT (Coluna B)</th>
-              <th class="text-end" style="width: 140px;">Ações</th>
+              <th style="width: 28%;">Série / Turma</th>
+              <th style="width: 52%;">Professor(a) PDT</th>
+              <th class="text-center" style="width: 20%;">Ações</th>
             </tr>
           </thead>
           <tbody id="tabelaBody">
-            <tr><td colspan="3" class="text-center py-4 text-muted">A iniciar ligação ao banco de dados...</td></tr>
+            <tr><td colspan="3" class="text-center py-4 text-muted">Conectando ao banco de dados...</td></tr>
           </tbody>
         </table>
       </div>
@@ -155,11 +310,10 @@
   </div>
 
   <footer class="footer-custom">
-    <strong>&copy; <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Gestão de PDT.
   </footer>
 
   <script>
-    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
     const _fetchOriginal = window.fetch;
     window.fetch = function(url, options) {
       if (options && options.method === 'POST' && typeof options.body === 'string') {
@@ -175,19 +329,15 @@
     };
 
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
-
     const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
-
     let listaRegistos = [];
 
     window.onload = async () => {
       const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
       if (u) {
-        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "Usuário").toUpperCase();
+        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "USUÁRIO").toUpperCase();
         const elUser = document.getElementById('nomeUsuarioUi');
-        if (elUser) {
-          elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
-        }
+        if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle text-primary me-1"></i>Olá, ${nomeProf}`;
       }
       await carregarDropdowns();
     };
@@ -200,41 +350,38 @@
         });
         return await response.json();
       } catch (erro) {
-        console.error("Erro na requisição:", erro);
         return { success: false, error: "Falha de comunicação com o servidor." };
       }
     }
 
-    // Carrega Séries (da aba SÉRIE) e Professores (da Coluna B da aba Usuários)
     async function carregarDropdowns() {
       const [resSerie, resProf] = await Promise.all([
         fetchAPI({ action: 'listarConfig', tipo: 'SERIE' }),
         fetchAPI({ action: 'getProfessores' })
       ]);
 
-      // 1. Preenche Séries / Turmas (Coluna B da aba SÉRIE contém o nome da Série, ex: 1º ANO A)
       let seriesSet = new Set();
       if (resSerie && (resSerie.success || resSerie.sucesso) && Array.isArray(resSerie.lista)) {
         resSerie.lista.forEach(item => {
           let nomeSerie = String(item.col2 || item.col1 || "").trim();
-          if (nomeSerie && !nomeSerie.toUpperCase().includes('SÉRIE') && !nomeSerie.toUpperCase().includes('SERIE')) {
+          if (nomeSerie && nomeSerie.toUpperCase() !== 'SÉRIE' && nomeSerie.toUpperCase() !== 'SERIE') {
             seriesSet.add(nomeSerie);
           }
         });
       }
       if (seriesSet.size === 0) {
-        ["1º ANO A", "1º ANO B", "1º ANO C", "2º ANO A", "2º ANO B", "3º ANO A", "3º ANO B"].forEach(s => seriesSet.add(s));
+        ["1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C", "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C", "3ª SÉRIE A", "3ª SÉRIE B"].forEach(s => seriesSet.add(s));
       }
 
       let htmlSerie = '<option value="">Selecione a série / turma...</option>';
-      Array.from(seriesSet).sort().forEach(nome => {
+      Array.from(seriesSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })).forEach(nome => {
         htmlSerie += `<option value="${nome}">${nome}</option>`;
       });
+
       const selSerie = document.getElementById('selectSerie');
       selSerie.innerHTML = htmlSerie;
       selSerie.disabled = false;
 
-      // 2. Preenche Professores a partir da Coluna B da aba Usuários
       let htmlProf = '<option value="">Selecione o(a) professor(a)...</option>';
       if (Array.isArray(resProf)) {
         resProf.forEach(prof => {
@@ -243,6 +390,7 @@
           }
         });
       }
+
       const selProf = document.getElementById('selectProfessor');
       selProf.innerHTML = htmlProf;
       selProf.disabled = false;
@@ -251,15 +399,12 @@
       await atualizarTabelaPdt();
     }
 
-    // Carrega e desenha a tabela da aba PDT
     async function atualizarTabelaPdt() {
       const tbody = document.getElementById('tabelaBody');
-      tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">A carregar dados da aba PDT...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Carregando dados da aba PDT...</td></tr>';
 
       const res = await fetchAPI({ action: 'listarPDT' });
-
       if (res && (res.success || res.sucesso)) {
-        // Filtra eventuais linhas de cabeçalho que tenham sido lidas
         listaRegistos = (res.lista || []).filter(item => {
           const s = String(item.serie || "").trim().toUpperCase();
           return s !== "" && s !== "SÉRIE" && s !== "SERIE";
@@ -274,9 +419,9 @@
         listaRegistos.forEach((item, index) => {
           html += `
             <tr>
-              <td class="fw-bold text-dark"><i class="bi bi-mortarboard-fill text-secondary me-2"></i>${item.serie}</td>
-              <td><span class="fw-semibold text-primary">${item.professor}</span></td>
-              <td class="text-end">
+              <td class="fw-bold text-dark"><i class="bi bi-mortarboard-fill text-primary me-2"></i>${item.serie}</td>
+              <td><span class="fw-bold text-primary">${item.professor}</span></td>
+              <td class="text-center text-nowrap">
                 <button class="btn btn-sm btn-outline-primary me-1" onclick="prepararEdicao(${index})" title="Editar">
                   <i class="bi bi-pencil-fill"></i>
                 </button>
@@ -292,7 +437,6 @@
       }
     }
 
-    // Salva novo PDT ou atualiza um registo existente
     async function salvarPdt() {
       const serie = document.getElementById('selectSerie').value;
       const prof = document.getElementById('selectProfessor').value;
@@ -303,7 +447,7 @@
       }
 
       Swal.fire({
-        title: linhaEdicao ? 'A atualizar PDT...' : 'A guardar PDT...',
+        title: linhaEdicao ? 'Atualizando PDT...' : 'Salvando PDT...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -318,7 +462,6 @@
       }
 
       const res = await fetchAPI(payload);
-
       if (res && (res.success || res.sucesso)) {
         await Swal.fire({
           title: 'Sucesso!',
@@ -330,11 +473,10 @@
         cancelarEdicao();
         await atualizarTabelaPdt();
       } else {
-        Swal.fire('Erro', (res && res.error) || 'Não foi possível guardar na planilha.', 'error');
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar na planilha.', 'error');
       }
     }
 
-    // Prepara os campos para edição
     function prepararEdicao(index) {
       const item = listaRegistos[index];
       if (!item) return;
@@ -359,22 +501,20 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // Limpa o formulário e sai do modo de edição
     function cancelarEdicao() {
       document.getElementById('selectSerie').value = '';
       document.getElementById('selectProfessor').value = '';
       document.getElementById('editLinha').value = '';
-      document.getElementById('tituloForm').innerHTML = `<i class="bi bi-person-badge-fill text-primary me-2"></i>Cadastrar / Atribuir Professor Diretor de Turma (PDT)`;
+      document.getElementById('tituloForm').innerHTML = `<i class="bi bi-person-badge-fill me-2"></i>Cadastrar / Atribuir Professor Diretor de Turma (PDT)`;
       document.getElementById('badgeEdicaoPdt').classList.add('d-none');
       document.getElementById('btnCancelar').classList.add('d-none');
       document.getElementById('btnSalvar').innerHTML = `<i class="bi bi-save-fill me-1"></i>Salvar`;
     }
 
-    // Exclui um registo da aba PDT
     async function excluirPdt(linha) {
       const conf = await Swal.fire({
-        title: 'Tem a certeza?',
-        text: 'Deseja remover este vínculo de PDT? (A ação ficará registada na aba Auditoria).',
+        title: 'Tem certeza?',
+        text: 'Deseja remover este vínculo de PDT? (A ação ficará registrada na aba Auditoria).',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc3545',
@@ -384,89 +524,41 @@
       });
 
       if (conf.isConfirmed) {
-        Swal.fire({ title: 'A excluir...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         const res = await fetchAPI({ action: 'excluirPDT', linha: linha });
         if (res && (res.success || res.sucesso)) {
-          await Swal.fire({ title: 'Excluído!', text: 'Registo removido com sucesso.', icon: 'success', timer: 1500, showConfirmButton: false });
+          await Swal.fire({ title: 'Excluído!', text: 'Registro removido com sucesso.', icon: 'success', timer: 1500, showConfirmButton: false });
           cancelarEdicao();
           await atualizarTabelaPdt();
         } else {
-          Swal.fire('Erro', 'Falha ao excluir o registo.', 'error');
+          Swal.fire('Erro', 'Falha ao excluir o registro.', 'error');
         }
       }
     }
 
-    async function obterBase64LogoAsync() {
-      return new Promise((resolve) => {
-        const img = document.querySelector('.logo-escola');
-        const desenhar = (el) => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = el.naturalWidth || el.width || 120;
-            canvas.height = el.naturalHeight || el.height || 120;
-            canvas.getContext('2d').drawImage(el, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/png');
-          } catch (e) { return null; }
-        };
-        if (img && img.complete && img.naturalWidth > 0) {
-          let b64 = desenhar(img);
-          if (b64) return resolve(b64);
-        }
-        if (img && img.src) {
-          fetch(img.src)
-            .then(r => r.blob())
-            .then(blob => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = () => resolve(null);
-              reader.readAsDataURL(blob);
-            })
-            .catch(() => resolve(null));
-        } else {
-          resolve(null);
-        }
-      });
-    }
-
     async function gerarPdfPdt() {
       if (listaRegistos.length === 0) {
-        return Swal.fire('Aviso', 'Não há registos de PDT para exportar.', 'info');
+        return Swal.fire('Aviso', 'Não há registros de PDT para exportar.', 'info');
       }
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('portrait', 'mm', 'a4');
 
-      const logo = await obterBase64LogoAsync();
-      if (logo) {
-        doc.addImage(logo, 'PNG', 14, 10, 22, 22);
+      let startY = 38;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: 'RELAÇÃO OFICIAL DE PROFESSORES DIRETORES DE TURMA (PDT)',
+          subtitulo1: `Total de Turmas Vinculadas: ${listaRegistos.length} | Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+        });
       }
 
-      doc.setFontSize(10.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 41, 59);
-      doc.text("ESCOLA DE ENSINO MÉDIO EM TEMPO INTEGRAL", 40, 16);
-
-      doc.setFontSize(14);
-      doc.setTextColor(15, 118, 110);
-      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 22.5);
-
-      doc.setFontSize(9.5);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100, 116, 139);
-      doc.text("Relação Oficial de Professores Diretores de Turma (PDT)", 40, 28);
-
-      doc.setDrawColor(15, 118, 110);
-      doc.setLineWidth(0.5);
-      doc.line(14, 34, 196, 34);
-
       const linhasPDF = listaRegistos.map(it => [it.serie, it.professor]);
-
       doc.autoTable({
-        startY: 40,
+        startY: startY,
         head: [['Série / Turma', 'Professor(a) Diretor(a) de Turma (PDT)']],
         body: linhasPDF,
         theme: 'grid',
-        headStyles: { fillColor: [15, 118, 110], fontSize: 9.5 },
+        headStyles: { fillColor: [21, 67, 140], fontSize: 9.5, textColor: 255, fontStyle: 'bold' },
         styles: { fontSize: 9, cellPadding: 3 },
         columnStyles: {
           0: { cellWidth: 55, fontStyle: 'bold' }
