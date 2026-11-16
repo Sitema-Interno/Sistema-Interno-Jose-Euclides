@@ -1252,5 +1252,601 @@ async function baixarPdfFaltas() {
   doc.save(`Relatorio_Faltas_${eletiva.replace(/[^a-zA-Z0-9]/g, '_')}_${semestre}.pdf`);
 }
   </script>
+  <script>
+(function() {
+  const CACHE_CHAMADAS_ELETIVAS_KEY = 'cache_lancamentos_freq_eletivas_v2';
+  let ultimoRelatorioCalculado = {
+    eletiva: '',
+    semestre: '',
+    mes: '',
+    professor: '',
+    datasAulas: [],
+    alunos: []
+  };
+
+  function carregarScriptPdfSeNecessario(url) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${url}"]`)) return resolve();
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Falha ao carregar biblioteca PDF'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function garantirJsPdfProntoEletiva() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      await carregarScriptPdfSeNecessario('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    }
+    const proto = (window.jspdf && window.jspdf.jsPDF) ? (window.jspdf.jsPDF.API || window.jspdf.jsPDF.prototype) : null;
+    if (proto && typeof proto.autoTable !== 'function') {
+      await carregarScriptPdfSeNecessario('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js');
+    }
+  }
+  garantirJsPdfProntoEletiva().catch(() => {});
+
+  const MAPA_MESES = {
+    'JANEIRO': 1, 'FEVEREIRO': 2, 'MARÇO': 3, 'MARCO': 3, 'ABRIL': 4,
+    'MAIO': 5, 'JUNHO': 6, 'JULHO': 7, 'AGOSTO': 8, 'SETEMBRO': 9,
+    'OUTUBRO': 10, 'NOVEMBRO': 11, 'DEZEMBRO': 12,
+    '1': 1, '01': 1, '2': 2, '02': 2, '3': 3, '03': 3, '4': 4, '04': 4,
+    '5': 5, '05': 5, '6': 6, '06': 6, '7': 7, '07': 7, '8': 8, '08': 8,
+    '9': 9, '09': 9, '10': 10, '11': 11, '12': 12
+  };
+
+  function extrairNumeroMes(valorMes) {
+    const s = String(valorMes || '').trim().toUpperCase();
+    if (!s || s.includes('SEMESTRE') || s.includes('TODOS') || s.includes('INTEIRO')) return 0;
+    return MAPA_MESES[s] || 0;
+  }
+
+  function extrairMesDaData(dataStr) {
+    const s = String(dataStr || '').trim();
+    const mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (mBr) return parseInt(mBr[2], 10);
+    const mIso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (mIso) return parseInt(mIso[2], 10);
+    return 0;
+  }
+
+  function dataBrParaTs(dataStr) {
+    const s = String(dataStr || '').trim();
+    const mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (mBr) return new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10), 12, 0, 0).getTime();
+    const mIso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (mIso) return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 12, 0, 0).getTime();
+    return 0;
+  }
+
+  function extrairCodigoElet(nomeElet) {
+    const s = String(nomeElet || '').trim().toUpperCase();
+    const m = s.match(/^([A-Z]{2,4}\d{2,4})\s*[-–]/);
+    return m ? m[1] : s;
+  }
+
+  function mesclarChamadasNoCacheLocal(novaLista, substituirTudo = false) {
+    if (!Array.isArray(novaLista)) return;
+    let atual = [];
+    if (!substituirTudo) {
+      try { atual = JSON.parse(localStorage.getItem(CACHE_CHAMADAS_ELETIVAS_KEY) || '[]'); } catch (e) { atual = []; }
+    }
+    const mapa = {};
+    atual.concat(novaLista).forEach(item => {
+      if (!item || !item.data || !item.eletiva) return;
+      const chave = `${item.semestre || ''}|${String(item.eletiva).trim().toUpperCase()}|${String(item.data).trim()}`;
+      mapa[chave] = item;
+    });
+    const listaUnificada = Object.values(mapa);
+    try {
+      if (window.salvarNoLocalStorageSeguro) {
+        window.salvarNoLocalStorageSeguro(CACHE_CHAMADAS_ELETIVAS_KEY, listaUnificada);
+        window.salvarNoLocalStorageSeguro('cache_freq_eletivas_lancamentos_v1', listaUnificada);
+      } else {
+        localStorage.setItem(CACHE_CHAMADAS_ELETIVAS_KEY, JSON.stringify(listaUnificada));
+      }
+    } catch (e) {}
+  }
+
+  async function sincronizarTodasChamadasEletivasParaCache() {
+    if (!navigator.onLine) return;
+    const urlApi = (typeof API_URL !== 'undefined' ? API_URL : "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec");
+    try {
+      const resp = await fetch(urlApi, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'buscarFrequenciasGerenciamento', mes: '', semestre: '', eletiva: '', professor: '' })
+      }).then(r => r.json());
+
+      const lista = Array.isArray(resp) ? resp : (resp && Array.isArray(resp.lista) ? resp.lista : (resp && Array.isArray(resp.frequencias) ? resp.frequencias : []));
+      if (lista.length > 0) {
+        mesclarChamadasNoCacheLocal(lista, true);
+      }
+    } catch (e) {}
+  }
+
+  const _fetchOrig = window.fetch;
+  window.fetch = async function(url, options) {
+    const response = await _fetchOrig.apply(this, arguments);
+    if (options && options.method === 'POST' && typeof options.body === 'string') {
+      try {
+        const b = JSON.parse(options.body);
+        if (b.action === 'buscarFrequenciasGerenciamento') {
+          response.clone().json().then(dados => {
+            const arr = Array.isArray(dados) ? dados : (dados && Array.isArray(dados.lista) ? dados.lista : []);
+            if (arr.length > 0) mesclarChamadasNoCacheLocal(arr, false);
+          }).catch(() => {});
+        } else if (b.action === 'salvarFrequencia' || b.action === 'excluirFrequencia') {
+          setTimeout(() => sincronizarTodasChamadasEletivasParaCache(), 400);
+        }
+      } catch (e) {}
+    }
+    return response;
+  };
+
+  function capturarChamadasDaTabelaAba2() {
+    const paineis = Array.from(document.querySelectorAll('.tab-pane'));
+    const aba2 = paineis[1];
+    if (!aba2) return [];
+    const selectsAba2 = Array.from(aba2.querySelectorAll('select'));
+    const semPadrao = selectsAba2.find(s => /^\d{4}\.[12]$/.test((s.value || '').trim()))?.value || '2026.2';
+
+    const extraidas = [];
+    aba2.querySelectorAll('tbody tr').forEach(tr => {
+      const tds = tr.children;
+      if (!tds || tds.length < 4) return;
+      const dataTxt = (tds[0].innerText || '').trim();
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataTxt)) return;
+      const serieTxt = (tds[1].querySelector('.badge')?.innerText || tds[1].innerText || '').split('\n')[0].trim();
+      const eletTxt = (tds[2].innerText || '').trim();
+      const colFaltosos = (tds[3].innerText || '').replace(/^\d+\s*faltoso\(s\)\s*/i, '').trim();
+      extraidas.push({
+        data: dataTxt,
+        semestre: semPadrao,
+        serie: serieTxt,
+        eletiva: eletTxt,
+        faltosos: colFaltosos
+      });
+    });
+    if (extraidas.length > 0) {
+      mesclarChamadasNoCacheLocal(extraidas, false);
+    }
+    return extraidas;
+  }
+
+  // Garante que o container do relatório na Aba 3 tenha SEMPRE a barra de resumo + botão PDF + tabela intactos!
+  function garantirEstruturaVisualRelatorioAba3(aba3) {
+    let boxResultado = document.getElementById('boxResultadoRelatorioFaltasEEMTI');
+    if (boxResultado) return boxResultado;
+
+    const cardAba3 = aba3.querySelector('.card') || aba3;
+    const rowFiltros = cardAba3.querySelector('.row');
+
+    // Remove qualquer resto quebrado abaixo da linha de filtros para reconstruir limpo
+    if (rowFiltros) {
+      let proximo = rowFiltros.nextElementSibling;
+      while (proximo) {
+        const remover = proximo;
+        proximo = proximo.nextElementSibling;
+        remover.remove();
+      }
+    }
+
+    boxResultado = document.createElement('div');
+    boxResultado.id = 'boxResultadoRelatorioFaltasEEMTI';
+    boxResultado.className = 'mt-3';
+    boxResultado.innerHTML = `
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2 px-3 mb-2 rounded border bg-light">
+        <div id="lblResumoDiasAulaAba3" class="small text-dark">
+          <i class="bi bi-calendar2-check-fill text-primary me-1"></i>Selecione os filtros acima e clique em <b>Calcular Faltas</b>.
+        </div>
+        <button type="button" id="btnBaixarPdfRelatorioFaltasEEMTI" class="btn btn-danger btn-sm fw-bold px-3 shadow-sm">
+          <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar Relatório em PDF
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover border align-middle mb-0" id="tabelaRelatorioFaltasAba3EEMTI">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 6%;" class="text-center">Nº</th>
+              <th style="width: 34%;">NOME DO(A) ALUNO(A)</th>
+              <th style="width: 12%;" class="text-center">TURMA</th>
+              <th style="width: 14%;" class="text-center">DIAS FALTOSOS</th>
+              <th style="width: 20%;">DATAS DAS FALTAS</th>
+              <th style="width: 14%;" class="text-center">TOTAL DE FALTAS (DIAS × 2)</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyRelatorioFaltasAba3EEMTI">
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted">
+                Clique em <b>Calcular Faltas</b> para gerar a relação de alunos.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    cardAba3.appendChild(boxResultado);
+
+    const btnPdf = document.getElementById('btnBaixarPdfRelatorioFaltasEEMTI');
+    if (btnPdf) {
+      btnPdf.onclick = function(e) {
+        e.preventDefault();
+        baixarPdfRelatorioFaltasAba3();
+      };
+    }
+
+    return boxResultado;
+  }
+
+  async function calcularERenderizarRelatorioAba3() {
+    const paineis = Array.from(document.querySelectorAll('.tab-pane'));
+    const aba3 = paineis[2] || document;
+    garantirEstruturaVisualRelatorioAba3(aba3);
+
+    const selects = Array.from(aba3.querySelectorAll('select'));
+    const selProf = selects[0];
+    const selMes = selects[1];
+    const selSem = selects[2];
+    const selElet = selects[3];
+
+    const profVal = selProf ? selProf.value.trim().toUpperCase() : '';
+    const mesTexto = selMes ? (selMes.options[selMes.selectedIndex]?.text || selMes.value || '').trim() : 'Semestre Inteiro';
+    const mesNum = extrairNumeroMes(selMes ? selMes.value : '') || extrairNumeroMes(mesTexto);
+    const semVal = selSem ? selSem.value.trim() : '2026.2';
+    const eletVal = selElet ? selElet.value.trim().toUpperCase() : '';
+    const codElet = extrairCodigoElet(eletVal);
+
+    if (!eletVal || eletVal.includes('SELECIONE')) {
+      return Swal.fire('Atenção', 'Selecione a Eletiva do(a) Professor(a) para calcular as faltas.', 'warning');
+    }
+
+    const tbody = document.getElementById('tbodyRelatorioFaltasAba3EEMTI');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Calculando frequência de <b>${eletVal}</b>...</td></tr>`;
+    }
+
+    // 1. Pega chamadas da Aba 2 + Cache Local
+    capturarChamadasDaTabelaAba2();
+    let todasChamadas = [];
+    try {
+      todasChamadas = JSON.parse(localStorage.getItem(CACHE_CHAMADAS_ELETIVAS_KEY) || localStorage.getItem('cache_freq_eletivas_lancamentos_v1') || '[]');
+    } catch (e) { todasChamadas = []; }
+
+    const filtrarChamadasDaEletiva = (listaFonte) => {
+      return (listaFonte || []).filter(f => {
+        const semReg = String(f.semestre || f.ano || '').trim();
+        const eletReg = String(f.eletiva || '').trim().toUpperCase();
+        const codReg = extrairCodigoElet(eletReg);
+        const mReg = extrairMesDaData(f.data);
+
+        const bateSem = !semVal || !semReg || semReg === semVal;
+        const bateMes = !mesNum || mReg === mesNum;
+        const bateElet = eletReg === eletVal || (codElet && codReg === codElet) || eletReg.includes(eletVal) || eletVal.includes(eletReg);
+        return bateSem && bateMes && bateElet;
+      });
+    };
+
+    let chamadasDoPeriodo = filtrarChamadasDaEletiva(todasChamadas);
+
+    // 2. Se ainda não tiver no cache e estiver online, busca no servidor e já guarda no cache!
+    if (chamadasDoPeriodo.length === 0 && navigator.onLine) {
+      const urlApi = (typeof API_URL !== 'undefined' ? API_URL : "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec");
+      try {
+        const rServer = await fetch(urlApi, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'buscarFrequenciasGerenciamento',
+            mes: '',
+            semestre: semVal,
+            eletiva: eletVal,
+            professor: ''
+          })
+        }).then(r => r.json());
+        const arrServer = Array.isArray(rServer) ? rServer : (rServer && Array.isArray(rServer.lista) ? rServer.lista : []);
+        if (arrServer.length > 0) {
+          mesclarChamadasNoCacheLocal(arrServer, false);
+          chamadasDoPeriodo = filtrarChamadasDaEletiva(arrServer);
+        }
+      } catch (e) {}
+    }
+
+    // 3. Monta a lista de alunos matriculados na eletiva + alunos faltosos nas chamadas
+    const matSalvas = JSON.parse(localStorage.getItem('cache_matriculas_eletivas_global_v1') || '[]');
+    const alunosUniversal = JSON.parse(localStorage.getItem('cache_rac_alunos_leve_v3') || '[]');
+    const mapaTurmaUniversal = {};
+    alunosUniversal.forEach(a => {
+      if (a && a.nome) {
+        mapaTurmaUniversal[a.nome] = window.abreviarSerieParaExibicao ? window.abreviarSerieParaExibicao(a.serie) : a.serie;
+      }
+    });
+
+    const datasAulasSet = new Set();
+    const mapaAlunos = {};
+    let turmaPadraoDaChamada = '-';
+
+    chamadasDoPeriodo.forEach(ch => {
+      if (ch.serie || ch.turma) {
+        turmaPadraoDaChamada = window.abreviarSerieParaExibicao ? window.abreviarSerieParaExibicao(ch.serie || ch.turma) : (ch.serie || ch.turma);
+      }
+    });
+
+    // Inclui todos os alunos matriculados na eletiva (para exibir todos quando desmarcar "Mostrar apenas alunos com falta")
+    matSalvas.forEach(m => {
+      const bateSem = !semVal || m.ano === semVal;
+      const bateElet = m.eletiva === eletVal || (codElet && extrairCodigoElet(m.eletiva) === codElet);
+      if (bateSem && bateElet && m.aluno) {
+        const nomeUp = String(m.aluno).replace(/\s+/g, ' ').trim().toUpperCase();
+        if (!mapaAlunos[nomeUp]) {
+          const tAluno = (window.abreviarSerieParaExibicao ? window.abreviarSerieParaExibicao(m.serie) : m.serie) || mapaTurmaUniversal[nomeUp] || turmaPadraoDaChamada;
+          mapaAlunos[nomeUp] = { nome: nomeUp, turma: tAluno, datasSet: new Set() };
+        }
+      }
+    });
+
+    // Se a eletiva for de uma série inteira e não tiver matrículas separadas no cache, puxa os alunos daquela série
+    if (Object.keys(mapaAlunos).length === 0 && turmaPadraoDaChamada && turmaPadraoDaChamada !== '-') {
+      alunosUniversal.forEach(a => {
+        const sCurta = window.abreviarSerieParaExibicao ? window.abreviarSerieParaExibicao(a.serie) : a.serie;
+        if (sCurta === turmaPadraoDaChamada || a.serie.includes(turmaPadraoDaChamada)) {
+          mapaAlunos[a.nome] = { nome: a.nome, turma: sCurta, datasSet: new Set() };
+        }
+      });
+    }
+
+    // Registra as faltas de cada chamada
+    chamadasDoPeriodo.forEach(ch => {
+      const dt = String(ch.data || '').trim();
+      if (dt) datasAulasSet.add(dt);
+
+      const tChamada = (window.abreviarSerieParaExibicao ? window.abreviarSerieParaExibicao(ch.serie || ch.turma || '') : (ch.serie || ch.turma || '')) || turmaPadraoDaChamada;
+      const strFaltosos = Array.isArray(ch.faltososLista) ? ch.faltososLista.join(',') : String(ch.faltosos || '');
+
+      strFaltosos.split(',').forEach(nBruto => {
+        const nomeLimpo = String(nBruto || '').replace(/^\d+\s*faltoso\(s\)\s*/i, '').replace(/\s+/g, ' ').trim().toUpperCase();
+        if (!nomeLimpo || nomeLimpo === '-' || nomeLimpo === 'NENHUM' || nomeLimpo.includes('SEM FALTA')) return;
+
+        if (!mapaAlunos[nomeLimpo]) {
+          mapaAlunos[nomeLimpo] = {
+            nome: nomeLimpo,
+            turma: mapaTurmaUniversal[nomeLimpo] || tChamada,
+            datasSet: new Set()
+          };
+        }
+        if (dt) {
+          mapaAlunos[nomeLimpo].datasSet.add(dt);
+        }
+      });
+    });
+
+    const datasOrdenadas = Array.from(datasAulasSet).sort((a, b) => dataBrParaTs(a) - dataBrParaTs(b));
+    const listaCalculada = Object.values(mapaAlunos)
+      .map(al => {
+        const datasArr = Array.from(al.datasSet).sort((a, b) => dataBrParaTs(a) - dataBrParaTs(b));
+        const diasFaltosos = datasArr.length;
+        return {
+          nome: al.nome,
+          turma: al.turma || '-',
+          diasFaltosos: diasFaltosos,
+          datasFaltas: datasArr.join(', ') || '-',
+          totalFaltas: diasFaltosos * 2
+        };
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+    ultimoRelatorioCalculado = {
+      eletiva: eletVal,
+      semestre: semVal,
+      mes: mesTexto || 'Semestre Inteiro',
+      professor: profVal,
+      datasAulas: datasOrdenadas,
+      alunos: listaCalculada
+    };
+
+    desenharTabelaRelatorioNaAba3(aba3);
+  }
+
+  function desenharTabelaRelatorioNaAba3(aba3) {
+    garantirEstruturaVisualRelatorioAba3(aba3);
+
+    const chkApenasComFalta = aba3.querySelector('input[type="checkbox"]');
+    const mostrarSoFaltosos = chkApenasComFalta ? chkApenasComFalta.checked : true;
+
+    const { eletiva, semestre, datasAulas, alunos } = ultimoRelatorioCalculado;
+    if (!eletiva) return;
+
+    const lblResumo = document.getElementById('lblResumoDiasAulaAba3');
+    if (lblResumo) {
+      const resumoDiasStr = datasAulas.length > 0
+        ? `${datasAulas.length} (${datasAulas.join(', ')})`
+        : '0 (Nenhuma chamada registrada neste período)';
+      lblResumo.innerHTML = `<i class="bi bi-calendar2-check-fill text-primary me-1"></i><b>${eletiva} (${semestre})</b> — Dias de aula lançados no período: <span class="text-primary fw-bold">${resumoDiasStr}</span> <span class="text-muted">(Cada dia faltoso = <b>2 faltas</b>)</span>`;
+    }
+
+    const tbody = document.getElementById('tbodyRelatorioFaltasAba3EEMTI');
+    if (!tbody) return;
+
+    const listaExibir = mostrarSoFaltosos
+      ? alunos.filter(a => a.diasFaltosos > 0)
+      : alunos;
+
+    if (listaExibir.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-4 text-success fw-bold">
+            <i class="bi bi-check-circle-fill me-1"></i>${datasAulas.length > 0 ? '100% de frequência! Nenhuma falta registrada para este filtro (desmarque "Mostrar apenas alunos com falta" acima se quiser ver todos os alunos com 0 faltas).' : 'Nenhuma chamada registrada para esta eletiva neste período.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = listaExibir.map((al, idx) => `
+      <tr>
+        <td class="text-center fw-bold text-muted">${idx + 1}</td>
+        <td class="fw-bold text-dark">${al.nome}</td>
+        <td class="text-center"><span class="badge bg-secondary">${al.turma}</span></td>
+        <td class="text-center">
+          <span class="badge ${al.diasFaltosos > 0 ? 'bg-warning text-dark' : 'bg-light text-muted border'} fw-bold">
+            ${al.diasFaltosos} dia${al.diasFaltosos === 1 ? '' : 's'}
+          </span>
+        </td>
+        <td class="small fw-semibold text-secondary">${al.datasFaltas}</td>
+        <td class="text-center">
+          <span class="badge ${al.totalFaltas > 0 ? 'bg-danger' : 'bg-success'} px-2 py-1 fw-bold" style="font-size:0.78rem;">
+            ${al.totalFaltas} falta${al.totalFaltas === 1 ? '' : 's'}
+          </span>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function baixarPdfRelatorioFaltasAba3() {
+    try {
+      const paineis = Array.from(document.querySelectorAll('.tab-pane'));
+      const aba3 = paineis[2] || document;
+      const selects = Array.from(aba3.querySelectorAll('select'));
+      const eletAtualSelect = selects[3] ? selects[3].value.trim().toUpperCase() : '';
+
+      if (!ultimoRelatorioCalculado.eletiva || ultimoRelatorioCalculado.eletiva !== eletAtualSelect) {
+        await calcularERenderizarRelatorioAba3();
+      }
+
+      const rel = ultimoRelatorioCalculado;
+      const chkApenasComFalta = aba3.querySelector('input[type="checkbox"]');
+      const mostrarSoFaltosos = chkApenasComFalta ? chkApenasComFalta.checked : true;
+
+      const listaPdf = mostrarSoFaltosos
+        ? rel.alunos.filter(a => a.diasFaltosos > 0)
+        : rel.alunos;
+
+      if (listaPdf.length === 0) {
+        return Swal.fire('Informação', 'Não há alunos listados neste filtro para gerar o PDF (se quiser imprimir todos os alunos com 0 faltas, desmarque "Mostrar apenas alunos com falta").', 'info');
+      }
+
+      Swal.fire({ title: 'Gerando Relatório PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      await garantirJsPdfProntoEletiva();
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      let startY = 38;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: `RELATÓRIO QUANTITATIVO DE FALTAS — ELETIVA (${mostrarSoFaltosos ? 'APENAS FALTOSOS' : 'TURMA COMPLETA'})`,
+          subtitulo1: `Eletiva: ${rel.eletiva} | Semestre: ${rel.semestre} | Período: ${rel.mes}`,
+          subtitulo2: `Professor(a): ${rel.professor || '-'} | Aulas Lançadas (${rel.datasAulas.length}): ${rel.datasAulas.join(', ') || 'Nenhuma'}`
+        });
+      }
+
+      const rows = listaPdf.map((a, i) => [
+        String(i + 1),
+        a.nome,
+        a.turma,
+        `${a.diasFaltosos} dia(s)`,
+        a.datasFaltas,
+        `${a.totalFaltas} falta(s)`
+      ]);
+
+      doc.autoTable({
+        startY: startY,
+        head: [['Nº', 'NOME DO(A) ALUNO(A)', 'TURMA', 'DIAS FALTOSOS', 'DATAS DAS FALTAS', 'TOTAL (DIAS × 2)']],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 7.8, cellPadding: 2, valign: 'middle' },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 68, fontStyle: 'bold' },
+          2: { cellWidth: 18, halign: 'center' },
+          3: { cellWidth: 24, halign: 'center' },
+          4: { cellWidth: 38, halign: 'center' },
+          5: { cellWidth: 24, halign: 'center', fontStyle: 'bold' }
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body' && data.column.index === 5) {
+            const txt = String(data.cell.raw || '');
+            if (txt.startsWith('0 ')) {
+              data.cell.styles.textColor = [21, 128, 61];
+            } else {
+              data.cell.styles.textColor = [220, 38, 38];
+            }
+          }
+        }
+      });
+
+      Swal.close();
+      doc.save(`Relatorio_Faltas_${rel.eletiva.replace(/\s+/g, '_')}_${rel.mes.replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      Swal.close();
+      Swal.fire('Erro ao gerar PDF', err.message || String(err), 'error');
+    }
+  }
+
+  function vincularBotoesAba3RelatorioFaltas() {
+    const paineis = Array.from(document.querySelectorAll('.tab-pane'));
+    const aba3 = paineis[2];
+    if (!aba3) return;
+
+    garantirEstruturaVisualRelatorioAba3(aba3);
+
+    // 1. Vincula o botão "Calcular Faltas"
+    aba3.querySelectorAll('button').forEach(btn => {
+      const txt = (btn.textContent || '').toUpperCase();
+      if (txt.includes('CALCULAR FALTAS') && !btn._hookCalcFaltasV3) {
+        btn._hookCalcFaltasV3 = true;
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          calcularERenderizarRelatorioAba3();
+        }, true);
+      }
+    });
+
+    // 2. Quando trocar Mês, Semestre ou Eletiva na Aba 3, já recalcula automaticamente!
+    const selects = Array.from(aba3.querySelectorAll('select'));
+    [selects[1], selects[2], selects[3]].forEach(sel => {
+      if (sel && !sel._hookAutoCalcV3) {
+        sel._hookAutoCalcV3 = true;
+        sel.addEventListener('change', function() {
+          const selElet = selects[3];
+          if (selElet && selElet.value && !selElet.value.toUpperCase().includes('SELECIONE')) {
+            setTimeout(calcularERenderizarRelatorioAba3, 50);
+          }
+        });
+      }
+    });
+
+    // 3. Vincula a chavinha "Mostrar apenas alunos com falta" (Alterna entre Só Faltosos e Todos os Alunos na hora!)
+    const chk = aba3.querySelector('input[type="checkbox"]');
+    if (chk && !chk._hookSwitchFaltasV3) {
+      chk._hookSwitchFaltasV3 = true;
+      chk.removeAttribute('onchange');
+      chk.addEventListener('change', function() {
+        if (ultimoRelatorioCalculado.eletiva) {
+          desenharTabelaRelatorioNaAba3(aba3);
+        } else {
+          calcularERenderizarRelatorioAba3();
+        }
+      });
+    }
+
+    // 4. Atualiza o cache também ao clicar no selo "Atualizado" do topo
+    const seloTopo = document.getElementById('seloTopoSyncBancoEEMTI');
+    if (seloTopo && !seloTopo._hookSyncEletivasV3) {
+      seloTopo._hookSyncEletivasV3 = true;
+      seloTopo.addEventListener('click', () => {
+        sincronizarTodasChamadasEletivasParaCache();
+      });
+    }
+  }
+
+  window.addEventListener('load', () => {
+    setTimeout(() => sincronizarTodasChamadasEletivasParaCache(), 600);
+  });
+  setInterval(vincularBotoesAba3RelatorioFaltas, 350);
+})();
+</script>
 </body>
 </html>
