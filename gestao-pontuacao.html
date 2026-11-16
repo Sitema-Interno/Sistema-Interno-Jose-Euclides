@@ -1,118 +1,312 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#15438c">
   <link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pontuação e Catálogo de Ocorrências - EEMTI</title>
-  
+  <title>Pontuação e Catálogo de Ocorrências - EEMTI Dr. José Euclides</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="portal-core.js"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
-    
-    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
 
-    .navbar-custom { background-color: #fff; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
-    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
-    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
-    
-    .main-container { padding: 30px 15px; max-width: 1100px; margin: 0 auto; width: 100%; flex: 1; }
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(5px); margin-bottom: 25px; padding: 30px; }
-    .card-header-custom { background: transparent; border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
-    
-    .btn-tema { background-color: #0f766e; color: white; border: none; font-weight: 600; }
-    .btn-tema:hover { background-color: #0d645e; color: white; }
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
 
-    /* Etiquetas dinâmicas para gravidade */
-    .badge-gravidade { font-size: 0.78rem; padding: 6px 12px; border-radius: 20px; font-weight: 700; display: inline-block; min-width: 110px; text-align: center; background-color: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
 
-    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0,0,0,0.05); background: #fff; }
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 80px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.75rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.65rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.3rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1180px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      background: rgba(255, 255, 255, 0.97);
+      margin-bottom: 24px;
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 13px;
+      font-size: 0.88rem;
+      background-color: #f8fafc;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+      background-color: #ffffff;
+    }
+
+    .btn-tema {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      border-radius: 9px;
+      padding: 10px 18px;
+    }
+
+    .btn-tema:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .badge-gravidade {
+      font-size: 0.72rem;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-weight: 700;
+      display: inline-block;
+      text-align: center;
+      background-color: #eff6ff;
+      color: #15438c;
+      border: 1px solid #bfdbfe;
+    }
+
+    .sub-mobile-cat {
+      display: none;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.88);
+      position: relative;
+      z-index: 5;
+    }
+
     #conteudoPagina { display: none; }
+
+    @media (max-width: 768px) {
+      .col-cat-desktop {
+        display: none !important;
+      }
+      .sub-mobile-cat {
+        display: block;
+        margin-top: 4px;
+      }
+    }
   </style>
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
 </head>
 <body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
 
-  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
-
-  <nav class="navbar navbar-custom">
-    <div class="container-fluid max-w-1200 mx-auto">
-      <span class="navbar-brand">
-        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
-        <div>
-          Painel de Configurações - Ocorrências
-          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
-        </div>
-      </span>
-      <div class="d-flex align-items-center gap-3">
-        <span class="text-muted fw-semibold small" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
-        <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold"><i class="bi bi-house-door-fill me-1"></i> Início</a>
+  <!-- CABEÇALHO PADRONIZADO -->
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="brasaoestado.png" id="logoEscola" alt="Brasão" onerror="this.src='LOGO-removebg-preview.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
       </div>
+    </a>
+    <div class="user-bar">
+      <span class="fw-bold small text-dark" id="nomeUsuarioUi">
+        <i class="bi bi-person-circle text-primary me-1"></i>Carregando...
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;">Gestão</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
     </div>
-  </nav>
+  </header>
 
   <div class="main-container" id="conteudoPagina">
-    <h3 class="fw-bold text-center mb-4 text-dark">Gestão Administrativa de Ocorrências</h3>
-
     <!-- Sistema de Abas -->
-    <ul class="nav nav-tabs mb-4 justify-content-center" id="configOcoTab" role="tablist">
-      <li class="nav-item">
-        <button class="nav-link active fw-bold text-dark px-4" data-bs-toggle="tab" data-bs-target="#tabPontuacao" type="button" onclick="carregarPontuacoes()">
+    <ul class="nav nav-tabs mb-3" id="configOcoTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#tabPontuacao" type="button" onclick="carregarPontuacoes()">
           <i class="bi bi-star-fill text-warning me-2"></i>Gestão de Pontuação
         </button>
       </li>
-      <li class="nav-item">
-        <button class="nav-link fw-bold text-dark px-4" data-bs-toggle="tab" data-bs-target="#tabCatalogo" type="button" onclick="carregarCatalogo()">
-          <i class="bi bi-journal-text text-success me-2"></i>Catálogo de Ocorrências
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#tabCatalogo" type="button" onclick="carregarCatalogo()">
+          <i class="bi bi-journal-text text-primary me-2"></i>Catálogo de Ocorrências
         </button>
       </li>
     </ul>
 
     <div class="tab-content">
-      
       <!-- ABA 1: GESTÃO DE PONTUAÇÃO -->
       <div class="tab-pane fade show active" id="tabPontuacao">
-        <div class="card p-4">
-          <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-star text-warning me-2"></i>Cadastrar / Editar Pontuação</h5>
+        <div class="card p-3 p-md-4">
+          <div class="card-header-custom">
+            <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+              <i class="bi bi-star-fill text-warning me-2"></i>Cadastrar / Editar Gravidade e Pontuação
+            </h5>
+          </div>
           <input type="hidden" id="indexPontuacao" value="">
           <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Legenda (Ocorrência / Gravidade)</label>
-              <input type="text" id="legendaPontuacao" class="form-control" placeholder="Ex: GRAVÍSSIMA">
+            <div class="col-12 col-md-7">
+              <label class="form-label">Legenda (Ocorrência / Gravidade) *</label>
+              <input type="text" id="legendaPontuacao" class="form-control fw-bold text-uppercase" placeholder="Ex: GRAU I (INFRAÇÕES LEVES)">
             </div>
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Pontuação (Aceita negativo/decimal)</label>
-              <input type="text" id="valorPontuacao" class="form-control" placeholder="Ex: -0.25">
+            <div class="col-12 col-md-5">
+              <label class="form-label">Pontuação (Aceita negativo/decimal) *</label>
+              <input type="text" id="valorPontuacao" class="form-control fw-bold" placeholder="Ex: -1.0">
             </div>
           </div>
-          <button class="btn btn-tema w-100 py-2 mt-4 fw-bold" onclick="salvarPontuacao()">
+          <button class="btn btn-tema w-100 py-2 mt-3 shadow-sm" onclick="salvarPontuacao()">
             <i class="bi bi-check-circle-fill me-2"></i>Registrar Pontuação
           </button>
         </div>
 
-        <div class="card p-4">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold m-0"><i class="bi bi-search text-primary me-2"></i>Consultar e Gerir Pontuações</h5>
-            <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="carregarPontuacoes()"><i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista</button>
+        <div class="card p-3 p-md-4">
+          <div class="card-header-custom">
+            <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+              <i class="bi bi-search me-2"></i>Consultar e Gerir Pontuações
+            </h5>
+            <button class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarPontuacoes()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Atualizar Lista
+            </button>
           </div>
-          <input type="text" id="filtroPontuacao" class="form-control mb-3" placeholder="Pesquisa Inteligente por Legenda..." onkeyup="filtrarPontuacoes()">
+          <input type="text" id="filtroPontuacao" class="form-control mb-3" placeholder="Pesquisa inteligente por legenda..." oninput="filtrarPontuacoes()">
           <div class="table-responsive">
-            <table class="table table-hover align-middle border">
+            <table class="table table-hover align-middle border mb-0">
               <thead class="table-light">
-                <tr><th>Legenda</th><th>Pontuação</th><th class="text-end">Ações</th></tr>
+                <tr>
+                  <th style="width: 55%;">Legenda / Grau</th>
+                  <th style="width: 25%;" class="text-center">Pontuação</th>
+                  <th style="width: 20%;" class="text-center">Ações</th>
+                </tr>
               </thead>
               <tbody id="tabelaPontuacoes">
-                <tr><td colspan="3" class="text-center text-muted py-3">A carregar...</td></tr>
+                <tr><td colspan="3" class="text-center text-muted py-3">Carregando...</td></tr>
               </tbody>
             </table>
           </div>
@@ -121,33 +315,29 @@
 
       <!-- ABA 2: CATÁLOGO DE OCORRÊNCIAS -->
       <div class="tab-pane fade" id="tabCatalogo">
-        <div class="card p-4">
-          <div class="card-header-custom d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold m-0 text-dark" id="tituloFormCat">
+        <div class="card p-3 p-md-4">
+          <div class="card-header-custom">
+            <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="tituloFormCat">
               <i class="bi bi-exclamation-octagon-fill text-danger me-2"></i>Cadastrar Ocorrência no Catálogo
             </h5>
-            <span class="badge bg-secondary" id="contadorCatalogo">0 registos</span>
+            <span class="badge bg-primary" id="contadorCatalogo">0 registros</span>
           </div>
-
           <input type="hidden" id="linhaEdicaoCat" value="">
-
           <form id="formCatalogo" onsubmit="event.preventDefault(); salvarItemCatalogo();">
             <div class="row g-3">
-              <div class="col-md-12">
-                <label class="form-label fw-semibold small">Descrição da Ocorrência (Coluna A)</label>
-                <textarea id="inputOcorrencia" class="form-control" rows="2" required placeholder="Ex: Chegar atrasado (a)..."></textarea>
+              <div class="col-12">
+                <label class="form-label">Descrição da Ocorrência (Coluna A) *</label>
+                <textarea id="inputOcorrencia" class="form-control fw-semibold" rows="2" required placeholder="Ex: Chegar atrasado(a)..."></textarea>
               </div>
-
-              <div class="col-md-6">
-                <label class="form-label fw-semibold small">Gravidade (Puxado da Aba Pontuação - Coluna A)</label>
-                <select id="selectGravidade" class="form-select" required>
-                  <option value="">A carregar gravidades do banco...</option>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Gravidade (Da Aba Pontuação - Coluna A) *</label>
+                <select id="selectGravidade" class="form-select fw-bold" required>
+                  <option value="">Carregando gravidades do banco...</option>
                 </select>
               </div>
-
-              <div class="col-md-6">
-                <label class="form-label fw-semibold small">Grupo / Categoria (Coluna C)</label>
-                <input type="text" id="inputGrupo" class="form-control" list="listaGruposSugeridos" required placeholder="Selecione ou digite...">
+              <div class="col-12 col-md-6">
+                <label class="form-label">Grupo / Categoria (Coluna C) *</label>
+                <input type="text" id="inputGrupo" class="form-control fw-semibold" list="listaGruposSugeridos" required placeholder="Selecione ou digite...">
                 <datalist id="listaGruposSugeridos">
                   <option value="Indisciplina">
                   <option value="Leis ou Regimentos">
@@ -158,70 +348,85 @@
                 </datalist>
               </div>
             </div>
-
-            <div class="d-flex gap-2 mt-4">
+            <div class="d-flex gap-2 mt-3">
               <button type="button" id="btnCancelarEdicaoCat" class="btn btn-outline-secondary d-none fw-bold" onclick="cancelarEdicaoCat()">Cancelar Edição</button>
-              <button type="submit" id="btnSalvarCat" class="btn btn-tema flex-grow-1"><i class="bi bi-save-fill me-2"></i>Salvar Ocorrência</button>
+              <button type="submit" id="btnSalvarCat" class="btn btn-tema flex-grow-1 shadow-sm">
+                <i class="bi bi-save-fill me-2"></i>Salvar Ocorrência
+              </button>
             </div>
           </form>
         </div>
 
-        <div class="card p-4">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 pb-3 border-bottom">
-            <h5 class="fw-bold m-0"><i class="bi bi-list-ul text-primary me-2"></i>Ocorrências Cadastradas</h5>
-            <button class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="gerarPDFCatalogo()"><i class="bi bi-file-earmark-pdf-fill me-1"></i> Baixar Catálogo PDF</button>
+        <div class="card p-3 p-md-4">
+          <div class="card-header-custom">
+            <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+              <i class="bi bi-list-ul me-2"></i>Ocorrências Cadastradas no Catálogo
+            </h5>
+            <button class="btn btn-danger btn-sm fw-bold px-3" onclick="gerarPDFCatalogo()">
+              <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar Catálogo PDF
+            </button>
           </div>
-
           <div class="row g-2 mb-3">
-            <div class="col-md-5">
+            <div class="col-12 col-md-5">
               <div class="input-group input-group-sm">
                 <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                <input type="text" id="filtroTextoCat" class="form-control" placeholder="Buscar ocorrência..." onkeyup="renderizarTabelaCatalogo()">
+                <input type="text" id="filtroTextoCat" class="form-control" placeholder="Buscar ocorrência..." oninput="renderizarTabelaCatalogo()">
               </div>
             </div>
-            <div class="col-md-4">
-              <select id="filtroGravidadeCat" class="form-select form-select-sm" onchange="renderizarTabelaCatalogo()">
+            <div class="col-6 col-md-4">
+              <select id="filtroGravidadeCat" class="form-select form-select-sm fw-bold" onchange="renderizarTabelaCatalogo()">
                 <option value="">Todas as Gravidades...</option>
               </select>
             </div>
-            <div class="col-md-3">
-              <select id="filtroGrupoCat" class="form-select form-select-sm" onchange="renderizarTabelaCatalogo()">
+            <div class="col-6 col-md-3">
+              <select id="filtroGrupoCat" class="form-select form-select-sm fw-bold" onchange="renderizarTabelaCatalogo()">
                 <option value="">Todos os Grupos...</option>
               </select>
             </div>
           </div>
 
-          <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
-            <table class="table table-hover align-middle border small">
+          <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+            <table class="table table-hover align-middle border small mb-0">
               <thead class="table-light sticky-top">
                 <tr>
-                  <th style="width: 50px;" class="text-center">#</th>
-                  <th>OCORRÊNCIA</th>
-                  <th style="width: 140px;" class="text-center">GRAVIDADE</th>
-                  <th style="width: 190px;">GRUPO</th>
-                  <th style="width: 110px;" class="text-end">AÇÕES</th>
+                  <th style="width: 7%;" class="text-center">#</th>
+                  <th style="width: 45%;">OCORRÊNCIA</th>
+                  <th style="width: 18%;" class="text-center col-cat-desktop">GRAVIDADE</th>
+                  <th style="width: 16%;" class="col-cat-desktop">GRUPO</th>
+                  <th style="width: 14%;" class="text-center">AÇÕES</th>
                 </tr>
               </thead>
               <tbody id="tbodyCatalogo">
-                <tr><td colspan="5" class="text-center text-muted py-4">A carregar...</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">Carregando...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 
   <footer class="footer-custom">
-    <strong>&copy; <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Configuração de Ocorrências.
   </footer>
 
   <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
-
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec"; 
-
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
     let dbPontuacoes = [];
     let dbCatalogoOcorrencias = [];
 
@@ -229,8 +434,8 @@
       const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
       document.getElementById('conteudoPagina').style.display = 'block';
       if (u) {
-        let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Utilizador";
-        document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "USUÁRIO").toUpperCase();
+        document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle text-primary me-1"></i>Olá, ${nomeProf}`;
       }
       await carregarPontuacoes();
       await carregarCatalogo();
@@ -240,12 +445,11 @@
       try {
         const response = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) });
         return await response.json();
-      } catch (error) { 
-        return { success: false, error: error.message }; 
+      } catch (error) {
+        return { success: false, error: error.message };
       }
     }
 
-    // --- MÓDULO 1: GESTÃO DE PONTUAÇÃO ---
     async function carregarPontuacoes() {
       const res = await fetchAPI({ action: 'listarConfig', tipo: 'PONTUACAO' });
       if (res && (res.success || res.sucesso)) {
@@ -258,19 +462,19 @@
     function renderizarTabelaPontuacoes(lista) {
       const tbody = document.getElementById('tabelaPontuacoes');
       if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Nenhuma pontuação registada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Nenhuma pontuação registrada.</td></tr>';
         return;
       }
       let html = '';
-      lista.forEach((item, idx) => {
+      lista.forEach((item) => {
         let originalIdx = dbPontuacoes.findIndex(x => x.linha === item.linha);
         html += `
           <tr>
-            <td class="fw-bold">${item.col1}</td>
-            <td class="text-danger fw-bold">${item.col2}</td>
-            <td class="text-end">
-              <button class="btn btn-sm btn-warning text-white me-1" onclick="editarPontuacao(${originalIdx})" title="Editar"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-danger" onclick="excluirPontuacao(${item.linha})" title="Excluir"><i class="bi bi-trash"></i></button>
+            <td class="fw-bold text-dark">${item.col1}</td>
+            <td class="text-danger fw-bold text-center">${item.col2}</td>
+            <td class="text-center text-nowrap">
+              <button class="btn btn-sm btn-warning me-1 shadow-sm" onclick="editarPontuacao(${originalIdx})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
+              <button class="btn btn-sm btn-danger shadow-sm" onclick="excluirPontuacao(${item.linha})" title="Excluir"><i class="bi bi-trash-fill"></i></button>
             </td>
           </tr>`;
       });
@@ -291,7 +495,6 @@
       if (!legenda || !valor) return Swal.fire('Atenção', 'Preencha a legenda e o valor da pontuação.', 'warning');
 
       Swal.fire({ title: 'Salvando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      
       let linhaReal = "";
       if (index !== "") {
         linhaReal = dbPontuacoes[index].linha;
@@ -304,7 +507,7 @@
       });
 
       if (res && (res.success || res.sucesso)) {
-        Swal.fire('Sucesso!', 'Pontuação guardada!', 'success');
+        Swal.fire({ title: 'Sucesso!', text: 'Pontuação salva!', icon: 'success', confirmButtonColor: '#15438c' });
         document.getElementById('indexPontuacao').value = "";
         document.getElementById('legendaPontuacao').value = "";
         document.getElementById('valorPontuacao').value = "";
@@ -325,22 +528,19 @@
     async function excluirPontuacao(linha) {
       const conf = await Swal.fire({ title: 'Excluir?', text: 'Remover esta pontuação?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Sim' });
       if (!conf.isConfirmed) return;
-
       Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       const res = await fetchAPI({ action: 'excluirConfig', tipo: 'PONTUACAO', linha: Number(linha) });
       if (res && (res.success || res.sucesso)) {
-        Swal.fire('Excluído!', '', 'success');
+        Swal.fire({ title: 'Excluído!', icon: 'success', confirmButtonColor: '#15438c' });
         await carregarPontuacoes();
       } else {
         Swal.fire('Erro', res.error || '', 'error');
       }
     }
 
-    // --- POPULAR DINAMICAMENTE OS SELECTS DE GRAVIDADE COM A COLUNA A DA ABA PONTUAÇÃO ---
     function atualizarSelectGravidadeDinamico() {
       const selectForm = document.getElementById('selectGravidade');
       const selectFiltro = document.getElementById('filtroGravidadeCat');
-      
       const valorSelForm = selectForm.value;
       const valorSelFiltro = selectFiltro.value;
 
@@ -357,12 +557,10 @@
 
       selectForm.innerHTML = opcoesHtmlForm;
       selectFiltro.innerHTML = opcoesHtmlFiltro;
-
       selectForm.value = valorSelForm;
       selectFiltro.value = valorSelFiltro;
     }
 
-    // --- MÓDULO 2: CATÁLOGO DE OCORRÊNCIAS ---
     async function carregarCatalogo() {
       const res = await fetchAPI({ action: 'listarConfig', tipo: 'CATALOGO_OCORRENCIAS' });
       if (res && (res.success || res.sucesso)) {
@@ -381,7 +579,6 @@
       const selectGrupo = document.getElementById('filtroGrupoCat');
       const valorAtual = selectGrupo.value;
       const gruposUnicos = [...new Set(dbCatalogoOcorrencias.map(i => i.grupo).filter(Boolean))].sort();
-      
       selectGrupo.innerHTML = '<option value="">Todos os Grupos...</option>';
       gruposUnicos.forEach(g => {
         selectGrupo.innerHTML += `<option value="${g}">${g}</option>`;
@@ -401,8 +598,7 @@
         return bateTexto && bateGrav && bateGrupo;
       });
 
-      document.getElementById('contadorCatalogo').innerText = `${filtrados.length} registo(s)`;
-
+      document.getElementById('contadorCatalogo').innerText = `${filtrados.length} registro(s)`;
       const tbody = document.getElementById('tbodyCatalogo');
       if (filtrados.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma ocorrência encontrada.</td></tr>';
@@ -412,14 +608,19 @@
       let html = '';
       filtrados.forEach((item, idx) => {
         const indexOriginal = dbCatalogoOcorrencias.findIndex(x => x.linha === item.linha);
-
         html += `
           <tr>
             <td class="text-center text-muted fw-bold">${idx + 1}</td>
-            <td class="fw-semibold">${item.ocorrencia}</td>
-            <td class="text-center"><span class="badge-gravidade">${item.gravidade || '-'}</span></td>
-            <td><span class="text-secondary fw-medium">${item.grupo || '-'}</span></td>
-            <td class="text-end">
+            <td>
+              <div class="fw-bold text-dark">${item.ocorrencia}</div>
+              <div class="sub-mobile-cat">
+                <span class="badge-gravidade" style="font-size:0.6rem;padding:2px 6px;">${item.gravidade || '-'}</span>
+                <span class="text-secondary ms-1" style="font-size:0.65rem;">• ${item.grupo || '-'}</span>
+              </div>
+            </td>
+            <td class="text-center col-cat-desktop"><span class="badge-gravidade">${item.gravidade || '-'}</span></td>
+            <td class="col-cat-desktop"><span class="text-secondary fw-semibold">${item.grupo || '-'}</span></td>
+            <td class="text-center text-nowrap">
               <button class="btn btn-sm btn-outline-primary me-1" onclick="prepararEdicaoCat(${indexOriginal})" title="Editar"><i class="bi bi-pencil"></i></button>
               <button class="btn btn-sm btn-outline-danger" onclick="excluirItemCatalogo(${item.linha})" title="Excluir"><i class="bi bi-trash"></i></button>
             </td>
@@ -438,8 +639,7 @@
         return Swal.fire('Atenção', 'Preencha a Descrição, a Gravidade e o Grupo.', 'warning');
       }
 
-      Swal.fire({ title: 'A guardar na planilha...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
+      Swal.fire({ title: 'Salvando na planilha...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       const payload = {
         action: 'salvarConfig',
         tipo: 'CATALOGO_OCORRENCIAS',
@@ -448,7 +648,7 @@
 
       const res = await fetchAPI(payload);
       if (res && (res.success || res.sucesso)) {
-        Swal.fire('Sucesso!', 'Ocorrência guardada com sucesso!', 'success');
+        Swal.fire({ title: 'Sucesso!', text: 'Ocorrência salva com sucesso!', icon: 'success', confirmButtonColor: '#15438c' });
         cancelarEdicaoCat();
         await carregarCatalogo();
       } else {
@@ -468,6 +668,7 @@
       document.getElementById('tituloFormCat').innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i>Editando Ocorrência (Linha ${item.linha})`;
       document.getElementById('btnSalvarCat').innerHTML = `<i class="bi bi-check2-circle me-2"></i>Atualizar Ocorrência`;
       document.getElementById('btnCancelarEdicaoCat').classList.remove('d-none');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function cancelarEdicaoCat() {
@@ -482,48 +683,42 @@
       const conf = await Swal.fire({ title: 'Excluir Ocorrência?', text: 'Remover este item do catálogo?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Sim, excluir' });
       if (!conf.isConfirmed) return;
 
-      Swal.fire({ title: 'A excluir...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       const res = await fetchAPI({ action: 'excluirConfig', tipo: 'CATALOGO_OCORRENCIAS', linha: Number(linha) });
-      
       if (res && (res.success || res.sucesso)) {
-        Swal.fire('Excluído!', '', 'success');
+        Swal.fire({ title: 'Excluído!', icon: 'success', confirmButtonColor: '#15438c' });
         await carregarCatalogo();
       } else {
         Swal.fire('Erro', res.error || '', 'error');
       }
     }
 
-    function obterBase64Logo() {
-      try {
-        const img = document.querySelector('.logo-escola');
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width || 100;
-        canvas.height = img.naturalHeight || img.height || 100;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/png');
-      } catch (e) { return null; }
-    }
-
-    function gerarPDFCatalogo() {
+    async function gerarPDFCatalogo() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('portrait', 'mm', 'a4');
 
-      const logo = obterBase64Logo();
-      if (logo) doc.addImage(logo, 'PNG', 14, 10, 18, 18);
+      let startY = 36;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: 'CATÁLOGO OFICIAL DE OCORRÊNCIAS DISCIPLINARES (CRO)',
+          subtitulo1: `Total de Ocorrências Cadastradas: ${dbCatalogoOcorrencias.length} | Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+        });
+      }
 
-      doc.setFontSize(13); doc.setFont("helvetica", "bold");
-      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 35, 17);
-      doc.setFontSize(10); doc.setFont("helvetica", "normal");
-      doc.text("CATÁLOGO OFICIAL DE OCORRÊNCIAS DISCIPLINARES", 35, 23);
-
-      const linhas = dbCatalogoOcorrencias.map((item, idx) => [ idx + 1, item.ocorrencia, item.gravidade, item.grupo ]);
-
+      const linhas = dbCatalogoOcorrencias.map((item, idx) => [idx + 1, item.ocorrencia, item.gravidade, item.grupo]);
       doc.autoTable({
-        startY: 32, head: [['#', 'OCORRÊNCIA', 'GRAVIDADE', 'GRUPO']],
-        body: linhas, theme: 'grid', headStyles: { fillColor: [15, 118, 110] },
-        columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 105 }, 2: { cellWidth: 30, halign: 'center' }, 3: { cellWidth: 37 } },
-        styles: { fontSize: 8, cellPadding: 2.5 }
+        startY: startY,
+        head: [['#', 'OCORRÊNCIA', 'GRAVIDADE', 'GRUPO']],
+        body: linhas,
+        theme: 'grid',
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 105 },
+          2: { cellWidth: 32, halign: 'center' },
+          3: { cellWidth: 35 }
+        },
+        styles: { fontSize: 8, cellPadding: 2.3 }
       });
 
       doc.save("Catalogo_Ocorrencias_EEMTI.pdf");
