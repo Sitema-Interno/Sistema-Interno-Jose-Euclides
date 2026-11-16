@@ -1310,5 +1310,424 @@
       }
     }
   </script>
+  <script>
+(function() {
+  // 1. Garante que as bibliotecas jsPDF e AutoTable estejam carregadas para o botão PDF
+  function carregarScriptSeNecessario(url) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${url}"]`)) return resolve();
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Falha ao carregar biblioteca PDF'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function garantirJsPdfPronto() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      await carregarScriptSeNecessario('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    }
+    const proto = (window.jspdf && window.jspdf.jsPDF) ? (window.jspdf.jsPDF.API || window.jspdf.jsPDF.prototype) : null;
+    if (proto && typeof proto.autoTable !== 'function') {
+      await carregarScriptSeNecessario('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js');
+    }
+  }
+  garantirJsPdfPronto().catch(() => {});
+
+  // 2. INTERCEPTADOR DE "TODAS AS TURMAS":
+  // Quando a própria página pedir action === 'getAlunosParaEdicao' com serie === 'TODAS',
+  // junta todas as turmas e devolve para a função original da página (NUNCA SOME E NÃO PISCA!)
+  const _fetchPagina = window.fetch;
+  window.fetch = async function(url, options) {
+    if (options && options.method === 'POST' && typeof options.body === 'string') {
+      try {
+        const bodyObj = JSON.parse(options.body);
+        if (bodyObj.action === 'getAlunosParaEdicao') {
+          const seriePedida = String((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || '').trim().toUpperCase();
+          const anoPedido = String((bodyObj.dados && bodyObj.dados.ano) || bodyObj.ano || '2026').trim();
+
+          if (seriePedida === 'TODAS' || seriePedida.includes('TODAS AS TURMAS')) {
+            const seriesLista = JSON.parse(localStorage.getItem('cache_rac_series_v3') || 'null') || [
+              "1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C",
+              "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C",
+              "3ª SÉRIE A", "3ª SÉRIE B"
+            ];
+
+            // Busca todas as turmas em paralelo usando a própria ponte de cache/rede
+            const promessas = seriesLista.map(sNome => {
+              const novoBody = JSON.parse(JSON.stringify(bodyObj));
+              if (novoBody.dados) novoBody.dados.serie = sNome;
+              else novoBody.serie = sNome;
+              return _fetchPagina(url, Object.assign({}, options, { body: JSON.stringify(novoBody) }))
+                .then(r => r.json())
+                .catch(() => []);
+            });
+
+            const resultados = await Promise.all(promessas);
+            const unificados = [].concat(...resultados.filter(Array.isArray));
+
+            // Remove eventuais duplicados mantendo a ordem por Série e Nome
+            const mapaUnicos = {};
+            unificados.forEach(al => {
+              if (al && al.nome) {
+                mapaUnicos[al.serie + '|' + al.nome] = al;
+              }
+            });
+
+            const listaFinal = Object.values(mapaUnicos).sort((a, b) =>
+              String(a.serie || '').localeCompare(String(b.serie || ''), 'pt-BR', { numeric: true }) ||
+              String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR')
+            );
+
+            return new Response(JSON.stringify(listaFinal), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        }
+      } catch (e) {}
+    }
+    return _fetchPagina.apply(this, arguments);
+  };
+
+  // 3. CSS para:
+  // - Numeração automática 1, 2, 3, 4... na primeira coluna (sem quebrar as colunas do portal-core.js!)
+  // - Contador discreto na coluna SÉRIE / BF / PM / ENDEREÇO
+  // - Alinhamento dos botões Buscar, Limpar e PDF
+  if (!document.getElementById('estiloExtraGerenciarTurmaHTML')) {
+    const st = document.createElement('style');
+    st.id = 'estiloExtraGerenciarTurmaHTML';
+    st.innerHTML = `
+      th[data-resumo-turma-discreto]::after {
+        content: attr(data-resumo-turma-discreto);
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #15438c;
+        background-color: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 50px;
+        text-transform: none;
+        letter-spacing: 0;
+        vertical-align: middle;
+      }
+      .grupo-botoes-gerenciar-eemti {
+        display: flex !important;
+        gap: 6px !important;
+        align-items: stretch !important;
+        width: 100% !important;
+      }
+      .grupo-botoes-gerenciar-eemti .btn {
+        height: 38px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-weight: 700 !important;
+        font-size: 0.82rem !important;
+        border-radius: 8px !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+        padding: 0 12px !important;
+      }
+      /* Coluna / Selo de Numeração 1, 2, 3, 4... ao lado da Foto 3x4 */
+      table.tabela-com-numeracao-eemti thead th:first-child::before {
+        content: "Nº / ";
+        color: #15438c;
+        font-weight: 900;
+      }
+      table.tabela-com-numeracao-eemti tbody tr td:first-child {
+        position: relative !important;
+        padding-left: 28px !important;
+      }
+      .badge-num-aluno-eemti {
+        position: absolute;
+        left: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 6px;
+        background-color: #15438c;
+        color: #ffffff;
+        font-size: 0.66rem;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(21, 67, 140, 0.2);
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function destravarFiltroDeAluno(containerAba, tabelaAlvo) {
+    const inputs = containerAba.querySelectorAll('input[type="text"], input[type="search"]');
+    inputs.forEach(inp => {
+      if (inp.value !== '') {
+        inp.value = '';
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+    // Caso o portal-core tenha ficado com filtroExclusivoAlunoSelecionado preso mesmo com input vazio:
+    if (inputs[0]) {
+      inputs[0].value = '';
+      inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (tabelaAlvo) {
+      tabelaAlvo.querySelectorAll('tbody tr').forEach(tr => {
+        if (tr.children.length > 2) tr.style.display = '';
+      });
+    }
+  }
+
+  function configurarMelhoriasAbaGerenciarTurma() {
+    const tabelas = Array.from(document.querySelectorAll('table.table'));
+    const tabelaAlvo = tabelas.find(tb => {
+      const txtTh = (tb.querySelector('thead')?.textContent || '').toUpperCase();
+      return txtTh.includes('FOTO') && (txtTh.includes('SÉRIE') || txtTh.includes('BENEFÍCIOS') || txtTh.includes('ALUNO'));
+    });
+    if (!tabelaAlvo) return;
+
+    tabelaAlvo.classList.add('tabela-com-numeracao-eemti');
+
+    const containerAba = tabelaAlvo.closest('.tab-pane, .card') || document;
+    const selects = Array.from(containerAba.querySelectorAll('select'));
+    const selAno = selects.find(s => /^\d{4}$/.test((s.value || '').trim()));
+    const selSerie = selects.find(s => s !== selAno);
+
+    // A) Adiciona "Selecione a turma..." e "TODAS AS TURMAS (ESCOLA INTEIRA)"
+    if (selSerie) {
+      if (!selSerie.querySelector('option[value=""]')) {
+        const optVazia = document.createElement('option');
+        optVazia.value = '';
+        optVazia.textContent = 'Selecione a turma...';
+        selSerie.insertBefore(optVazia, selSerie.firstChild);
+      }
+      if (!selSerie.querySelector('option[value="TODAS"]')) {
+        const optTodas = document.createElement('option');
+        optTodas.value = 'TODAS';
+        optTodas.textContent = 'TODAS AS TURMAS (ESCOLA INTEIRA)';
+        const optZero = selSerie.querySelector('option[value=""]');
+        if (optZero && optZero.nextSibling) {
+          selSerie.insertBefore(optTodas, optZero.nextSibling);
+        } else {
+          selSerie.appendChild(optTodas);
+        }
+      }
+
+      // Sempre que mudar a Série no select, apenas limpa o campo de filtro (deixando o onchange nativo da página trabalhar sem piscar!)
+      if (!selSerie._limpaFiltroHook) {
+        selSerie._limpaFiltroHook = true;
+        selSerie.addEventListener('change', function() {
+          destravarFiltroDeAluno(containerAba, tabelaAlvo);
+        }, true);
+      }
+    }
+
+    // B) Organiza os botões Buscar, Limpar e PDF sem interferir no clique original do Buscar
+    const btnBuscar = Array.from(containerAba.querySelectorAll('button')).find(b =>
+      (b.textContent || '').trim().toUpperCase().includes('BUSCAR')
+    );
+
+    if (btnBuscar && !btnBuscar._botoesArrumadosV4) {
+      btnBuscar._botoesArrumadosV4 = true;
+
+      const rowFiltros = btnBuscar.closest('.row');
+      if (rowFiltros && rowFiltros.children.length >= 4) {
+        rowFiltros.children[0].className = 'col-6 col-md-2';
+        rowFiltros.children[1].className = 'col-6 col-md-3';
+        rowFiltros.children[2].className = 'col-12 col-md-4';
+        rowFiltros.children[3].className = 'col-12 col-md-3 d-flex align-items-end';
+      }
+
+      const colPai = btnBuscar.parentElement;
+      const divGrupo = document.createElement('div');
+      divGrupo.className = 'grupo-botoes-gerenciar-eemti';
+
+      btnBuscar.className = 'btn btn-principal flex-fill shadow-sm';
+      btnBuscar.innerHTML = '<i class="bi bi-search me-1"></i>Buscar';
+
+      // Antes de executar o onclick original do Buscar, apenas destrava qualquer aluno filtrado anteriormente
+      btnBuscar.addEventListener('click', function() {
+        destravarFiltroDeAluno(containerAba, tabelaAlvo);
+      }, true);
+
+      // Botão Limpar: Limpa tudo e retorna o select para "Selecione a turma..."
+      const btnLimpar = document.createElement('button');
+      btnLimpar.type = 'button';
+      btnLimpar.className = 'btn btn-outline-secondary flex-fill bg-white shadow-sm';
+      btnLimpar.innerHTML = '<i class="bi bi-eraser-fill me-1"></i>Limpar';
+      btnLimpar.title = 'Limpar filtros e voltar para Selecione';
+      btnLimpar.onclick = function() {
+        destravarFiltroDeAluno(containerAba, tabelaAlvo);
+        if (selSerie) selSerie.value = '';
+        const tbody = tabelaAlvo.querySelector('tbody');
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Selecione uma Série / Turma acima para listar os alunos...</td></tr>';
+        }
+        atualizarNumeracaoEContadorDiscreto(tabelaAlvo);
+      };
+
+      // Botão PDF
+      const btnPdf = document.createElement('button');
+      btnPdf.type = 'button';
+      btnPdf.className = 'btn btn-danger flex-fill shadow-sm';
+      btnPdf.innerHTML = '<i class="bi bi-file-earmark-pdf-fill me-1"></i>PDF';
+      btnPdf.title = 'Baixar Relatório PDF';
+      btnPdf.onclick = function() {
+        exportarPdfDaAbaGerenciarTurma(tabelaAlvo, selAno ? selAno.value : '2026', selSerie ? selSerie.value : '');
+      };
+
+      colPai.appendChild(divGrupo);
+      divGrupo.appendChild(btnBuscar);
+      divGrupo.appendChild(btnLimpar);
+      divGrupo.appendChild(btnPdf);
+    }
+
+    // C) Atualiza a numeração (1, 2, 3...) e o contador discreto de alunos/benefícios
+    atualizarNumeracaoEContadorDiscreto(tabelaAlvo);
+  }
+
+  function atualizarNumeracaoEContadorDiscreto(tabela) {
+    const ths = Array.from(tabela.querySelectorAll('thead th'));
+    const thSerieBenef = ths.find(th => {
+      const t = (th.textContent || '').toUpperCase();
+      return (t.includes('SÉRIE') || t.includes('BF') || t.includes('ENDEREÇO')) && !th.classList.contains('col-oculta-eemti');
+    });
+
+    const linhasVisiveis = Array.from(tabela.querySelectorAll('tbody tr')).filter(
+      r => r.children.length > 2 && r.style.display !== 'none'
+    );
+
+    // 1. Numera cada aluno visível (1, 2, 3, 4...) na primeira célula sem tocar nas colunas do portal-core.js!
+    linhasVisiveis.forEach((tr, idx) => {
+      const tdPrim = tr.children[0];
+      if (!tdPrim) return;
+      let badgeNum = tdPrim.querySelector('.badge-num-aluno-eemti');
+      const numStr = String(idx + 1);
+      if (!badgeNum) {
+        badgeNum = document.createElement('span');
+        badgeNum.className = 'badge-num-aluno-eemti';
+        tdPrim.insertBefore(badgeNum, tdPrim.firstChild);
+      }
+      if (badgeNum.textContent !== numStr) {
+        badgeNum.textContent = numStr;
+      }
+    });
+
+    // 2. Atualiza a pílula discreta na frente do cabeçalho SÉRIE / BF / PM / ENDEREÇO
+    if (!thSerieBenef) return;
+    const totalAl = linhasVisiveis.length;
+    if (totalAl === 0) {
+      thSerieBenef.removeAttribute('data-resumo-turma-discreto');
+      return;
+    }
+
+    const idxColSerie = ths.indexOf(thSerieBenef);
+    let qtdBF = 0;
+    let qtdPM = 0;
+    linhasVisiveis.forEach(r => {
+      const htmlCell = r.children[idxColSerie]?.innerHTML || r.innerHTML || '';
+      if (htmlCell.includes('Bolsa Família: SIM')) qtdBF++;
+      if (htmlCell.includes('Pé-de-Meia: SIM')) qtdPM++;
+    });
+
+    const textoEtiqueta = `${totalAl} aluno${totalAl > 1 ? 's' : ''} (BF: ${qtdBF} • PM: ${qtdPM})`;
+    if (thSerieBenef.getAttribute('data-resumo-turma-discreto') !== textoEtiqueta) {
+      thSerieBenef.setAttribute('data-resumo-turma-discreto', textoEtiqueta);
+    }
+  }
+
+  async function exportarPdfDaAbaGerenciarTurma(tabela, anoTxt, serieTxt) {
+    try {
+      const linhasVisiveis = Array.from(tabela.querySelectorAll('tbody tr')).filter(
+        tr => tr.children && tr.children.length > 2 && tr.style.display !== 'none'
+      );
+      if (linhasVisiveis.length === 0) {
+        return Swal.fire('Atenção', 'Busque uma turma antes de gerar o PDF.', 'warning');
+      }
+
+      Swal.fire({ title: 'Gerando Relatório PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      await garantirJsPdfPronto();
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const tituloSerie = (!serieTxt || serieTxt === 'TODAS') ? 'TODAS AS TURMAS' : serieTxt;
+
+      const alunosCache = JSON.parse(localStorage.getItem('cache_rac_alunos_leve_v3') || '[]');
+      const mapaCache = {};
+      alunosCache.forEach(a => { if (a && a.nome) mapaCache[a.nome] = a; });
+
+      let qtdBF = 0;
+      let qtdPM = 0;
+      const rowsPdf = linhasVisiveis.map((tr, idx) => {
+        const nome = tr.getAttribute('data-nome-aluno-limpo') || (tr.children[1]?.innerText || '').split('\n')[0].trim();
+        const cad = mapaCache[nome] || {};
+        const htmlLinha = tr.innerHTML || '';
+
+        const bf = (String(cad.bolsaFamilia || '').toUpperCase() === 'SIM' || htmlLinha.includes('Bolsa Família: SIM')) ? 'SIM' : 'NÃO';
+        const pm = (String(cad.peDeMeia || '').toUpperCase() === 'SIM' || htmlLinha.includes('Pé-de-Meia: SIM')) ? 'SIM' : 'NÃO';
+        if (bf === 'SIM') qtdBF++;
+        if (pm === 'SIM') qtdPM++;
+
+        const filiacao = [
+          cad.mae ? `Mãe: ${cad.mae}${cad.telMae ? ' (' + cad.telMae + ')' : ''}` : '',
+          cad.pai ? `Pai: ${cad.pai}${cad.telPai ? ' (' + cad.telPai + ')' : ''}` : ''
+        ].filter(Boolean).join('\n') || '-';
+
+        const endereco = [cad.localidade, cad.endereco].filter(Boolean).join(' - ') || '-';
+
+        return [
+          String(idx + 1),
+          nome,
+          cad.serie || tituloSerie,
+          cad.sexo || '-',
+          filiacao,
+          `BF: ${bf} | PM: ${pm}`,
+          endereco
+        ];
+      });
+
+      let startY = 35;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: `RELATÓRIO CADASTRAL DE ALUNOS E BENEFÍCIOS — ${tituloSerie}`,
+          subtitulo1: `Ano Letivo: ${anoTxt} | Total de Alunos: ${rowsPdf.length} | Bolsa Família (BF): ${qtdBF} | Pé-de-Meia (PM): ${qtdPM}`
+        });
+      }
+
+      doc.autoTable({
+        startY: startY,
+        head: [['Nº', 'ALUNO(A)', 'TURMA', 'SEXO', 'FILIAÇÃO / CONTATOS', 'BENEFÍCIOS', 'LOCALIDADE / ENDEREÇO']],
+        body: rowsPdf,
+        theme: 'grid',
+        styles: { fontSize: 7.3, cellPadding: 1.8, valign: 'middle' },
+        headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 64, fontStyle: 'bold' },
+          2: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 14, halign: 'center' },
+          4: { cellWidth: 74 },
+          5: { cellWidth: 27, halign: 'center', fontStyle: 'bold' },
+          6: { cellWidth: 60 }
+        }
+      });
+
+      Swal.close();
+      doc.save(`Relatorio_Alunos_${tituloSerie.replace(/\s+/g, '_')}_${anoTxt}.pdf`);
+    } catch (err) {
+      Swal.close();
+      Swal.fire('Erro ao gerar PDF', err.message || String(err), 'error');
+    }
+  }
+
+  setInterval(configurarMelhoriasAbaGerenciarTurma, 350);
+})();
+</script>
 </body>
 </html>
