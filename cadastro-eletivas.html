@@ -13,7 +13,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="portal-core.js"></script>
-
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
 
@@ -177,7 +176,6 @@
       color: #ffffff;
     }
 
-    /* Tabela Enquadrada 100% na Tela (Sem Rolagem Lateral) */
     .tabela-enquadrada {
       width: 100%;
       table-layout: fixed;
@@ -207,7 +205,7 @@
     .badge-quebra-linha {
       white-space: normal !important;
       text-align: center;
-      line-height: 1.25;
+      line-height: 1.2;
       display: inline-block;
     }
 
@@ -221,8 +219,22 @@
       position: relative;
       z-index: 5;
     }
-  </style>
 
+    @media (max-width: 768px) {
+      .tabela-enquadrada th {
+        font-size: 0.62rem !important;
+        padding: 6px 3px !important;
+      }
+      .tabela-enquadrada td {
+        font-size: 0.7rem !important;
+        padding: 7px 4px !important;
+      }
+      .col-sem-turma { width: 19% !important; }
+      .col-dia-tempo { width: 23% !important; }
+      .col-elet-prof { width: 44% !important; }
+      .col-acoes-elet { width: 14% !important; }
+    }
+  </style>
   <script>
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!usuarioLogado) {
@@ -235,14 +247,13 @@
 
   <header class="top-header">
     <a href="index.html" class="brand-escola">
-      <img src="LOGO-removebg-preview.png" id="logoEscola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+      <img src="brasaoestado.png" id="logoEscola" alt="Brasão" onerror="this.src='LOGO-removebg-preview.png'">
       <div>
         <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
         <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
         <div class="brand-slogan">O futuro é gestado agora!</div>
       </div>
     </a>
-
     <div class="user-bar">
       <span class="fw-bold small text-dark">
         <i class="bi bi-person-circle text-primary me-1"></i>
@@ -257,23 +268,21 @@
 
   <div class="main-container">
     <!-- ABAS DO MÓDULO DE ELETIVAS -->
-    <ul class="nav nav-tabs mb-4" id="eletivaTabs" role="tablist">
+    <ul class="nav nav-tabs mb-3" id="eletivaTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active fw-bold" id="tab-consulta-elet-btn" data-bs-toggle="tab" data-bs-target="#abaConsultaEletivas" type="button" role="tab">
-          <i class="bi bi-collection-play-fill text-primary me-2"></i>Consultar / Editar Eletivas por Semestre (<span id="badgeTotalEletivas">0</span>)
+          <i class="bi bi-collection-play-fill text-primary me-1"></i>Consultar / Editar Eletivas (<span id="badgeTotalEletivas">0</span>)
         </button>
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link fw-bold" id="tab-cadastro-elet-btn" data-bs-toggle="tab" data-bs-target="#abaCadastroEletiva" type="button" role="tab">
-          <i class="bi bi-plus-circle-fill text-success me-2"></i><span id="lblTituloAbaFormEletiva">Cadastrar Nova Eletiva</span>
+          <i class="bi bi-plus-circle-fill text-success me-1"></i><span id="lblTituloAbaFormEletiva">Cadastrar Nova Eletiva</span>
         </button>
       </li>
     </ul>
 
     <div class="tab-content">
-      <!-- ========================================================= -->
       <!-- ABA 1: CONSULTAR ELETIVAS POR SEMESTRE / EDITAR / EXCLUIR -->
-      <!-- ========================================================= -->
       <div class="tab-pane fade show active" id="abaConsultaEletivas" role="tabpanel">
         <div class="card p-3 p-md-4">
           <div class="card-header-custom">
@@ -297,7 +306,7 @@
           </div>
 
           <!-- Barra de Filtros -->
-          <div class="row g-2 mb-3 p-3 bg-light rounded border align-items-end">
+          <div class="row g-2 mb-3 p-2 p-md-3 bg-light rounded border align-items-end">
             <div class="col-6 col-md-2">
               <label class="form-label">Semestre / Ano *</label>
               <select id="buscaAno" class="form-select form-select-sm fw-bold" onchange="buscarEletivasDoSemestre()"></select>
@@ -340,30 +349,23 @@
             <table class="table table-hover border align-middle mb-0 tabela-enquadrada" id="tabelaEletivas">
               <thead>
                 <tr>
-                  <th style="width: 7%;">ID</th>
-                  <th style="width: 8%;" class="text-center">Semestre</th>
-                  <th style="width: 9%;" class="text-center">Turma</th>
-                  <th style="width: 13%;" class="text-center">Tempo Eletivo</th>
-                  <th style="width: 11%;" class="text-center">Dia da Semana</th>
-                  <th style="width: 25%;">Eletiva 2025 / Nome</th>
-                  <th style="width: 14%;">Professor / Gestão</th>
-                  <th style="width: 5%;" class="text-center">Vagas</th>
-                  <th style="width: 8%;" class="text-center">Ações</th>
+                  <th style="width: 15%;" class="text-center col-sem-turma">Semestre / Turma</th>
+                  <th style="width: 21%;" class="text-center col-dia-tempo">Dia / Tempo Eletivo</th>
+                  <th style="width: 52%;" class="col-elet-prof">Eletiva (Vagas) / Professor(a)</th>
+                  <th style="width: 12%;" class="text-center col-acoes-elet">Ações</th>
                 </tr>
               </thead>
               <tbody id="corpoTabela">
-                <tr><td colspan="9" class="text-center py-4 text-muted">Selecione o semestre acima para listar as eletivas cadastradas.</td></tr>
+                <tr><td colspan="4" class="text-center py-4 text-muted">Selecione o semestre acima para listar as eletivas cadastradas.</td></tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- ========================================================= -->
-      <!-- ABA 2: CADASTRAR OU EDITAR ELETIVA                        -->
-      <!-- ========================================================= -->
+      <!-- ABA 2: CADASTRAR OU EDITAR ELETIVA -->
       <div class="tab-pane fade" id="abaCadastroEletiva" role="tabpanel">
-        <div class="card p-4">
+        <div class="card p-3 p-md-4">
           <div class="card-header-custom">
             <div>
               <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="tituloCardFormEletiva">
@@ -378,13 +380,11 @@
 
           <form id="formCadastro" onsubmit="event.preventDefault(); salvarOuAtualizarEletiva();">
             <input type="hidden" id="cadLinhaEditando" value="">
-
             <div class="row g-3">
               <div class="col-6 col-md-2">
                 <label class="form-label">Semestre / Ano *</label>
                 <select id="cadAno" class="form-select fw-bold" required></select>
               </div>
-
               <div class="col-6 col-md-3">
                 <label class="form-label">Turma / Série *</label>
                 <select id="cadTurma" class="form-select fw-bold" required>
@@ -394,7 +394,6 @@
                   <option value="3ª SÉRIE">3ª SÉRIE</option>
                 </select>
               </div>
-
               <div class="col-12 col-md-3">
                 <label class="form-label">Tempo Eletivo *</label>
                 <select id="cadTempoEletivo" class="form-select fw-bold" required>
@@ -404,7 +403,6 @@
                   <option value="TEMPO ELETIVO 4">TEMPO ELETIVO 4</option>
                 </select>
               </div>
-
               <div class="col-6 col-md-2">
                 <label class="form-label">Dia da Semana</label>
                 <select id="cadDia" class="form-select">
@@ -416,24 +414,20 @@
                   <option value="SEXTA-FEIRA">SEXTA-FEIRA</option>
                 </select>
               </div>
-
               <div class="col-6 col-md-2">
                 <label class="form-label">Vagas</label>
                 <input type="number" id="cadVagas" class="form-control" min="1" max="150" placeholder="Ex: 35">
               </div>
-
               <div class="col-12 col-md-7">
                 <label class="form-label">Código e Nome da Eletiva *</label>
                 <input type="text" id="cadNome" class="form-control text-uppercase fw-bold" placeholder="Ex: CNT017 - MICROBIOLOGIA" required>
               </div>
-
               <div class="col-12 col-md-5">
-                <label class="form-label">Professor / Gestão Responsável</label>
+                <label class="form-label">Professor/Gestão Responsável</label>
                 <select id="cadProfessor" class="form-select">
                   <option value="">Carregando professores...</option>
                 </select>
               </div>
-
               <div class="col-12 mt-4 d-flex gap-2">
                 <button type="submit" class="btn btn-principal flex-grow-1 py-2 shadow-sm" id="btnCadastrar">
                   <i class="bi bi-check-circle-fill me-2"></i>Salvar Eletiva no Banco de Dados
@@ -502,7 +496,7 @@
                 <input type="number" id="editVagas" class="form-control">
               </div>
               <div class="col-12">
-                <label class="form-label">Professor / Gestão Responsável</label>
+                <label class="form-label">Professor/Gestão Responsável</label>
                 <select id="editProfessor" class="form-select"></select>
               </div>
             </div>
@@ -544,7 +538,6 @@
     }
 
     const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
-
     let modalEditarInstancia;
     let listaEletivasSemestre = [];
     let listaEletivasFiltrada = [];
@@ -567,7 +560,6 @@
         chamarAPI({ action: 'listarConfig', tipo: 'SERIE' })
       ]);
 
-      // Preenche lista de professores (Opcional caso a eletiva ainda esteja sem professor definido na planilha)
       const selCadProf = document.getElementById('cadProfessor');
       const selEditProf = document.getElementById('editProfessor');
       let htmlProfs = '<option value="">-- Sem Professor Definido / Selecionar --</option>';
@@ -577,7 +569,6 @@
       selCadProf.innerHTML = htmlProfs;
       selEditProf.innerHTML = htmlProfs;
 
-      // Adiciona séries específicas da aba SÉRIE caso a escola queira vincular por turma específica além de 1ª/2ª/3ª SÉRIE
       if (resSer && Array.isArray(resSer.lista) && resSer.lista.length > 0) {
         const turmasExtras = [];
         resSer.lista.forEach(s => {
@@ -594,7 +585,6 @@
         });
       }
 
-      // Carrega automaticamente as eletivas do semestre atual ao abrir a página!
       await buscarEletivasDoSemestre();
     };
 
@@ -602,13 +592,11 @@
       const anoAtual = new Date().getFullYear();
       const mesAtual = new Date().getMonth() + 1;
       const semPadrao = `${anoAtual}.${mesAtual <= 6 ? '1' : '2'}`;
-
       let htmlSemestres = '';
       for (let ano = 2025; ano <= 2030; ano++) {
         htmlSemestres += `<option value="${ano}.1" ${(`${ano}.1` === semPadrao) ? 'selected' : ''}>${ano}.1</option>`;
         htmlSemestres += `<option value="${ano}.2" ${(`${ano}.2` === semPadrao) ? 'selected' : ''}>${ano}.2</option>`;
       }
-
       document.getElementById('buscaAno').innerHTML = `<option value="">Todos os Semestres</option>` + htmlSemestres;
       document.getElementById('buscaAno').value = semPadrao;
       document.getElementById('cadAno').innerHTML = htmlSemestres;
@@ -618,10 +606,8 @@
     async function buscarEletivasDoSemestre() {
       const ano = document.getElementById('buscaAno').value;
       document.getElementById('loaderBusca').style.display = 'block';
-
       const resposta = await chamarAPI({ action: 'buscarEletivasCadastradas', ano: ano });
       document.getElementById('loaderBusca').style.display = 'none';
-
       listaEletivasSemestre = Array.isArray(resposta) ? resposta : [];
       document.getElementById('badgeTotalEletivas').innerText = listaEletivasSemestre.length;
       filtrarTabelaEletivasLocal();
@@ -642,46 +628,74 @@
       listaEletivasFiltrada = listaEletivasSemestre.filter(e => {
         const turmaItem = String(e.turma || "").replace(/["']/g, "").trim().toUpperCase();
         const tempoItem = String(e.tempoEletivo || "").trim().toUpperCase();
-
         const bateTurma = !turmaF || turmaItem === turmaF || turmaItem.startsWith(turmaF);
         const bateTempo = !tempoF || tempoItem === tempoF;
         const bateTexto = !textoF ||
           String(e.nome || "").toUpperCase().includes(textoF) ||
           String(e.professor || "").toUpperCase().includes(textoF) ||
           String(e.id || "").toUpperCase().includes(textoF);
-
         return bateTurma && bateTempo && bateTexto;
       });
 
       const tbody = document.getElementById('corpoTabela');
       if (listaEletivasFiltrada.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Nenhuma eletiva encontrada para os filtros selecionados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Nenhuma eletiva encontrada para os filtros selecionados.</td></tr>';
         return;
       }
 
       let html = '';
       listaEletivasFiltrada.forEach((e, idx) => {
+        const vagasTxt = (e.vagas && String(e.vagas).trim() !== '' && String(e.vagas).trim() !== '-')
+          ? `${e.vagas} vagas`
+          : '45 vagas';
+        const profHtml = e.professor
+          ? `<span class="fw-semibold text-secondary"><i class="bi bi-person-workspace text-primary me-1"></i>${e.professor}</span>`
+          : `<span class="text-muted fst-italic"><i class="bi bi-person-dash me-1"></i>Professor não atribuído</span>`;
+
         html += `
           <tr>
-            <td class="text-muted small fw-semibold">${e.id || '-'}</td>
-            <td class="text-center"><span class="badge bg-light text-dark border">${e.ano || '-'}</span></td>
-            <td class="text-center"><span class="badge bg-secondary badge-quebra-linha">${e.turma || '-'}</span></td>
-            <td class="text-center"><span class="badge bg-primary-subtle text-primary border border-primary-subtle badge-quebra-linha">${e.tempoEletivo || '-'}</span></td>
-            <td class="text-center small fw-semibold">${e.dia || '-'}</td>
-            <td class="fw-bold text-dark">${e.nome || '-'}</td>
-            <td class="small text-secondary fw-semibold">${e.professor || '<span class="text-muted fst-italic">Não atribuído</span>'}</td>
-            <td class="text-center fw-bold">${e.vagas || '-'}</td>
-            <td class="text-center text-nowrap">
-              <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" title="Editar Eletiva" onclick="abrirModalEdicaoPorIndice(${idx})">
-                <i class="bi bi-pencil-square"></i>
-              </button>
-              <button class="btn btn-sm btn-outline-danger py-1 px-2" title="Excluir Eletiva" onclick="excluirEletiva(${e.linha}, '${(e.nome || '').replace(/'/g, '')}')">
-                <i class="bi bi-trash3"></i>
-              </button>
+            <!-- Coluna 1: Semestre em cima e Turma embaixo -->
+            <td class="text-center col-sem-turma">
+              <div class="fw-bold text-dark" style="font-size: 0.82rem;">${e.ano || '-'}</div>
+              <div class="mt-1">
+                <span class="badge bg-secondary badge-quebra-linha">${e.turma || '-'}</span>
+              </div>
+            </td>
+
+            <!-- Coluna 2: Dia da Semana em cima e Tempo Eletivo embaixo -->
+            <td class="text-center col-dia-tempo">
+              <div class="fw-bold text-dark" style="font-size: 0.78rem;">${e.dia || 'DIA NÃO DEF.'}</div>
+              <div class="mt-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle badge-quebra-linha">${e.tempoEletivo || '-'}</span>
+              </div>
+            </td>
+
+            <!-- Coluna 3 (Mais larga): Nome da Eletiva + Vagas na frente e Professor embaixo -->
+            <td class="col-elet-prof">
+              <div class="d-flex align-items-center flex-wrap gap-1">
+                <span class="fw-bold text-dark" style="font-size: 0.86rem; line-height: 1.22;">${e.nome || '-'}</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold" style="font-size: 0.68rem;" title="Quantidade de Vagas">
+                  ${vagasTxt}
+                </span>
+              </div>
+              <div class="mt-1" style="font-size: 0.75rem; line-height: 1.2;">
+                ${profHtml}
+              </div>
+            </td>
+
+            <!-- Coluna 4: Ações -->
+            <td class="text-center col-acoes-elet">
+              <div class="d-inline-flex gap-1">
+                <button class="btn btn-sm btn-outline-primary py-1 px-2" title="Editar Eletiva" onclick="abrirModalEdicaoPorIndice(${idx})">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger py-1 px-2" title="Excluir Eletiva" onclick="excluirEletiva(${e.linha}, '${(e.nome || '').replace(/'/g, '')}')">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
             </td>
           </tr>`;
       });
-
       tbody.innerHTML = html;
     }
 
@@ -750,7 +764,6 @@
       document.getElementById('editNome').value = dados.nome || "";
       document.getElementById('editVagas').value = dados.vagas || "";
       document.getElementById('editProfessor').value = dados.professor || "";
-
       modalEditarInstancia.show();
     }
 
@@ -808,39 +821,46 @@
       });
     }
 
-    function baixarPDFEletivas() {
+    async function baixarPDFEletivas() {
       if (listaEletivasFiltrada.length === 0) {
         return Swal.fire('Atenção', 'Não há eletivas listadas para gerar o PDF.', 'warning');
       }
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'mm', 'a4');
       const semestre = document.getElementById('buscaAno').value || 'Todos';
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.setTextColor(21, 67, 140);
-      doc.text("RELATÓRIO DE ELETIVAS CADASTRADAS — EEMTI DR. JOSÉ EUCLIDES", 14, 15);
-
-      doc.setFontSize(9);
-      doc.setTextColor(90, 90, 90);
-      doc.text(`Semestre: ${semestre}   |   Total de Eletivas: ${listaEletivasFiltrada.length}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 21);
+      let startY = 25;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: 'RELATÓRIO DE ELETIVAS CADASTRADAS POR SEMESTRE',
+          subtitulo1: `Semestre: ${semestre} | Total de Eletivas: ${listaEletivasFiltrada.length} | Emitido em: ${new Date().toLocaleDateString('pt-BR')}`
+        });
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(21, 67, 140);
+        doc.text("RELATÓRIO DE ELETIVAS CADASTRADAS - EEMTI DR. JOSÉ EUCLIDES", 14, 15);
+        doc.setFontSize(9);
+        doc.setTextColor(90, 90, 90);
+        doc.text(`Semestre: ${semestre} | Total de Eletivas: ${listaEletivasFiltrada.length} | Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 21);
+      }
 
       const rows = listaEletivasFiltrada.map(e => [
-        e.id || '-',
         e.ano || '-',
         e.turma || '-',
-        e.tempoEletivo || '-',
         e.dia || '-',
+        e.tempoEletivo || '-',
         e.nome || '-',
         e.professor || 'Não atribuído',
-        e.vagas || '-'
+        e.vagas || '45'
       ]);
 
       doc.autoTable({
-        startY: 25,
-        head: [['ID', 'Semestre', 'Turma', 'Tempo Eletivo', 'Dia', 'Eletiva 2025', 'Professor / Gestão', 'Vagas']],
+        startY: startY,
+        head: [['Semestre', 'Turma', 'Dia da Semana', 'Tempo Eletivo', 'Eletiva 2025', 'Professor / Gestão', 'Vagas']],
         body: rows,
-        styles: { fontSize: 8.2, cellPadding: 2.3 },
+        styles: { fontSize: 8.5, cellPadding: 2.3 },
         headStyles: { fillColor: [21, 67, 140], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [248, 250, 252] }
       });
