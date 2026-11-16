@@ -1337,7 +1337,7 @@
 
   // 2. INTERCEPTADOR DE "TODAS AS TURMAS":
   // Quando a própria página pedir action === 'getAlunosParaEdicao' com serie === 'TODAS',
-  // junta todas as turmas e devolve para a função original da página (NUNCA SOME E NÃO PISCA!)
+  // junta todas as turmas e devolve para a função original da página
   const _fetchPagina = window.fetch;
   window.fetch = async function(url, options) {
     if (options && options.method === 'POST' && typeof options.body === 'string') {
@@ -1345,7 +1345,6 @@
         const bodyObj = JSON.parse(options.body);
         if (bodyObj.action === 'getAlunosParaEdicao') {
           const seriePedida = String((bodyObj.dados && bodyObj.dados.serie) || bodyObj.serie || '').trim().toUpperCase();
-          const anoPedido = String((bodyObj.dados && bodyObj.dados.ano) || bodyObj.ano || '2026').trim();
 
           if (seriePedida === 'TODAS' || seriePedida.includes('TODAS AS TURMAS')) {
             const seriesLista = JSON.parse(localStorage.getItem('cache_rac_series_v3') || 'null') || [
@@ -1354,7 +1353,6 @@
               "3ª SÉRIE A", "3ª SÉRIE B"
             ];
 
-            // Busca todas as turmas em paralelo usando a própria ponte de cache/rede
             const promessas = seriesLista.map(sNome => {
               const novoBody = JSON.parse(JSON.stringify(bodyObj));
               if (novoBody.dados) novoBody.dados.serie = sNome;
@@ -1367,7 +1365,6 @@
             const resultados = await Promise.all(promessas);
             const unificados = [].concat(...resultados.filter(Array.isArray));
 
-            // Remove eventuais duplicados mantendo a ordem por Série e Nome
             const mapaUnicos = {};
             unificados.forEach(al => {
               if (al && al.nome) {
@@ -1391,10 +1388,7 @@
     return _fetchPagina.apply(this, arguments);
   };
 
-  // 3. CSS para:
-  // - Numeração automática 1, 2, 3, 4... na primeira coluna (sem quebrar as colunas do portal-core.js!)
-  // - Contador discreto na coluna SÉRIE / BF / PM / ENDEREÇO
-  // - Alinhamento dos botões Buscar, Limpar e PDF
+  // 3. CSS apenas para o contador discreto na coluna SÉRIE / BF / PM / ENDEREÇO e alinhamento dos botões
   if (!document.getElementById('estiloExtraGerenciarTurmaHTML')) {
     const st = document.createElement('style');
     st.id = 'estiloExtraGerenciarTurmaHTML';
@@ -1432,34 +1426,6 @@
         margin: 0 !important;
         padding: 0 12px !important;
       }
-      /* Coluna / Selo de Numeração 1, 2, 3, 4... ao lado da Foto 3x4 */
-      table.tabela-com-numeracao-eemti thead th:first-child::before {
-        content: "Nº / ";
-        color: #15438c;
-        font-weight: 900;
-      }
-      table.tabela-com-numeracao-eemti tbody tr td:first-child {
-        position: relative !important;
-        padding-left: 28px !important;
-      }
-      .badge-num-aluno-eemti {
-        position: absolute;
-        left: 6px;
-        top: 50%;
-        transform: translateY(-50%);
-        min-width: 20px;
-        height: 20px;
-        padding: 0 5px;
-        border-radius: 6px;
-        background-color: #15438c;
-        color: #ffffff;
-        font-size: 0.66rem;
-        font-weight: 800;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 4px rgba(21, 67, 140, 0.2);
-      }
     `;
     document.head.appendChild(st);
   }
@@ -1472,7 +1438,6 @@
         inp.dispatchEvent(new Event('input', { bubbles: true }));
       }
     });
-    // Caso o portal-core tenha ficado com filtroExclusivoAlunoSelecionado preso mesmo com input vazio:
     if (inputs[0]) {
       inputs[0].value = '';
       inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
@@ -1491,8 +1456,6 @@
       return txtTh.includes('FOTO') && (txtTh.includes('SÉRIE') || txtTh.includes('BENEFÍCIOS') || txtTh.includes('ALUNO'));
     });
     if (!tabelaAlvo) return;
-
-    tabelaAlvo.classList.add('tabela-com-numeracao-eemti');
 
     const containerAba = tabelaAlvo.closest('.tab-pane, .card') || document;
     const selects = Array.from(containerAba.querySelectorAll('select'));
@@ -1519,7 +1482,6 @@
         }
       }
 
-      // Sempre que mudar a Série no select, apenas limpa o campo de filtro (deixando o onchange nativo da página trabalhar sem piscar!)
       if (!selSerie._limpaFiltroHook) {
         selSerie._limpaFiltroHook = true;
         selSerie.addEventListener('change', function() {
@@ -1528,13 +1490,13 @@
       }
     }
 
-    // B) Organiza os botões Buscar, Limpar e PDF sem interferir no clique original do Buscar
+    // B) Organiza os botões Buscar, Limpar e PDF
     const btnBuscar = Array.from(containerAba.querySelectorAll('button')).find(b =>
       (b.textContent || '').trim().toUpperCase().includes('BUSCAR')
     );
 
-    if (btnBuscar && !btnBuscar._botoesArrumadosV4) {
-      btnBuscar._botoesArrumadosV4 = true;
+    if (btnBuscar && !btnBuscar._botoesArrumadosV5) {
+      btnBuscar._botoesArrumadosV5 = true;
 
       const rowFiltros = btnBuscar.closest('.row');
       if (rowFiltros && rowFiltros.children.length >= 4) {
@@ -1551,7 +1513,6 @@
       btnBuscar.className = 'btn btn-principal flex-fill shadow-sm';
       btnBuscar.innerHTML = '<i class="bi bi-search me-1"></i>Buscar';
 
-      // Antes de executar o onclick original do Buscar, apenas destrava qualquer aluno filtrado anteriormente
       btnBuscar.addEventListener('click', function() {
         destravarFiltroDeAluno(containerAba, tabelaAlvo);
       }, true);
@@ -1569,7 +1530,7 @@
         if (tbody) {
           tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Selecione uma Série / Turma acima para listar os alunos...</td></tr>';
         }
-        atualizarNumeracaoEContadorDiscreto(tabelaAlvo);
+        atualizarContadorDiscreto(tabelaAlvo);
       };
 
       // Botão PDF
@@ -1588,39 +1549,22 @@
       divGrupo.appendChild(btnPdf);
     }
 
-    // C) Atualiza a numeração (1, 2, 3...) e o contador discreto de alunos/benefícios
-    atualizarNumeracaoEContadorDiscreto(tabelaAlvo);
+    // C) Atualiza apenas o contador discreto na coluna SÉRIE / BF / PM / ENDEREÇO
+    atualizarContadorDiscreto(tabelaAlvo);
   }
 
-  function atualizarNumeracaoEContadorDiscreto(tabela) {
+  function atualizarContadorDiscreto(tabela) {
     const ths = Array.from(tabela.querySelectorAll('thead th'));
     const thSerieBenef = ths.find(th => {
       const t = (th.textContent || '').toUpperCase();
       return (t.includes('SÉRIE') || t.includes('BF') || t.includes('ENDEREÇO')) && !th.classList.contains('col-oculta-eemti');
     });
+    if (!thSerieBenef) return;
 
     const linhasVisiveis = Array.from(tabela.querySelectorAll('tbody tr')).filter(
       r => r.children.length > 2 && r.style.display !== 'none'
     );
 
-    // 1. Numera cada aluno visível (1, 2, 3, 4...) na primeira célula sem tocar nas colunas do portal-core.js!
-    linhasVisiveis.forEach((tr, idx) => {
-      const tdPrim = tr.children[0];
-      if (!tdPrim) return;
-      let badgeNum = tdPrim.querySelector('.badge-num-aluno-eemti');
-      const numStr = String(idx + 1);
-      if (!badgeNum) {
-        badgeNum = document.createElement('span');
-        badgeNum.className = 'badge-num-aluno-eemti';
-        tdPrim.insertBefore(badgeNum, tdPrim.firstChild);
-      }
-      if (badgeNum.textContent !== numStr) {
-        badgeNum.textContent = numStr;
-      }
-    });
-
-    // 2. Atualiza a pílula discreta na frente do cabeçalho SÉRIE / BF / PM / ENDEREÇO
-    if (!thSerieBenef) return;
     const totalAl = linhasVisiveis.length;
     if (totalAl === 0) {
       thSerieBenef.removeAttribute('data-resumo-turma-discreto');
