@@ -4175,9 +4175,35 @@
         }
       }
 
-      if (!ehReservaDeAmbiente && (ACOES_LEITURA_CACHE_PURO.includes(action) || action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive')) {
+      // Ações administrativas que quando Online devem buscar sempre a versão mais recente da planilha e atualizar o cache:
+      const ACOES_SEMPRE_ATUALIZAR_QUANDO_ONLINE = [
+        'buscarEletivasCadastradas',
+        'getMonitoramentoEletivas',
+        'listarFuncionarios',
+        'listarPDT',
+        'listarConfig',
+        'listarAuditoria',
+        'buscarDadosAcompanhamento',
+        'listarFrequenciaSecretaria',
+        'getDadosHistorico',
+        'getAlunosParaPainelSuspensao',
+        'listarAtendimentosAlunos'
+      ];
+
+      if (!ehReservaDeAmbiente && !ACOES_SEMPRE_ATUALIZAR_QUANDO_ONLINE.includes(action) && (ACOES_LEITURA_CACHE_PURO.includes(action) || action === 'obterCapaLivroDrive' || action === 'obterAnexoBuscaAtivaDrive')) {
         const cacheImediato = obterRespostaDoCacheInstantaneo(action, bodyObj);
         if (cacheImediato) {
+          // Entrega a resposta em 0ms para abrir super rápido, mas atualiza o cache em silêncio no fundo!
+          if (navigator.onLine && action !== 'obterFotoAlunoIndividual' && action !== 'obterCapaLivroDrive' && action !== 'obterAnexoBuscaAtivaDrive') {
+            fetchComTimeoutSeguranca(url, options, 18000)
+              .then(rBg => rBg.text())
+              .then(txtBg => {
+                if (txtBg && (txtBg.startsWith('{') || txtBg.startsWith('['))) {
+                  salvarRespostaNoCacheInstantaneo(action, bodyObj, txtBg);
+                }
+              })
+              .catch(() => {});
+          }
           return new Response(cacheImediato, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
       }
