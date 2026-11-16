@@ -1,182 +1,387 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#15438c">
   <link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auditoria e Recuperação de Dados - EEMTI</title>
-  
+  <title>Auditoria e Recuperação de Dados - EEMTI Dr. José Euclides</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="portal-core.js"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-    
-    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.06; z-index: -1; pointer-events: none; }
-    .navbar-custom { background-color: #fff; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.06); }
-    .navbar-brand { font-weight: 700; font-size: 1.45rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
-    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
-    .logo-escola { height: 52px; object-fit: contain; mix-blend-mode: multiply; }
-    
-    .main-container { padding: 30px 15px; max-width: 1450px; margin: 0 auto; width: 100%; flex: 1; }
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: #fff; margin-bottom: 24px; }
-    
-    .stat-card { border-left: 4px solid #0f766e; padding: 16px 20px; border-radius: 10px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1450px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 80px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.75rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.65rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.3rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1450px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      background: rgba(255, 255, 255, 0.97);
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-left: 5px solid var(--azul-primario);
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+      height: 100%;
+    }
+
     .stat-card.edicao { border-left-color: #f59e0b; }
     .stat-card.exclusao { border-left-color: #ef4444; }
     .stat-card.restaurado { border-left-color: #10b981; }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      font-size: 0.86rem;
+      background-color: #f8fafc;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+      background-color: #ffffff;
+    }
 
     .badge-edicao { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 700; }
     .badge-exclusao { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-weight: 700; }
     .badge-restauracao { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; font-weight: 700; }
 
-    .box-detalhes { font-size: 0.82rem; line-height: 1.5; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; }
-    .tag-antes { background-color: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; }
-    .tag-depois { background-color: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; }
-    
-    .backup-code { font-family: monospace; font-size: 0.75rem; color: #475569; background: #f1f5f9; padding: 6px 8px; border-radius: 6px; border: 1px dashed #cbd5e1; max-height: 65px; overflow-y: auto; word-break: break-all; }
-    
-    .btn-restaurar { background-color: #0f766e; color: white; border: none; font-weight: 600; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; transition: 0.2s; }
-    .btn-restaurar:hover { background-color: #0d645e; color: white; transform: translateY(-1px); }
-  </style>
+    .box-detalhes {
+      font-size: 0.8rem;
+      line-height: 1.48;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      word-break: break-word;
+    }
 
+    .tag-antes { background-color: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.72rem; }
+    .tag-depois { background-color: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.72rem; }
+
+    .backup-code {
+      font-family: monospace;
+      font-size: 0.73rem;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px dashed #cbd5e1;
+      max-height: 65px;
+      overflow-y: auto;
+      word-break: break-all;
+    }
+
+    .btn-restaurar {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      font-size: 0.76rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: 0.2s;
+    }
+
+    .btn-restaurar:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .info-audit-mobile {
+      display: none;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.88);
+      position: relative;
+      z-index: 5;
+    }
+
+    @media (max-width: 768px) {
+      .col-audit-desktop {
+        display: none !important;
+      }
+      .info-audit-mobile {
+        display: block;
+        margin-top: 4px;
+      }
+      .box-detalhes {
+        font-size: 0.72rem;
+        padding: 6px 8px;
+      }
+    }
+  </style>
   <script>
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!usuarioLogado) window.location.href = 'login.html';
-    const nomeUser = (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1 || "Usuário").toUpperCase();
-    const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
+    const nomeUser = (usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1 || "USUÁRIO").toUpperCase();
+    const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "Administrador");
   </script>
 </head>
 <body>
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
 
-  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
-
-  <nav class="navbar navbar-custom">
-    <div class="container-fluid max-w-1450 mx-auto">
-      <span class="navbar-brand">
-        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
-        <div>Central de Auditoria e Recuperação<div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div></div>
-      </span>
-      <div class="d-flex align-items-center gap-3">
-        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
-          <i class="bi bi-shield-lock-fill text-success me-1"></i><span id="txtUserTop"></span>
-        </span>
-        <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-          <i class="bi bi-house-door-fill me-1"></i> Início
-        </a>
+  <!-- CABEÇALHO PADRONIZADO -->
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="brasaoestado.png" id="logoEscola" alt="Brasão" onerror="this.src='LOGO-removebg-preview.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
       </div>
+    </a>
+    <div class="user-bar">
+      <span class="fw-bold small text-dark" id="nomeUsuarioUi">
+        <i class="bi bi-shield-lock-fill text-primary me-1"></i>Olá, <span id="txtUserTop"></span>
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;" id="lblPerfilAudit">Administrador</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
     </div>
-  </nav>
+  </header>
 
   <div class="main-container">
-    
-    <!-- Cards de Estatísticas -->
-    <div class="row g-3 mb-4">
-      <div class="col-md-3">
+    <!-- Cards de Estatísticas (2 por linha no celular, 4 no PC) -->
+    <div class="row g-2 g-md-3 mb-3">
+      <div class="col-6 col-md-3">
         <div class="stat-card">
-          <span class="text-muted small fw-semibold d-block">Total de Registos</span>
-          <h3 class="fw-bold m-0 text-dark" id="countTotal">0</h3>
+          <span class="text-muted small fw-bold d-block">Total de Registros</span>
+          <h3 class="fw-black m-0 text-dark" id="countTotal">0</h3>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-6 col-md-3">
         <div class="stat-card edicao">
-          <span class="text-muted small fw-semibold d-block">Edições Registadas</span>
-          <h3 class="fw-bold m-0 text-warning" id="countEdicoes">0</h3>
+          <span class="text-muted small fw-bold d-block">Edições Registradas</span>
+          <h3 class="fw-black m-0 text-warning" id="countEdicoes">0</h3>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-6 col-md-3">
         <div class="stat-card exclusao">
-          <span class="text-muted small fw-semibold d-block">Exclusões Registadas</span>
-          <h3 class="fw-bold m-0 text-danger" id="countExclusoes">0</h3>
+          <span class="text-muted small fw-bold d-block">Exclusões Registradas</span>
+          <h3 class="fw-black m-0 text-danger" id="countExclusoes">0</h3>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-6 col-md-3">
         <div class="stat-card restaurado">
-          <span class="text-muted small fw-semibold d-block">Dados Restaurados</span>
-          <h3 class="fw-bold m-0 text-success" id="countRestaurados">0</h3>
+          <span class="text-muted small fw-bold d-block">Dados Restaurados</span>
+          <h3 class="fw-black m-0 text-success" id="countRestaurados">0</h3>
         </div>
       </div>
     </div>
 
     <!-- Painel de Filtros e Tabela -->
-    <div class="card p-4">
-      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2">
+    <div class="card p-3 p-md-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 border-bottom pb-3 gap-2">
         <div>
-          <h5 class="fw-bold m-0"><i class="bi bi-clock-history text-primary me-2"></i>Histórico de Alterações e Restauro</h5>
-          <small class="text-muted">Clique em <b>"Restaurar"</b> para readicionar um item excluído ou reverter uma edição para o valor anterior.</small>
+          <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+            <i class="bi bi-clock-history me-2"></i>Central de Auditoria e Recuperação de Dados
+          </h5>
+          <small class="text-muted">Clique em <b>"Readicionar"</b> ou <b>"Reverter Edição"</b> para restaurar qualquer registro na aba original.</small>
         </div>
         <div class="d-flex gap-2">
           <button class="btn btn-outline-primary btn-sm fw-bold" onclick="carregarAuditoria()">
-            <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista
+            <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
           </button>
-          <button class="btn btn-outline-danger btn-sm fw-bold" onclick="exportarPDFAuditoria()">
-            <i class="bi bi-file-pdf-fill me-1"></i> Exportar PDF
+          <button class="btn btn-danger btn-sm fw-bold" onclick="exportarPDFAuditoria()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Exportar PDF
           </button>
         </div>
       </div>
 
       <!-- Filtros -->
-      <div class="row g-3 mb-4">
-        <div class="col-md-3">
-          <label class="form-label small fw-bold">Filtrar por Tipo de Ação</label>
-          <select id="filtroTipo" class="form-select form-select-sm" onchange="renderizarTabela()">
-            <option value="">Todas as Ações (Edições, Exclusões...)</option>
+      <div class="row g-2 mb-3 p-2 p-md-3 bg-light rounded border align-items-end">
+        <div class="col-6 col-md-3">
+          <label class="form-label">Filtrar por Tipo de Ação</label>
+          <select id="filtroTipo" class="form-select form-select-sm fw-bold" onchange="renderizarTabela()">
+            <option value="">Todas as Ações...</option>
             <option value="EXCLUS">Apenas Exclusões</option>
             <option value="EDIÇ">Apenas Edições</option>
+            <option value="CADASTRO">Apenas Cadastros</option>
             <option value="RESTAURA">Apenas Restaurações</option>
           </select>
         </div>
-        <div class="col-md-3">
-          <label class="form-label small fw-bold">Filtrar por Professor / Usuário</label>
-          <select id="filtroUsuario" class="form-select form-select-sm" onchange="renderizarTabela()">
+        <div class="col-6 col-md-3">
+          <label class="form-label">Filtrar por Servidor(a)</label>
+          <select id="filtroUsuario" class="form-select form-select-sm fw-bold" onchange="renderizarTabela()">
             <option value="">Todos os Usuários</option>
           </select>
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Pesquisar Aluno, Eletiva, Data ou Conteúdo</label>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Pesquisar Aluno, Eletiva, Data ou Conteúdo</label>
           <div class="input-group input-group-sm">
-            <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-            <input type="text" id="filtroBusca" class="form-control" placeholder="Digite o nome de um aluno, disciplina, data ou texto..." onkeyup="renderizarTabela()">
+            <span class="input-group-text bg-white"><i class="bi bi-search text-primary"></i></span>
+            <input type="text" id="filtroBusca" class="form-control fw-semibold" placeholder="Digite o nome de um aluno, disciplina, data ou texto..." oninput="renderizarTabela()">
           </div>
         </div>
       </div>
 
       <!-- Tabela de Auditoria -->
       <div class="table-responsive">
-        <table class="table table-hover align-middle border" id="tabelaAuditoria">
+        <table class="table table-hover align-middle border mb-0" id="tabelaAuditoria">
           <thead class="table-light">
             <tr>
-              <th style="width: 135px;">Data / Hora</th>
-              <th style="width: 170px;">Quem Realizou</th>
-              <th style="width: 190px;">Módulo / Ação</th>
-              <th>Detalhes (O que tinha ANTES vs DEPOIS)</th>
-              <th style="width: 240px;">Backup Integral (Coluna E)</th>
-              <th style="width: 145px;" class="text-center">Restauração</th>
+              <th style="width: 14%;">Data / Servidor</th>
+              <th style="width: 15%;" class="col-audit-desktop">Quem Realizou</th>
+              <th style="width: 16%;" class="col-audit-desktop">Módulo / Ação</th>
+              <th style="width: 30%;">Detalhes (ANTES vs DEPOIS)</th>
+              <th style="width: 14%;" class="col-audit-desktop">Backup (Coluna E)</th>
+              <th style="width: 11%;" class="text-center">Restauração</th>
             </tr>
           </thead>
           <tbody id="tbodyAuditoria">
-            <tr><td colspan="6" class="text-center py-4 text-muted">A carregar registos de auditoria...</td></tr>
+            <tr><td colspan="6" class="text-center py-4 text-muted">Carregando registros de auditoria...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
-
   </div>
 
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Central de Auditoria e Segurança.
+  </footer>
+
   <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
     const API_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
     let listaAuditoriaGlobal = [];
 
     window.onload = async function() {
       document.getElementById('txtUserTop').innerText = nomeUser;
+      document.getElementById('lblPerfilAudit').innerText = perfilUser;
       await carregarAuditoria();
     };
 
@@ -195,7 +400,7 @@
 
     async function carregarAuditoria() {
       Swal.fire({
-        title: 'A carregar Auditoria...',
+        title: 'Carregando Auditoria...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -248,16 +453,11 @@
 
     function formatarDetalhesVisuais(texto) {
       if (!texto) return "-";
-      let seguro = texto
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-
-      // Destaca visualmente ANTES, DEPOIS e O que existia antes
+      let seguro = String(texto).replace(/</g, "<").replace(/>/g, ">");
       seguro = seguro
         .replace(/ANTES\s*(\([^)]*\))?:/gi, '<span class="tag-antes"><i class="bi bi-arrow-counterclockwise me-1"></i>ANTES$1:</span>')
         .replace(/O que existia antes:/gi, '<span class="tag-antes"><i class="bi bi-trash3 me-1"></i>EXISTIA ANTES:</span>')
         .replace(/->\s*DEPOIS\s*(\([^)]*\))?:/gi, '<br><span class="tag-depois mt-1 d-inline-block"><i class="bi bi-arrow-right me-1"></i>DEPOIS$1:</span>');
-
       return `<div class="box-detalhes">${seguro}</div>`;
     }
 
@@ -274,13 +474,12 @@
         const bateTipo = !tipoFiltro || acaoUpper.includes(tipoFiltro);
         const bateUser = !userFiltro || userUpper === userFiltro;
         const bateBusca = !buscaFiltro || textoCompleto.includes(buscaFiltro);
-
         return bateTipo && bateUser && bateBusca;
       });
 
       const tbody = document.getElementById('tbodyAuditoria');
       if (filtrados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhum registo de auditoria encontrado para este filtro.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhum registro de auditoria encontrado para este filtro.</td></tr>';
         return;
       }
 
@@ -310,14 +509,14 @@
           botaoRestaurarHTML = `<span class="text-muted small">-</span>`;
         } else if (jaRestaurado) {
           botaoRestaurarHTML = `
-            <span class="badge bg-success bg-opacity-10 text-success border border-success d-block mb-1" title="${item.status}">
-              <i class="bi bi-check2-all me-1"></i>Já Restaurado
+            <span class="badge bg-success-subtle text-success border border-success-subtle d-block mb-1" title="${item.status}">
+              <i class="bi bi-check2-all me-1"></i>Restaurado
             </span>
-            <button class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:0.7rem;" onclick="confirmarRestauracao(${item.linhaAuditoria})">
-              Restaurar Novamente
+            <button class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:0.66rem;" onclick="confirmarRestauracao(${item.linhaAuditoria})">
+              Repetir
             </button>`;
         } else {
-          const rotuloBotao = acaoUpper.includes("EXCLUS") ? "Readicionar" : "Reverter Edição";
+          const rotuloBotao = acaoUpper.includes("EXCLUS") ? "Readicionar" : "Reverter";
           botaoRestaurarHTML = `
             <button class="btn-restaurar w-100 shadow-sm" onclick="confirmarRestauracao(${item.linhaAuditoria})">
               <i class="bi bi-arrow-counterclockwise me-1"></i>${rotuloBotao}
@@ -326,15 +525,20 @@
 
         html += `
           <tr>
-            <td class="small fw-bold text-secondary">${item.dataHora}</td>
-            <td><span class="fw-bold text-dark small"><i class="bi bi-person-badge me-1 text-primary"></i>${item.usuario}</span></td>
-            <td><span class="badge ${badgeClasse} p-2 text-wrap text-start d-inline-block"><i class="bi ${iconeAcao} me-1"></i>${item.moduloAcao}</span></td>
+            <td>
+              <div class="small fw-bold text-secondary">${item.dataHora}</div>
+              <div class="info-audit-mobile">
+                <div class="fw-bold text-dark" style="font-size:0.72rem;"><i class="bi bi-person-badge text-primary me-1"></i>${item.usuario}</div>
+                <div class="mt-1"><span class="badge ${badgeClasse} text-wrap text-start" style="font-size:0.6rem;"><i class="bi ${iconeAcao} me-1"></i>${item.moduloAcao}</span></div>
+              </div>
+            </td>
+            <td class="col-audit-desktop"><span class="fw-bold text-dark small"><i class="bi bi-person-badge me-1 text-primary"></i>${item.usuario}</span></td>
+            <td class="col-audit-desktop"><span class="badge ${badgeClasse} p-2 text-wrap text-start d-inline-block"><i class="bi ${iconeAcao} me-1"></i>${item.moduloAcao}</span></td>
             <td>${formatarDetalhesVisuais(item.detalhes)}</td>
-            <td><div class="backup-code" title="Dados brutos para recuperação">${item.backup || 'Sem backup'}</div></td>
+            <td class="col-audit-desktop"><div class="backup-code" title="Dados brutos para recuperação">${item.backup || 'Sem backup'}</div></td>
             <td class="text-center">${botaoRestaurarHTML}</td>
           </tr>`;
       });
-
       tbody.innerHTML = html;
     }
 
@@ -344,11 +548,11 @@
 
       const isExclusao = (item.moduloAcao || "").toUpperCase().includes("EXCLUS");
       const acaoExplicacao = isExclusao
-        ? "Este registo foi <b>EXCLUÍDO</b>. Ao confirmar, o sistema vai <b>readicionar a linha completa</b> de volta na aba original."
-        : "Este registo foi <b>EDITADO</b>. Ao confirmar, o sistema vai <b>substituir os dados atuais pelos dados antigos</b> que existiam antes da edição.";
+        ? "Este registro foi <b>EXCLUÍDO</b>. Ao confirmar, o sistema vai <b>readicionar a linha completa</b> de volta na aba original."
+        : "Este registro foi <b>EDITADO</b>. Ao confirmar, o sistema vai <b>restaurar os dados antigos</b> na aba original.";
 
       const confirm = await Swal.fire({
-        title: isExclusao ? 'Readicionar Registo Excluído?' : 'Reverter para antes da Edição?',
+        title: isExclusao ? 'Readicionar Registro Excluído?' : 'Reverter para antes da Edição?',
         html: `
           <div class="text-start small">
             <p>${acaoExplicacao}</p>
@@ -364,7 +568,7 @@
         `,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#0f766e',
+        confirmButtonColor: '#15438c',
         cancelButtonColor: '#64748b',
         confirmButtonText: '<i class="bi bi-arrow-counterclockwise me-1"></i>Sim, Restaurar Agora!',
         cancelButtonText: 'Cancelar'
@@ -373,7 +577,7 @@
       if (!confirm.isConfirmed) return;
 
       Swal.fire({
-        title: 'A restaurar dados na planilha...',
+        title: 'Restaurando dados na planilha...',
         text: 'Aguarde enquanto o backup é reposto na aba original.',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
@@ -389,34 +593,25 @@
           title: 'Restaurado com Sucesso!',
           text: res.msg,
           icon: 'success',
-          confirmButtonColor: '#0f766e'
+          confirmButtonColor: '#15438c'
         });
         await carregarAuditoria();
       } else {
-        Swal.fire('Erro ao Restaurar', res.error || 'Não foi possível restaurar este registo.', 'error');
+        Swal.fire('Erro ao Restaurar', res.error || 'Não foi possível restaurar este registro.', 'error');
       }
     }
 
-    function exportarPDFAuditoria() {
+    async function exportarPDFAuditoria() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'mm', 'a4');
 
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(15, 118, 110);
-      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 14, 15);
-
-      doc.setFontSize(10);
-      doc.setTextColor(51, 65, 85);
-      doc.text("RELATÓRIO DE AUDITORIA DE EDIÇÕES E EXCLUSÕES DO SISTEMA", 14, 21);
-
-      doc.setFontSize(8.5);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Emitido por: ${nomeUser} em ${new Date().toLocaleString('pt-BR')}`, 283, 21, { align: 'right' });
-
-      doc.setDrawColor(15, 118, 110);
-      doc.setLineWidth(0.4);
-      doc.line(14, 24, 283, 24);
+      let startY = 28;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: 'RELATÓRIO DE AUDITORIA DE EDIÇÕES E EXCLUSÕES DO SISTEMA',
+          subtitulo1: `Total de Registros Auditados: ${listaAuditoriaGlobal.length} | Emitido por: ${nomeUser} em ${new Date().toLocaleString('pt-BR')}`
+        });
+      }
 
       const linhasPDF = listaAuditoriaGlobal.map(it => [
         it.dataHora,
@@ -427,11 +622,11 @@
       ]);
 
       doc.autoTable({
-        startY: 28,
+        startY: startY,
         head: [['Data/Hora', 'Usuário', 'Módulo / Ação', 'Detalhes (Antes vs Depois)', 'Status']],
         body: linhasPDF,
         theme: 'grid',
-        headStyles: { fillColor: [15, 118, 110], fontSize: 8 },
+        headStyles: { fillColor: [21, 67, 140], fontSize: 8, textColor: 255, fontStyle: 'bold' },
         styles: { fontSize: 7, cellPadding: 2 },
         columnStyles: {
           0: { cellWidth: 28 },
