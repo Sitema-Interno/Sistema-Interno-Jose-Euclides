@@ -1,99 +1,30 @@
-const CACHE_NAME = 'sistema-jose-euclides-v20';
-const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
-const IDB_VERSION = 2;
-
-const URLS_TO_CACHE = [
-  './',
-  './index.html',
-  './login.html',
-  './manifest.json',
-  './portal-core.js',
-  './LOGO-removebg-preview.png',
-  './brasaoestado.png',
-  './brasaoestado.png.png',
-  './icon-192.png',
-  './icon-512.png',
-  './acompanhamento.html',
-  './aee.html',
-  './atendimento-alunos.html',
-  './atividade-disciplinas.html',
-  './atividade-eletivas.html',
-  './auditoria.html',
-  './busca-ativa.html',
-  './cadastro-alunos.html',
-  './cadastro-disciplinas.html',
-  './cadastro-eletivas.html',
-  './cadastro-livros.html',
-  './consulta-ocorrencias-aluno.html',
-  './controle-frequencia-ranking.html',
-  './frequencia-eletivas.html',
-  './frequencia-secretaria.html',
-  './gestao-ambiente.html',
-  './gestao-bimestre.html',
-  './gestao-funcionarios.html',
-  './gestao-notas.html',
-  './gestao-pdt.html',
-  './gestao-pontuacao.html',
-  './gestao-serie.html',
-  './graficos-ocorrencias.html',
-  './historico-eletivas.html',
-  './historico-ocorrencias.html',
-  './mapeamento-sala.html',
-  './matricula-eletivas.html',
-  './monitoramento-eletivas.html',
-  './notas-registros.html',
-  './registro-ocorrencias.html',
-  './relatorio-turma-ocorrencias.html',
-  './reservas-livros.html',
-  './reservas.html',
-  './simulados.html',
-  './situacao-aluno.html',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
-  'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
-  'https://cdn.jsdelivr.net/npm/sweetalert2@11',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'
-];
-
-self.addEventListener('install', event => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(async cache => {
-      for (const url of URLS_TO_CACHE) {
-        try { await cache.add(new Request(url, { cache: 'reload' })); } catch (err) {}
-      }
-    })
+const ehHtmlOuJsDoPortal = (
+    requestFinal.mode === 'navigate' ||
+    reqUrl.endsWith('.html') ||
+    reqUrl.endsWith('.js') ||
+    reqUrl.endsWith('.json') ||
+    reqUrl.endsWith('/')
   );
-});
 
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
-      .then(() => processarFilaEmSegundoPlanoSW())
-  );
-});
-
-self.addEventListener('fetch', event => {
-  if (self.navigator && self.navigator.onLine !== false) {
-    processarFilaEmSegundoPlanoSW();
-  }
-
-  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
+  if (ehHtmlOuJsDoPortal) {
+    // ESTRATÉGIA REDE PRIMEIRO (NETWORK-FIRST):
+    // Se tiver internet, baixa SEMPRE a versão mais recente do GitHub na hora para todos!
+    // Se estiver offline (ou a rede falhar), entrega a versão salva no cache do aparelho.
+    event.respondWith(
+      fetch(new Request(reqUrl, { cache: 'no-store' }))
+        .then(networkResponse => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(requestFinal, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(requestFinal, { ignoreSearch: true }))
+    );
     return;
   }
 
-  let reqUrl = event.request.url;
-  if (reqUrl.toLowerCase().includes('2941658.png')) {
-    reqUrl = new URL('./brasaoestado.png', self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/')).href;
-  }
-
-  const requestFinal = reqUrl !== event.request.url ? new Request(reqUrl) : event.request;
-
+  // Para imagens e ícones (brasão, logo, etc.), mantém o carregamento instantâneo:
   event.respondWith(
     caches.match(requestFinal, { ignoreSearch: true }).then(cachedResponse => {
       const fetchPromise = fetch(new Request(reqUrl, { cache: 'no-store' }))
@@ -105,150 +36,6 @@ self.addEventListener('fetch', event => {
           return networkResponse;
         })
         .catch(() => cachedResponse);
-
       return cachedResponse || fetchPromise;
     })
   );
-});
-
-let envioSwEmAndamento = false;
-
-function abrirBancoNoServiceWorker() {
-  return new Promise(resolve => {
-    const req = indexedDB.open(IDB_SYNC_NAME, IDB_VERSION);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('fila_pendente')) db.createObjectStore('fila_pendente', { keyPath: 'idFila' });
-      if (!db.objectStoreNames.contains('relatorio_concluido')) db.createObjectStore('relatorio_concluido', { autoIncrement: true });
-      if (!db.objectStoreNames.contains('fotos_offline')) db.createObjectStore('fotos_offline', { keyPath: 'chave' });
-    };
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = () => resolve(null);
-  });
-}
-
-async function retirarProximoItemDaFilaIDB(db) {
-  return new Promise(resolve => {
-    try {
-      const tx = db.transaction('fila_pendente', 'readwrite');
-      const store = tx.objectStore('fila_pendente');
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const todos = req.result || [];
-        if (todos.length === 0) return resolve(null);
-        const primeiro = todos[0];
-        store.delete(primeiro.idFila);
-        tx.oncomplete = () => resolve(primeiro);
-        tx.onerror = () => resolve(null);
-      };
-      req.onerror = () => resolve(null);
-    } catch (e) {
-      resolve(null);
-    }
-  });
-}
-
-async function devolverItemParaFilaIDB(db, item) {
-  return new Promise(resolve => {
-    try {
-      const tx = db.transaction('fila_pendente', 'readwrite');
-      tx.objectStore('fila_pendente').put(item);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    } catch (e) {
-      resolve();
-    }
-  });
-}
-
-async function registrarConcluidoNoIDB(db, item) {
-  return new Promise(resolve => {
-    try {
-      const tx = db.transaction('relatorio_concluido', 'readwrite');
-      tx.objectStore('relatorio_concluido').add({
-        idFila: item.idFila,
-        assinatura: item.assinatura || '',
-        dataHoraSync: new Date().toLocaleString('pt-BR'),
-        resumoHtml: item.resumoHtml
-      });
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    } catch (e) {
-      resolve();
-    }
-  });
-}
-
-async function processarFilaEmSegundoPlanoSW() {
-  if (envioSwEmAndamento) return;
-  envioSwEmAndamento = true;
-
-  try {
-    const db = await abrirBancoNoServiceWorker();
-    if (!db) return;
-
-    let enviouAlgum = false;
-
-    // Envia TODOS os itens da fila em sequência antes de avisar o aplicativo!
-    while (true) {
-      const item = await retirarProximoItemDaFilaIDB(db);
-      if (!item) break;
-
-      try {
-        // IMPORTANTE: Sem keepalive:true aqui dentro do SW para o Android permitir o redirect 302 do Google Apps Script em background!
-        const res = await fetch(item.url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(item.payload),
-          redirect: 'follow',
-          credentials: 'omit',
-          cache: 'no-store'
-        });
-
-        const texto = await res.text();
-        let json = null;
-        try { json = JSON.parse(texto); } catch (e) {}
-
-        if ((json && (json.success || json.msg || json.jaExiste)) || (res.ok && texto.includes('"success"'))) {
-          enviouAlgum = true;
-          await registrarConcluidoNoIDB(db, item);
-        } else {
-          await devolverItemParaFilaIDB(db, item);
-          break;
-        }
-      } catch (errRede) {
-        // Devolve para a fila e lança erro para o Android reagendar o Background Sync automaticamente!
-        await devolverItemParaFilaIDB(db, item);
-        throw errRede;
-      }
-    }
-
-    // Só envia 1 única mensagem depois que TODOS os registros terminarem de subir!
-    if (enviouAlgum) {
-      const todosClientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      todosClientes.forEach(cliente => {
-        cliente.postMessage({ type: 'SYNC_BACKGROUND_CONCLUIDO' });
-      });
-    }
-  } finally {
-    envioSwEmAndamento = false;
-  }
-}
-
-self.addEventListener('sync', event => {
-  if (event.tag === 'sync-fila-eemti' || event.tag.startsWith('sync-fila-eemti')) {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
-  }
-});
-
-self.addEventListener('periodicsync', event => {
-  if (event.tag === 'periodic-sync-fila-eemti') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
-  }
-});
-
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'DISPARAR_SYNC_AGORA') {
-    event.waitUntil(processarFilaEmSegundoPlanoSW());
-  }
-});
