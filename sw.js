@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-jose-euclides-v21';
+const CACHE_NAME = 'sistema-jose-euclides-v22';
 const IDB_SYNC_NAME = 'EEMTI_BackgroundSync_DB';
 const IDB_VERSION = 2;
 
