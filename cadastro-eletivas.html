@@ -603,7 +603,27 @@
       document.getElementById('editAno').innerHTML = htmlSemestres;
     }
 
-    async function buscarEletivasDoSemestre() {
+    function limparCacheEletivasNoNavegador() {
+      try {
+        Object.keys(localStorage).forEach(k => {
+          if (k.includes('buscarEletivasCadastradas') || k.includes('getDadosMatricula') || k.includes('catalogo_eletivas')) {
+            localStorage.removeItem(k);
+          }
+        });
+        if (window._cacheGrandeMemoriaEEMTI) {
+          Object.keys(window._cacheGrandeMemoriaEEMTI).forEach(k => {
+            if (k.includes('buscarEletivasCadastradas')) {
+              delete window._cacheGrandeMemoriaEEMTI[k];
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    async function buscarEletivasDoSemestre(forcarServidor = false) {
+      if (forcarServidor) {
+        limparCacheEletivasNoNavegador();
+      }
       const ano = document.getElementById('buscaAno').value;
       document.getElementById('loaderBusca').style.display = 'block';
       const resposta = await chamarAPI({ action: 'buscarEletivasCadastradas', ano: ano });
@@ -648,8 +668,9 @@
         const vagasTxt = (e.vagas && String(e.vagas).trim() !== '' && String(e.vagas).trim() !== '-')
           ? `${e.vagas} vagas`
           : '45 vagas';
-        const profHtml = e.professor
-          ? `<span class="fw-semibold text-secondary"><i class="bi bi-person-workspace text-primary me-1"></i>${e.professor}</span>`
+        const profLimpo = String(e.professor || '').trim();
+        const profHtml = profLimpo !== ''
+          ? `<span class="fw-bold text-primary"><i class="bi bi-person-workspace me-1"></i>${profLimpo}</span>`
           : `<span class="text-muted fst-italic"><i class="bi bi-person-dash me-1"></i>Professor não atribuído</span>`;
 
         html += `
@@ -728,7 +749,7 @@
         dia: document.getElementById('cadDia').value,
         vagas: document.getElementById('cadVagas').value,
         nome: document.getElementById('cadNome').value.trim().toUpperCase(),
-        professor: document.getElementById('cadProfessor').value
+        professor: document.getElementById('cadProfessor').value.trim().toUpperCase()
       };
 
       const btn = document.getElementById('btnCadastrar');
@@ -742,10 +763,11 @@
       btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Salvar Eletiva no Banco de Dados';
 
       if (resposta && resposta.success) {
+        limparCacheEletivasNoNavegador();
         Swal.fire({ title: 'Sucesso!', text: resposta.msg || 'Eletiva salva!', icon: 'success', confirmButtonColor: '#15438c' });
         document.getElementById('buscaAno').value = dados.ano;
         limparFormularioEletiva();
-        await buscarEletivasDoSemestre();
+        await buscarEletivasDoSemestre(true);
         bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-consulta-elet-btn')).show();
       } else {
         Swal.fire('Erro', (resposta && resposta.error) || 'Não foi possível salvar.', 'error');
@@ -763,36 +785,57 @@
       document.getElementById('editDia').value = dados.dia || "";
       document.getElementById('editNome').value = dados.nome || "";
       document.getElementById('editVagas').value = dados.vagas || "";
-      document.getElementById('editProfessor').value = dados.professor || "";
+
+      const selProf = document.getElementById('editProfessor');
+      const profAtual = String(dados.professor || "").trim();
+      if (profAtual && ![...selProf.options].some(o => o.value.toUpperCase() === profAtual.toUpperCase())) {
+        selProf.innerHTML += `<option value="${profAtual}">${profAtual}</option>`;
+      }
+      selProf.value = profAtual;
       modalEditarInstancia.show();
     }
 
     async function salvarEdicaoModal() {
-      const linha = document.getElementById('editLinha').value;
+      const linha = Number(document.getElementById('editLinha').value);
       const dados = {
-        linha: Number(linha),
+        linha: linha,
         ano: document.getElementById('editAno').value,
         turma: document.getElementById('editTurma').value,
         tempoEletivo: document.getElementById('editTempoEletivo').value,
         dia: document.getElementById('editDia').value,
         vagas: document.getElementById('editVagas').value,
         nome: document.getElementById('editNome').value.trim().toUpperCase(),
-        professor: document.getElementById('editProfessor').value
+        professor: document.getElementById('editProfessor').value.trim().toUpperCase()
       };
 
       const btn = document.getElementById('btnSalvarEdicaoModal');
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
 
-      const resposta = await chamarAPI({ action: 'editarEletiva', linha: Number(linha), dados: dados });
+      const resposta = await chamarAPI({ action: 'editarEletiva', linha: linha, dados: dados });
 
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Salvar Alterações';
 
       if (resposta && resposta.success) {
+        // 1. Atualiza imediatamente na lista em memória para aparecer na tela na mesma hora!
+        const itemMem = listaEletivasSemestre.find(x => Number(x.linha) === linha);
+        if (itemMem) {
+          itemMem.ano = dados.ano;
+          itemMem.turma = dados.turma;
+          itemMem.tempoEletivo = dados.tempoEletivo;
+          itemMem.dia = dados.dia;
+          itemMem.vagas = dados.vagas;
+          itemMem.nome = dados.nome;
+          itemMem.professor = dados.professor;
+        }
+        filtrarTabelaEletivasLocal();
+
+        // 2. Limpa o cache antigo e sincroniza com a planilha
+        limparCacheEletivasNoNavegador();
         modalEditarInstancia.hide();
         Swal.fire({ title: 'Atualizado!', text: resposta.msg || 'Dados atualizados com sucesso.', icon: 'success', confirmButtonColor: '#15438c', timer: 1500, showConfirmButton: false });
-        await buscarEletivasDoSemestre();
+        await buscarEletivasDoSemestre(true);
       } else {
         Swal.fire('Erro', (resposta && resposta.error) || 'Não foi possível atualizar.', 'error');
       }
@@ -814,8 +857,9 @@
           const resposta = await chamarAPI({ action: 'excluirEletiva', linha: linha, dados: { linha: linha } });
           Swal.close();
           if (resposta && resposta.success) {
+            limparCacheEletivasNoNavegador();
             Swal.fire({ title: 'Excluído!', text: resposta.msg || 'Eletiva excluída com sucesso.', icon: 'success', confirmButtonColor: '#15438c', timer: 1400, showConfirmButton: false });
-            buscarEletivasDoSemestre();
+            await buscarEletivasDoSemestre(true);
           }
         }
       });
