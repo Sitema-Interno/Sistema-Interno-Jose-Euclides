@@ -1,67 +1,291 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#15438c">
   <link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Acompanhamento Pedagógico -  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</title>
-  
+  <title>Acompanhamento Pedagógico - EEMTI Dr. José Euclides</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="portal-core.js"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    
-    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
-    
-    /* MARCA D'ÁGUA PADRONIZADA */
-    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
-    
-    /* CABEÇALHO PADRONIZADO */
-    .navbar-custom { background-color: rgba(255, 255, 255, 0.96); padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
-    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
-    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
-    
-    .main-container { padding: 30px 15px; max-width: 1250px; margin: 0 auto; width: 100%; flex: 1; }
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(5px); margin-bottom: 25px; padding: 28px; }
-    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
-    
-    .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 10px 14px; }
-    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.15); }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
 
-    .btn { border-radius: 8px; font-weight: 600; }
-    .btn-tema { background-color: #0f766e; color: white; border: none; }
-    .btn-tema:hover { background-color: #0d645e; color: white; }
+    :root {
+      --azul-primario: #15438c;
+      --azul-escuro: #0f2952;
+    }
 
-    .secao-bloco-header { background: linear-gradient(90deg, #0f766e 0%, #115e59 100%); color: white; padding: 12px 18px; border-radius: 10px; font-weight: 700; margin-top: 25px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
-    
-    .pergunta-card { background: #f8fafc; padding: 16px 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 12px; transition: 0.2s; }
-    .pergunta-card.respondida-sim { border-left: 4px solid #198754; background: #f0fdf4; }
-    .pergunta-card.respondida-nao { border-left: 4px solid #dc3545; background: #fef2f2; }
-    .justificativa-box { display: none; margin-top: 12px; }
-    
-    .box-consideracao-gestao { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 10px; padding: 18px; margin-top: 15px; margin-bottom: 25px; }
-    
-    .aula-check-box { display: flex; flex-wrap: wrap; gap: 8px; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #ced4da; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 50%, #f1f5f9 100%);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
 
-    .table th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.82rem; text-transform: uppercase; }
-    .table td { vertical-align: middle; font-size: 0.88rem; }
-    
-    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0,0,0,0.05); background: rgba(255,255,255,0.6); }
+    .watermark-brasao-fundo {
+      position: fixed;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55vw;
+      max-width: 600px;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .top-header {
+      padding: 16px 25px 10px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      max-width: 1320px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .brand-escola {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand-escola img {
+      height: 80px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.08));
+    }
+
+    .brand-titulo-principal {
+      font-weight: 900;
+      font-size: 1.75rem;
+      color: var(--azul-primario);
+      letter-spacing: 0.5px;
+      line-height: 1.02;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .brand-subtitulo {
+      font-weight: 800;
+      font-size: 0.65rem;
+      color: #1e3a8a;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .brand-slogan {
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.3rem;
+      color: var(--azul-primario);
+      margin-top: 1px;
+      line-height: 1;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(21, 67, 140, 0.15);
+    }
+
+    .main-container {
+      padding: 16px 15px 40px 15px;
+      max-width: 1260px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+      position: relative;
+      z-index: 5;
+    }
+
+    .card {
+      border: 1px solid rgba(21, 67, 140, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      background: rgba(255, 255, 255, 0.97);
+      margin-bottom: 25px;
+      padding: 24px;
+    }
+
+    .card-header-custom {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 13px;
+      font-size: 0.88rem;
+      background-color: #f8fafc;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--azul-primario);
+      box-shadow: 0 0 0 0.2rem rgba(21, 67, 140, 0.15);
+      background-color: #ffffff;
+    }
+
+    .btn {
+      border-radius: 9px;
+      font-weight: 700;
+    }
+
+    .btn-tema {
+      background-color: var(--azul-primario);
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn-tema:hover {
+      background-color: var(--azul-escuro);
+      color: #ffffff;
+    }
+
+    .secao-bloco-header {
+      background: linear-gradient(90deg, var(--azul-primario) 0%, var(--azul-escuro) 100%);
+      color: #ffffff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      margin-top: 24px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pergunta-card {
+      background: #f8fafc;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 10px;
+      transition: 0.2s;
+    }
+
+    .pergunta-card.respondida-sim {
+      border-left: 4px solid #16a34a;
+      background: #f0fdf4;
+    }
+
+    .pergunta-card.respondida-nao {
+      border-left: 4px solid #dc2626;
+      background: #fef2f2;
+    }
+
+    .justificativa-box {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .box-consideracao-gestao {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+      margin-bottom: 22px;
+    }
+
+    .aula-check-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .table th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    .table td {
+      vertical-align: middle;
+      font-size: 0.85rem;
+    }
+
+    .sub-mobile-acomp {
+      display: none;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.82rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.88);
+      position: relative;
+      z-index: 5;
+    }
+
+    @media (max-width: 768px) {
+      .card {
+        padding: 14px 12px !important;
+      }
+      .col-acomp-desktop {
+        display: none !important;
+      }
+      .sub-mobile-acomp {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.7rem;
+      }
+      #btnSalvarFinal {
+        font-size: 0.88rem !important;
+        padding: 12px 10px !important;
+      }
+    }
   </style>
-
   <script>
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!usuarioLogado) window.location.href = 'login.html';
-
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
@@ -70,40 +294,39 @@
   </script>
 </head>
 <body>
-
-  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+  <img src="LOGO-removebg-preview.png" class="watermark-brasao-fundo" alt="" onerror="this.style.display='none'">
 
   <!-- CABEÇALHO PADRONIZADO -->
-  <nav class="navbar navbar-custom">
-    <div class="container-fluid max-w-1250 mx-auto">
-      <span class="navbar-brand">
-        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
-        <div>
-          Acompanhamento Pedagógico
-          <div class="sub-text"> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR Portela</div>
-        </div>
-      </span>
-      <div class="d-flex align-items-center gap-3">
-        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
-          <i class="bi bi-person-circle me-1"></i>A carregar...
-        </span>
-        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
-          <i class="bi bi-house-door-fill me-1"></i> Início
-        </a>
+  <header class="top-header">
+    <a href="index.html" class="brand-escola">
+      <img src="brasaoestado.png" id="logoEscola" alt="Brasão" onerror="this.src='LOGO-removebg-preview.png'">
+      <div>
+        <h1 class="brand-titulo-principal">JOSÉ EUCLIDES</h1>
+        <div class="brand-subtitulo">EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR</div>
+        <div class="brand-slogan">O futuro é gestado agora!</div>
       </div>
+    </a>
+    <div class="user-bar">
+      <span class="fw-bold small text-dark" id="nomeUsuarioUi">
+        <i class="bi bi-person-circle text-primary me-1"></i>Carregando...
+      </span>
+      <span class="badge text-white" style="background-color:#15438c;">Gestão Pedagógica</span>
+      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-house-door-fill me-1"></i>Início
+      </a>
     </div>
-  </nav>
+  </header>
 
   <div class="main-container">
     <!-- Abas -->
-    <ul class="nav nav-tabs mb-4" id="acompanhamentoTab" role="tablist">
+    <ul class="nav nav-tabs mb-3" id="acompanhamentoTab" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-bold text-dark" id="tab-novo-btn" data-bs-toggle="tab" data-bs-target="#novo" type="button" role="tab">
+        <button class="nav-link active fw-bold" id="tab-novo-btn" data-bs-toggle="tab" data-bs-target="#novo" type="button" role="tab">
           <i class="bi bi-plus-circle-fill me-2 text-primary"></i>Ficha de Observação de Aula
         </button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold text-dark" id="tab-salvos-btn" data-bs-toggle="tab" data-bs-target="#salvos" type="button" role="tab" onclick="atualizarTabelaSalvos()">
+        <button class="nav-link fw-bold" id="tab-salvos-btn" data-bs-toggle="tab" data-bs-target="#salvos" type="button" role="tab" onclick="atualizarTabelaSalvos()">
           <i class="bi bi-folder-fill me-2 text-warning"></i>Acompanhamentos Salvos
         </button>
       </li>
@@ -115,9 +338,9 @@
         <div class="card">
           <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div>
-              <h4 class="fw-bold m-0 text-dark" id="tituloFormulario">
-                <i class="bi bi-clipboard2-check-fill text-success me-2"></i>Ficha Oficial de Acompanhamento Pedagógico
-              </h4>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);" id="tituloFormulario">
+                <i class="bi bi-clipboard2-check-fill me-2"></i>Ficha Oficial de Acompanhamento Pedagógico
+              </h5>
               <small class="text-muted">Ao salvar, o professor avaliado recebe por e-mail o PDF apenas com os itens objetivos (sem as considerações reservadas da gestão).</small>
             </div>
             <div class="d-flex align-items-center gap-2">
@@ -133,15 +356,15 @@
 
           <!-- DADOS DE IDENTIFICAÇÃO DA AULA -->
           <div class="row g-3 mb-3">
-            <div class="col-md-5">
-              <label class="form-label small fw-bold">Professor(a) Avaliado(a) <span class="text-muted fw-normal">(Aba Usuários - Coluna B)</span></label>
-              <select id="selectProfessor" class="form-select" required>
-                <option value="">A carregar professores...</option>
+            <div class="col-12 col-md-5">
+              <label class="form-label">Professor(a) Avaliado(a) * <span class="text-muted fw-normal">(Aba Usuários)</span></label>
+              <select id="selectProfessor" class="form-select fw-bold" required>
+                <option value="">Carregando professores...</option>
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label small fw-bold">Disciplina</label>
-              <input type="text" id="inputDisciplina" class="form-control" list="listaDisciplinasSugestao" placeholder="Ex: Língua Portuguesa, Matemática...">
+            <div class="col-6 col-md-4">
+              <label class="form-label">Disciplina *</label>
+              <input type="text" id="inputDisciplina" class="form-control fw-bold" list="listaDisciplinasSugestao" placeholder="Ex: Língua Portuguesa, Matemática...">
               <datalist id="listaDisciplinasSugestao">
                 <option value="Língua Portuguesa">
                 <option value="Língua Espanhola">
@@ -163,30 +386,26 @@
                 <option value="Formação Cidadã (DT)">
               </datalist>
             </div>
-            <div class="col-md-3">
-              <label class="form-label small fw-bold">Série / Turma</label>
-              <select id="selectTurma" class="form-select" required>
-                <option value="">A carregar turmas...</option>
+            <div class="col-6 col-md-3">
+              <label class="form-label">Série / Turma *</label>
+              <select id="selectTurma" class="form-select fw-bold" required>
+                <option value="">Carregando turmas...</option>
               </select>
             </div>
-
-            <div class="col-md-12">
-              <label class="form-label small fw-bold">Aula(s) Observada(s) <span class="text-muted fw-normal">(Pode marcar mais de uma)</span></label>
-              <div class="aula-check-box" id="containerAulasCheck">
-                <!-- 1ª a 9ª Aula gerado via JS -->
-              </div>
+            <div class="col-12">
+              <label class="form-label">Aula(s) Observada(s) * <span class="text-muted fw-normal">(Pode marcar mais de uma)</span></label>
+              <div class="aula-check-box" id="containerAulasCheck"></div>
             </div>
-
-            <div class="col-md-4">
-              <label class="form-label small fw-bold">Que atividade(s) aconteceu(ram)?</label>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Que atividade(s) aconteceu(ram)?</label>
               <textarea id="inputAtividades" class="form-control" rows="2" placeholder="Ex: Correção de exercício, aula expositiva..."></textarea>
             </div>
-            <div class="col-md-4">
-              <label class="form-label small fw-bold">Conteúdo da aula?</label>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Conteúdo da aula?</label>
               <textarea id="inputConteudo" class="form-control" rows="2" placeholder="Ex: Gêneros Textuais, Funções, Descritores..."></textarea>
             </div>
-            <div class="col-md-4">
-              <label class="form-label small fw-bold">Objetivo da aula?</label>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Objetivo da aula?</label>
               <textarea id="inputObjetivo" class="form-control" rows="2" placeholder="Ex: Reconhecer o sentido das orações..."></textarea>
             </div>
           </div>
@@ -199,7 +418,7 @@
           <div id="containerBloco1"></div>
 
           <div class="box-consideracao-gestao">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-2">
               <label class="form-label fw-bold text-dark m-0">
                 <i class="bi bi-shield-lock-fill text-warning me-1"></i>Faça suas considerações sobre o aspecto "Gestão da Sala de Aula":
               </label>
@@ -216,7 +435,7 @@
           <div id="containerBloco2"></div>
 
           <div class="box-consideracao-gestao">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-2">
               <label class="form-label fw-bold text-dark m-0">
                 <i class="bi bi-shield-lock-fill text-warning me-1"></i>Faça suas considerações sobre o aspecto "Observação da Aprendizagem":
               </label>
@@ -233,23 +452,22 @@
           <div id="containerBloco3"></div>
 
           <div class="box-consideracao-gestao">
-            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-warning pb-2">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-3 border-bottom border-warning pb-2">
               <h6 class="fw-bold text-dark m-0">
                 <i class="bi bi-shield-lock-fill text-warning me-2"></i>PARECER FINAL E CONSIDERAÇÕES RESERVADAS DA GESTÃO
               </h6>
-              <span class="badge bg-warning text-dark">Estes campos NÃO vão para o PDF enviado ao Professor</span>
+              <span class="badge bg-warning text-dark">Oculto no PDF do Professor</span>
             </div>
-
             <div class="mb-3">
-              <label class="form-label fw-semibold">Faça suas considerações sobre o aspecto "Comportamento da Turma/aluno":</label>
+              <label class="form-label">Faça suas considerações sobre o aspecto "Comportamento da Turma/aluno":</label>
               <textarea id="obsComportamento" class="form-control" rows="2" placeholder="Ex: Alunos participativos, apáticos, dispersos..."></textarea>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-semibold">Críticas:</label>
+              <label class="form-label">Críticas:</label>
               <textarea id="obsCriticas" class="form-control" rows="2" placeholder="Pontos críticos observados durante a aula..."></textarea>
             </div>
-            <div class="mb-2">
-              <label class="form-label fw-semibold">Sugestões ou observações:</label>
+            <div class="mb-1">
+              <label class="form-label">Sugestões ou observações:</label>
               <textarea id="obsSugestoes" class="form-control" rows="2" placeholder="Sugestões para o feedback presencial..."></textarea>
             </div>
           </div>
@@ -257,16 +475,16 @@
           <!-- Opção de envio de e-mail + Botões de ação -->
           <div class="form-check form-switch mb-3 p-3 bg-light rounded border d-flex align-items-center gap-2">
             <input class="form-check-input ms-0" type="checkbox" id="checkEnviarEmailProf" checked style="width: 2.5em; height: 1.25em; cursor: pointer;">
-            <label class="form-check-label fw-bold text-dark ms-2" for="checkEnviarEmailProf" style="cursor: pointer;">
+            <label class="form-check-label fw-bold text-dark ms-2 small" for="checkEnviarEmailProf" style="cursor: pointer;">
               <i class="bi bi-envelope-paper-fill text-primary me-1"></i>Enviar automaticamente por E-mail ao Professor o PDF da Avaliação (Sem as Considerações da Gestão)
             </label>
           </div>
 
-          <div class="d-flex gap-2">
+          <div class="d-flex gap-2 flex-wrap">
             <button type="button" class="btn btn-outline-secondary d-none fw-bold px-4" id="btnCancelarEdicao" onclick="resetarFormulario()">
               Cancelar Edição
             </button>
-            <button type="button" class="btn btn-tema flex-grow-1 py-3 fw-bold fs-5 shadow-sm" onclick="finalizarAcompanhamento()" id="btnSalvarFinal">
+            <button type="button" class="btn btn-tema flex-grow-1 py-3 fw-bold shadow-sm" onclick="finalizarAcompanhamento()" id="btnSalvarFinal">
               <i class="bi bi-send-check-fill me-2"></i>Salvar no Banco, Enviar E-mail ao Professor e Baixar PDF da Gestão
             </button>
           </div>
@@ -278,33 +496,35 @@
         <div class="card">
           <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
-              <h5 class="fw-bold m-0"><i class="bi bi-folder-fill text-warning me-2"></i>Acompanhamentos Realizados</h5>
-              <small class="text-muted">Você pode baixar o PDF Completo (Gestão) ou o PDF Limpo (Professor), editar ou excluir.</small>
+              <h5 class="fw-bold m-0" style="color: var(--azul-primario);">
+                <i class="bi bi-folder-fill text-warning me-2"></i>Acompanhamentos Realizados
+              </h5>
+              <small class="text-muted">Baixe o PDF Completo (Gestão), o PDF Limpo (Professor), edite ou exclua.</small>
             </div>
-            <div class="d-flex gap-2">
-              <div class="input-group" style="width: 300px;">
+            <div class="d-flex gap-2 flex-wrap">
+              <div class="input-group input-group-sm" style="width: 260px;">
                 <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                <input type="text" id="buscaRelatorio" class="form-control" placeholder="Buscar professor, disciplina ou turma..." onkeyup="atualizarTabelaSalvos()">
+                <input type="text" id="buscaRelatorio" class="form-control" placeholder="Buscar professor, disciplina..." oninput="atualizarTabelaSalvos()">
               </div>
-              <button class="btn btn-outline-secondary btn-sm px-3" onclick="carregarDadosDoBanco()" title="Recarregar lista">
+              <button class="btn btn-outline-primary btn-sm px-3" onclick="carregarDadosDoBanco()" title="Recarregar lista">
                 <i class="bi bi-arrow-clockwise"></i>
               </button>
             </div>
           </div>
 
           <div class="table-responsive">
-            <table class="table table-hover align-middle border">
+            <table class="table table-hover align-middle border mb-0">
               <thead class="table-light">
                 <tr>
-                  <th>Data</th>
-                  <th>Professor(a)</th>
-                  <th>Disciplina</th>
-                  <th>Série / Aula</th>
-                  <th class="text-end" style="width: 240px;">Ações e PDFs</th>
+                  <th class="col-acomp-desktop" style="width: 14%;">Data</th>
+                  <th style="width: 34%;">Professor(a)</th>
+                  <th class="col-acomp-desktop" style="width: 18%;">Disciplina</th>
+                  <th class="col-acomp-desktop" style="width: 14%;">Série / Aula</th>
+                  <th class="text-center" style="width: 20%;">Ações e PDFs</th>
                 </tr>
               </thead>
               <tbody id="tabelaRelatoriosSalvos">
-                <tr><td colspan="5" class="text-center text-muted py-4">A carregar dados da nuvem...</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">Carregando dados da nuvem...</td></tr>
               </tbody>
             </table>
           </div>
@@ -314,11 +534,10 @@
   </div>
 
   <footer class="footer-custom">
-    <strong>&copy; <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Todos os direitos reservados.
+    <strong>© <span id="anoAtual"></span> EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR.</strong> Acompanhamento Pedagógico.
   </footer>
 
   <script>
-    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
     const _fetchOriginal = window.fetch;
     window.fetch = function(url, options) {
       if (options && options.method === 'POST' && typeof options.body === 'string') {
@@ -334,12 +553,9 @@
     };
 
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
-
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzERHqBAca1K2wCMcqfVXCrulET5ZyMFOyYkXyBcdPyjPnjS28Roga43Sj90O8s5_Om/exec";
 
-    // AS 21 PERGUNTAS EXATAS DA PLANILHA (DIVIDIDAS NOS 3 BLOCOS)
     const perguntasArray = [
-      // Bloco 1: Gestão da Sala de Aula (0 a 9)
       "Começa a aula na hora certa?",
       "O professor está com a aula planejada?",
       "Está com os recursos necessários para aula?",
@@ -350,15 +566,13 @@
       "O Conteúdo está de acordo com o Planejado?",
       "O professor garantiu o mapeamento?",
       "O professor matém a atenção da turma?",
-      // Bloco 2: Observação da Aprendizagem (10 a 16)
       "Respeita os diferentes estilos de interações dos alunos",
       "Adapta as estratégias de ensino aos conteúdos e às limitações dos alunos?",
       "Dá ênfase e importância as perguntas pertinentes dos alunos, garantindo que todos ouçam?",
       "Registra a frequência, atividades/planos semanais e notas no diário online?",
       "Costuma utilizar recursos didáticos metodológicos além do livro e quadro?",
       "Corrigi as atividades?",
-      "As atividades estão focadas no ENEM, SPAECE, SAEB (Avaliações Externas) , mercado de trabalho, cidadania ou competêcias socioemocionais?",
-      // Bloco 3: Tempo Pedagógico e Comportamento (17 a 20)
+      "As atividades estão focadas no ENEM, SPAECE, SAEB (Avaliações Externas), mercado de trabalho, cidadania ou competêcias socioemocionais?",
       "O tempo pedagógico é aproveitado?",
       "Todos os alunos fizeram as atividades propostas?",
       "Os excepcionais são dadas a atenção necessária?",
@@ -372,10 +586,9 @@
     window.onload = async () => {
       const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
       if (u) {
-        nomeGestorLogado = (u.nome || (u.usuario && u.usuario.nome) || u.col1 || "Gestor").toUpperCase();
+        nomeGestorLogado = (u.nome || (u.usuario && u.usuario.nome) || u.col1 || "GESTOR").toUpperCase();
+        document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle text-primary me-1"></i>Olá, ${nomeGestorLogado}`;
       }
-      document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeGestorLogado}`;
-
       renderizarCheckboxesAulas();
       renderizarPerguntasDOM();
       await carregarDadosDoBanco();
@@ -386,9 +599,9 @@
       let html = '';
       for (let a = 1; a <= 9; a++) {
         html += `
-          <div class="form-check form-check-inline m-0 me-3">
+          <div class="form-check form-check-inline m-0 me-2">
             <input class="form-check-input check-aula-item" type="checkbox" id="chkAula_${a}" value="${a}ª Aula">
-            <label class="form-check-label small fw-semibold" for="chkAula_${a}" style="cursor:pointer;">${a}ª Aula</label>
+            <label class="form-check-label small fw-bold" for="chkAula_${a}" style="cursor:pointer;">${a}ª Aula</label>
           </div>`;
       }
       container.innerHTML = html;
@@ -398,19 +611,19 @@
       const criarHtmlPergunta = (pergunta, index) => `
         <div class="pergunta-card" id="blocoPergunta_${index}">
           <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <h6 class="fw-bold text-dark m-0" style="flex: 1; min-width: 240px;">
-              <span class="badge bg-secondary me-2">${index + 1}/21</span> ${pergunta}
+            <h6 class="fw-bold text-dark m-0" style="flex: 1; min-width: 220px; font-size: 0.86rem;">
+              <span class="badge bg-primary me-1">${index + 1}/21</span> ${pergunta}
             </h6>
             <div class="d-flex gap-3">
               <div class="form-check form-check-inline m-0">
                 <input class="form-check-input" type="radio" name="resp_${index}" id="sim_${index}" value="Sim" onchange="tratarResposta(${index}, 'Sim')">
-                <label class="form-check-label fw-bold text-success" for="sim_${index}" style="cursor:pointer;">
+                <label class="form-check-label fw-bold text-success small" for="sim_${index}" style="cursor:pointer;">
                   <i class="bi bi-check-circle-fill me-1"></i>Sim
                 </label>
               </div>
               <div class="form-check form-check-inline m-0">
                 <input class="form-check-input" type="radio" name="resp_${index}" id="nao_${index}" value="Não" onchange="tratarResposta(${index}, 'Não')">
-                <label class="form-check-label fw-bold text-danger" for="nao_${index}" style="cursor:pointer;">
+                <label class="form-check-label fw-bold text-danger small" for="nao_${index}" style="cursor:pointer;">
                   <i class="bi bi-x-circle-fill me-1"></i>Não
                 </label>
               </div>
@@ -486,7 +699,6 @@
 
       Swal.close();
 
-      // 1. Professores da Coluna B da aba Usuários
       if (Array.isArray(resProfsDireto) && resProfsDireto.length > 0) {
         dbProfessores = resProfsDireto;
       } else if (resAcc && resAcc.success && resAcc.dados && Array.isArray(resAcc.dados.professores)) {
@@ -504,29 +716,27 @@
       selProf.innerHTML = htmlProf;
       if (valorProfAntigo) selProf.value = valorProfAntigo;
 
-      // 2. Séries / Turmas da aba SÉRIE
       const selTurma = document.getElementById('selectTurma');
       const valorTurmaAntigo = selTurma.value;
       let turmasSet = new Set();
       if (resSeries && (resSeries.success || resSeries.sucesso) && Array.isArray(resSeries.lista)) {
         resSeries.lista.forEach(item => {
           let nomeSerie = String(item.col2 || item.col1 || "").trim();
-          if (nomeSerie && !nomeSerie.toUpperCase().includes("SÉRIE") && !nomeSerie.toUpperCase().includes("SERIE")) {
+          if (nomeSerie && nomeSerie.toUpperCase() !== "SÉRIE" && nomeSerie.toUpperCase() !== "SERIE") {
             turmasSet.add(nomeSerie);
           }
         });
       }
       if (turmasSet.size === 0) {
-        ["1º ANO A", "1º ANO B", "1º ANO C", "2º ANO A", "2º ANO B", "3º ANO A", "3º ANO B"].forEach(t => turmasSet.add(t));
+        ["1ª SÉRIE A", "1ª SÉRIE B", "1ª SÉRIE C", "2ª SÉRIE A", "2ª SÉRIE B", "2ª SÉRIE C", "3ª SÉRIE A", "3ª SÉRIE B"].forEach(t => turmasSet.add(t));
       }
       let htmlTurma = '<option value="">Selecione a turma...</option>';
-      Array.from(turmasSet).sort().forEach(t => {
+      Array.from(turmasSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })).forEach(t => {
         htmlTurma += `<option value="${t}">${t}</option>`;
       });
       selTurma.innerHTML = htmlTurma;
       if (valorTurmaAntigo) selTurma.value = valorTurmaAntigo;
 
-      // 3. Relatórios Salvos
       if (resAcc && resAcc.success && resAcc.dados) {
         dbRelatorios = (resAcc.dados.relatorios || []).map(r => {
           let respObj = r.respostasObjetivas;
@@ -534,10 +744,7 @@
             try { respObj = JSON.parse(respObj); } catch (e) { respObj = []; }
             if (!Array.isArray(respObj)) respObj = [];
           }
-          return {
-            ...r,
-            respostasObjetivas: respObj
-          };
+          return Object.assign({}, r, { respostasObjetivas: respObj });
         });
         atualizarTabelaSalvos();
       }
@@ -547,7 +754,7 @@
       const prof = document.getElementById('selectProfessor').value;
       const disciplina = document.getElementById('inputDisciplina').value.trim();
       const turma = document.getElementById('selectTurma').value;
-      const aulasMarcadas = Array.from(document.querySelectorAll('.check-aula-item:checked')).map(c => c.value).join(' , ');
+      const aulasMarcadas = Array.from(document.querySelectorAll('.check-aula-item:checked')).map(c => c.value).join(', ');
 
       if (!prof || !turma || !disciplina || !aulasMarcadas) {
         return Swal.fire('Atenção', 'Preencha o Professor, Disciplina, Série/Turma e selecione pelo menos uma Aula.', 'warning');
@@ -604,20 +811,16 @@
         didOpen: () => Swal.showLoading()
       });
 
-      // 1. Gera o PDF do Professor (SEM as considerações da gestão) em Base64 para envio por e-mail
       const docProf = await construirDocumentoPDF(dadosFinais, false);
       dadosFinais.pdfProfessorBase64 = docProf.output('datauristring');
 
-      // 2. Envia para o Google Apps Script salvar nas 56 colunas e disparar o e-mail
       const payload = {
         action: idEdit ? 'atualizarAcompanhamento' : 'salvarAcompanhamento',
         dados: dadosFinais
       };
 
       const res = await fetchAPI(payload);
-
       if (res && res.success) {
-        // 3. Baixa no computador/celular do Gestor o PDF Completo (COM as considerações da gestão)
         const docGestor = await construirDocumentoPDF(dadosFinais, true);
         docGestor.save(`Acompanhamento_GESTAO_${String(dadosFinais.professor).replace(/\s+/g, '_')}.pdf`);
 
@@ -625,14 +828,14 @@
           title: 'Concluído!',
           text: res.msg || 'Acompanhamento salvo com sucesso!',
           icon: 'success',
-          confirmButtonColor: '#0f766e'
+          confirmButtonColor: '#15438c'
         });
 
         resetarFormulario();
         await carregarDadosDoBanco();
         bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-salvos-btn')).show();
       } else {
-        Swal.fire('Erro', (res && res.error) || 'Não foi possível guardar no banco de dados.', 'error');
+        Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar no banco de dados.', 'error');
       }
     }
 
@@ -654,20 +857,28 @@
       filtrados.forEach((r) => {
         let originalIdx = dbRelatorios.indexOf(r);
         let idSeguro = String(r.id).replace(/'/g, "\\'");
+
         html += `
           <tr>
-            <td><span class="badge bg-light text-dark border">${r.data}</span></td>
-            <td class="fw-bold text-dark">${r.professor}</td>
-            <td>${r.disciplina || '-'}</td>
+            <td class="col-acomp-desktop"><span class="badge bg-light text-dark border">${r.data}</span></td>
             <td>
+              <div class="fw-bold text-dark">${r.professor}</div>
+              <div class="sub-mobile-acomp">
+                <span class="badge bg-secondary">${r.turma}</span>
+                <span class="text-primary fw-bold ms-1">${r.disciplina || '-'}</span>
+                <div class="text-muted mt-1"><i class="bi bi-calendar3 me-1"></i>${r.data} • ${r.aula || ''}</div>
+              </div>
+            </td>
+            <td class="col-acomp-desktop fw-semibold">${r.disciplina || '-'}</td>
+            <td class="col-acomp-desktop">
               <span class="badge bg-secondary">${r.turma}</span>
               <small class="text-muted d-block">${r.aula || ''}</small>
             </td>
-            <td class="text-end">
-              <button class="btn btn-sm btn-success me-1" onclick="baixarPDFGestor(${originalIdx})" title="Baixar PDF Completo (Com Considerações da Gestão)">
-                <i class="bi bi-file-earmark-lock2-fill me-1"></i>PDF Gestão
+            <td class="text-center text-nowrap">
+              <button class="btn btn-sm btn-success me-1" onclick="baixarPDFGestor(${originalIdx})" title="Baixar PDF Completo (Gestão)">
+                <i class="bi bi-file-earmark-lock2-fill"></i>
               </button>
-              <button class="btn btn-sm btn-outline-teal btn-outline-secondary me-1" onclick="baixarPDFProfessor(${originalIdx})" title="Baixar PDF do Professor (Sem Considerações)">
+              <button class="btn btn-sm btn-outline-secondary me-1" onclick="baixarPDFProfessor(${originalIdx})" title="Baixar PDF Limpo (Professor)">
                 <i class="bi bi-file-earmark-person-fill"></i>
               </button>
               <button class="btn btn-sm btn-outline-primary me-1" onclick="editarRelatorio(${originalIdx})" title="Editar">
@@ -679,7 +890,6 @@
             </td>
           </tr>`;
       });
-
       tbody.innerHTML = html;
     }
 
@@ -688,7 +898,6 @@
       if (!r) return;
 
       resetarFormulario();
-
       document.getElementById('editId').value = r.id;
       document.getElementById('editDataOriginal').value = r.data || '';
       document.getElementById('tituloFormulario').innerHTML = '<i class="bi bi-pencil-square text-warning me-2"></i>Editando Ficha de Acompanhamento Pedagógico';
@@ -711,7 +920,6 @@
       }
       selTurma.value = r.turma || '';
 
-      // Marca as checkboxes de aulas
       const aulasStr = String(r.aula || "");
       document.querySelectorAll('.check-aula-item').forEach(chk => {
         chk.checked = aulasStr.includes(chk.value);
@@ -720,14 +928,12 @@
       document.getElementById('inputAtividades').value = r.atividades !== '-' ? (r.atividades || '') : '';
       document.getElementById('inputConteudo').value = r.conteudo !== '-' ? (r.conteudo || '') : '';
       document.getElementById('inputObjetivo').value = r.objetivo !== '-' ? (r.objetivo || '') : '';
-
       document.getElementById('obsGestaoSala').value = r.obsGestaoSala !== '-' ? (r.obsGestaoSala || '') : '';
       document.getElementById('obsAprendizagem').value = r.obsAprendizagem !== '-' ? (r.obsAprendizagem || '') : '';
       document.getElementById('obsComportamento').value = r.obsComportamento !== '-' ? (r.obsComportamento || '') : '';
       document.getElementById('obsCriticas').value = r.criticas !== '-' ? (r.criticas || '') : '';
       document.getElementById('obsSugestoes').value = r.sugestoes !== '-' ? (r.sugestoes || '') : '';
 
-      // Preenche as 21 perguntas
       const resps = Array.isArray(r.respostasObjetivas) ? r.respostasObjetivas : [];
       for (let i = 0; i < perguntasArray.length; i++) {
         let item = resps[i];
@@ -750,7 +956,7 @@
 
     async function excluirRelatorio(id) {
       const conf = await Swal.fire({
-        title: 'Tem a certeza?',
+        title: 'Tem certeza?',
         text: 'Deseja excluir este acompanhamento pedagógico? (Você poderá restaurá-lo na aba Auditoria se precisar).',
         icon: 'warning',
         showCancelButton: true,
@@ -761,10 +967,10 @@
       });
 
       if (conf.isConfirmed) {
-        Swal.fire({ title: 'A excluir...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Excluindo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         const res = await fetchAPI({ action: 'excluirAcompanhamento', id: id });
         if (res && res.success) {
-          await Swal.fire({ title: 'Excluído!', text: res.msg || 'Registo removido com sucesso.', icon: 'success', confirmButtonColor: '#0f766e' });
+          await Swal.fire({ title: 'Excluído!', text: res.msg || 'Registro removido com sucesso.', icon: 'success', confirmButtonColor: '#15438c' });
           await carregarDadosDoBanco();
         } else {
           Swal.fire('Erro', (res && res.error) || 'Não foi possível excluir.', 'error');
@@ -775,7 +981,7 @@
     function resetarFormulario() {
       document.getElementById('editId').value = "";
       document.getElementById('editDataOriginal').value = "";
-      document.getElementById('tituloFormulario').innerHTML = '<i class="bi bi-clipboard2-check-fill text-success me-2"></i>Ficha Oficial de Acompanhamento Pedagógico';
+      document.getElementById('tituloFormulario').innerHTML = '<i class="bi bi-clipboard2-check-fill me-2"></i>Ficha Oficial de Acompanhamento Pedagógico';
       document.getElementById('badgeModoEdicao').classList.add('d-none');
       document.getElementById('btnCancelarTopo').classList.add('d-none');
       document.getElementById('btnCancelarEdicao').classList.add('d-none');
@@ -785,11 +991,9 @@
       document.getElementById('inputDisciplina').value = "";
       document.getElementById('selectTurma').value = "";
       document.querySelectorAll('.check-aula-item').forEach(c => c.checked = false);
-
       document.getElementById('inputAtividades').value = "";
       document.getElementById('inputConteudo').value = "";
       document.getElementById('inputObjetivo').value = "";
-
       document.getElementById('obsGestaoSala').value = "";
       document.getElementById('obsAprendizagem').value = "";
       document.getElementById('obsComportamento').value = "";
@@ -805,74 +1009,23 @@
       }
     }
 
-    async function obterBase64LogoAsync() {
-      return new Promise((resolve) => {
-        const img = document.querySelector('.logo-escola');
-        const desenhar = (el) => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = el.naturalWidth || el.width || 120;
-            canvas.height = el.naturalHeight || el.height || 120;
-            canvas.getContext('2d').drawImage(el, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/png');
-          } catch (e) { return null; }
-        };
-        if (img && img.complete && img.naturalWidth > 0) {
-          let b64 = desenhar(img);
-          if (b64) return resolve(b64);
-        }
-        if (img && img.src) {
-          fetch(img.src)
-            .then(r => r.blob())
-            .then(blob => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = () => resolve(null);
-              reader.readAsDataURL(blob);
-            })
-            .catch(() => resolve(null));
-        } else {
-          resolve(null);
-        }
-      });
-    }
-
-    // Constrói o PDF: se incluirConsideracoesGestao = false, gera a versão limpa para o Professor!
     async function construirDocumentoPDF(dados, incluirConsideracoesGestao) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('p', 'mm', 'a4');
 
-      const logo = await obterBase64LogoAsync();
-      if (logo) {
-        doc.addImage(logo, 'PNG', 14, 10, 22, 22);
+      let startY = 37;
+      if (typeof window.desenharCabecalhoPadraoEEMTI === 'function') {
+        startY = await window.desenharCabecalhoPadraoEEMTI(doc, {
+          tituloDocumento: incluirConsideracoesGestao
+            ? "FICHA COMPLETA DE ACOMPANHAMENTO PEDAGÓGICO (VERSÃO DA GESTÃO)"
+            : "FICHA DE OBSERVAÇÃO E ACOMPANHAMENTO PEDAGÓGICO (VIA DO PROFESSOR)",
+          subtitulo1: `Professor(a): ${dados.professor || '-'} | Disciplina: ${dados.disciplina || '-'} | Turma: ${dados.turma || '-'}`,
+          subtitulo2: `Data/Hora: ${dados.data || '-'} | Aula(s): ${dados.aula || '-'}`
+        });
       }
 
-      doc.setFontSize(10.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 41, 59);
-      doc.text("ESCOLA DE ENSINO MÉDIO EM TEMPO INTEGRAL", 40, 15);
-
-      doc.setFontSize(14);
-      doc.setTextColor(15, 118, 110);
-      doc.text("E.E.M.T.I  EEMTI DR. JOSÉ EUCLIDES FERREIRA GOMES JÚNIOR", 40, 21.5);
-
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100, 116, 139);
-      doc.text(
-        incluirConsideracoesGestao
-          ? "Ficha Completa de Acompanhamento Pedagógico (Versão da Gestão)"
-          : "Ficha de Observação e Acompanhamento Pedagógico (Via do Professor)",
-        40, 27
-      );
-
-      doc.setDrawColor(15, 118, 110);
-      doc.setLineWidth(0.5);
-      doc.line(14, 33, 196, 33);
-
-      // Quadro de Identificação da Aula
       doc.autoTable({
-        startY: 37,
+        startY: startY,
         head: [['IDENTIFICAÇÃO DA AULA OBSERVADA', '', '', '']],
         body: [
           ['Professor(a):', dados.professor || '-', 'Data / Hora:', dados.data || '-'],
@@ -883,7 +1036,7 @@
           ['Objetivo da Aula:', { content: dados.objetivo || '-', colSpan: 3 }]
         ],
         theme: 'grid',
-        headStyles: { fillColor: [15, 118, 110], fontSize: 8.5, halign: 'center' },
+        headStyles: { fillColor: [21, 67, 140], fontSize: 8.5, halign: 'center' },
         styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },
         columnStyles: {
           0: { cellWidth: 38, fontStyle: 'bold', fillColor: [248, 250, 252] },
@@ -894,7 +1047,6 @@
         margin: { left: 14, right: 14 }
       });
 
-      // Tabela com as 21 Perguntas Objetivas
       let listaRespostas = Array.isArray(dados.respostasObjetivas) ? dados.respostasObjetivas : [];
       let bodyPerguntas = perguntasArray.map((perguntaTexto, i) => {
         let r = listaRespostas[i] || {};
@@ -912,7 +1064,7 @@
         head: [['#', 'Critério Pedagógico Observado', 'Resposta', 'Justificativa / Observação do Item']],
         body: bodyPerguntas,
         theme: 'grid',
-        headStyles: { fillColor: [15, 118, 110], fontSize: 8 },
+        headStyles: { fillColor: [21, 67, 140], fontSize: 8 },
         styles: { fontSize: 7.5, cellPadding: 2, valign: 'middle' },
         columnStyles: {
           0: { cellWidth: 9, halign: 'center', fontStyle: 'bold' },
@@ -932,7 +1084,6 @@
         margin: { left: 14, right: 14 }
       });
 
-      // Se for a versão da Gestão, adiciona o bloco de Considerações Internas
       if (incluirConsideracoesGestao) {
         const blocosQualitativos = [
           ['1. Considerações — Gestão da Sala de Aula', dados.obsGestaoSala || '-'],
@@ -947,7 +1098,7 @@
           head: [['CONSIDERAÇÕES INTERNAS DA GESTÃO (USO EXCLUSIVO)', 'PARECER DESCRITIVO']],
           body: blocosQualitativos,
           theme: 'grid',
-          headStyles: { fillColor: [51, 65, 85], fontSize: 8 },
+          headStyles: { fillColor: [15, 41, 82], fontSize: 8 },
           styles: { fontSize: 7.8, cellPadding: 2.5, valign: 'top' },
           columnStyles: {
             0: { cellWidth: 65, fontStyle: 'bold', fillColor: [254, 252, 232] },
