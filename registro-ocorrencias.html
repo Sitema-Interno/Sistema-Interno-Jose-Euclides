@@ -641,6 +641,17 @@
         : CATALOGO_RAC_PADRAO;
 
       const catalogoOrdenadoAZ = [...listaBase].sort((a, b) => {
+        const descA = String(a.descricao || '').trim().toUpperCase();
+        const descB = String(b.descricao || '').trim().toUpperCase();
+
+        // Verifica se começa com [GRAVE] ou [GRAVÍSSIMA] para jogar para o final da lista
+        const ehGraveA = descA.startsWith('[GRAVE') || descA.startsWith('[GRAVÍSSIMA') || descA.startsWith('[GRAVISSIMA');
+        const ehGraveB = descB.startsWith('[GRAVE') || descB.startsWith('[GRAVÍSSIMA') || descB.startsWith('[GRAVISSIMA');
+
+        if (ehGraveA !== ehGraveB) {
+          return ehGraveA ? 1 : -1;
+        }
+
         const txtA = extrairTextoSemColchetesParaOrdem(a.descricao);
         const txtB = extrairTextoSemColchetesParaOrdem(b.descricao);
         return txtA.localeCompare(txtB, 'pt-BR', { sensitivity: 'base' });
